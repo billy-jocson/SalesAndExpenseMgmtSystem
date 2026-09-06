@@ -1,17 +1,20 @@
 <?php
+
 namespace App\Models;
 
 use mysqli;
 use mysqli_sql_exception;
 
-class Database {
+class Database
+{
     private $host = 'localhost';
     private $dbname = 'inventory_system';
     private $username = 'root';
     private $password = '';
     private $conn = null;
 
-    public function getConnection() {
+    public function getConnection()
+    {
         if ($this->conn === null) {
             try {
                 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
@@ -33,4 +36,3 @@ class Database {
         return $this->conn;
     }
 }
-?>

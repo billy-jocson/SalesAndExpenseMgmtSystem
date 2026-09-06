@@ -1,8 +1,7 @@
-<?php 
-// backend/public/index.php
+<?php
 
 // 1. Handle CORS (Cross-Origin Resource Sharing) for React frontend
-header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Origin: http://localhost:5173");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Content-Type: application/json; charset=UTF-8");
@@ -16,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // 2. Autoload classes / Dependencies
 // Adjust path if using Composer autoload or manual imports
 require_once __DIR__ . '/../app/Controllers/AuthController.php';
+require_once __DIR__ . '/../app/Models/Database.php';
 require_once __DIR__ . '/../app/Models/User.php';
 
 use App\Controllers\AuthController;
@@ -31,19 +31,20 @@ $inputData = json_decode(file_get_contents('php://input'), true) ?? [];
 switch ($requestUri) {
     case '/api/login':
     case '/backend/public/index.php/api/login':
+    case '/SalesAndExpenseSystem/backend/public/index.php/api/login':
         if ($requestMethod === 'POST') {
             $controller = new AuthController();
             $response = $controller->login($inputData);
+
             echo json_encode($response);
         } else {
             http_response_code(405);
-            echo json_encode(['error' => 'Method not allowed']);
+            echo json_encode(['message' => 'Method not allowed']);
         }
         break;
 
     default:
         http_response_code(404);
-        echo json_encode(['error' => 'Endpoint not found']);
+        echo json_encode(['message' => 'Endpoint not found']);
         break;
 }
-?>
