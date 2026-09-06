@@ -1,5 +1,5 @@
 export const loginUser = async (credentials) => {
-  const response = await fetch('../../../backend/public/index.php/api/login', {
+  const response = await fetch('/backend/public/index.php/api/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
