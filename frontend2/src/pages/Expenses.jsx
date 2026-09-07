@@ -1,6 +1,7 @@
 import Navbar from "../components/Navbar.jsx";
-import { Typography } from "@heroui/react";
+import TopBar from "../components/TopBar.jsx";
 import { useEffect } from "react";
+import expensesIcon from "../assets/images/salesorexpense.png";
 
 export default function Expenses() {
   useEffect(() => {
@@ -11,12 +12,11 @@ export default function Expenses() {
     <div className="flex gap-3">
       <Navbar />
 
-      <div className="shadow-md rounded-[1.75rem] w-full p-5 flex flex-col">
-        <Typography type="h2">Expenses 📃</Typography>
-        <Typography color="muted" type="body-sm">
-          Track all your expenses in this page.
-        </Typography>
-      </div>
+      <TopBar
+        title="Expenses"
+        body="Track and manage your business expenses"
+        emoji={expensesIcon}
+      />
     </div>
   );
 }

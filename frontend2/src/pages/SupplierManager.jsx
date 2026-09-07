@@ -1,6 +1,7 @@
 import Navbar from "../components/Navbar.jsx";
+import TopBar from "../components/TopBar.jsx";
 import { useEffect } from "react";
-import { Typography } from "@heroui/react";
+import supplierIcon from "../assets/images/supmanager.png";
 
 export default function SupplierManager() {
   useEffect(() => {
@@ -10,13 +11,11 @@ export default function SupplierManager() {
   return (
     <div className="flex gap-3">
       <Navbar />
-
-      <div className="shadow-md rounded-[1.75rem] w-full p-5 flex flex-col">
-        <Typography type="h2">Supplier Manager 📦</Typography>
-        <Typography color="muted" type="body-sm">
-          Manage your suppliers here.
-        </Typography>
-      </div>
+      <TopBar
+        title="Supplier Manager"
+        body="Manage your suppliers here."
+        emoji={supplierIcon}
+      />
     </div>
   );
 }

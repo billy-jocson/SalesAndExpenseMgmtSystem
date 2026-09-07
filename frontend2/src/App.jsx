@@ -28,7 +28,7 @@ function ProtectedRoute() {
 
 export default function App() {
   return (
-    <div className="box-border h-dvh w-screen overflow-hidden p-4">
+    <div className="box-border h-dvh w-screen scrollbar-thin scrollbar-thumb-slate-400 hover:scrollbar-thumb-slate-500 p-4">
       <CookiesProvider>
         <Routes>
           <Route path={NavRoutes.LOGIN || "/"} element={<LoginPage />} />

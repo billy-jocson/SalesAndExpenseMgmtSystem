@@ -1,0 +1,2 @@
+<?php
+// manage product categories.

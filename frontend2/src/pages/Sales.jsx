@@ -1,6 +1,7 @@
 import Navbar from "../components/Navbar.jsx";
+import TopBar from "../components/TopBar.jsx";
 import { useEffect } from "react";
-import { Typography } from "@heroui/react";
+import salesIcon from "../assets/images/reports.png";
 
 export default function Sales() {
   useEffect(() => {
@@ -10,13 +11,11 @@ export default function Sales() {
   return (
     <div className="flex gap-3">
       <Navbar />
-
-      <div className="shadow-md rounded-[1.75rem] w-full p-5 flex flex-col">
-        <Typography type="h2">Sales 📃</Typography>
-        <Typography color="muted" type="body-sm">
-          Track all your sales in this page.
-        </Typography>
-      </div>
+      <TopBar
+        title="Sales"
+        body="Track all your sales in this page."
+        emoji={salesIcon}
+      />
     </div>
   );
 }

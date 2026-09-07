@@ -1,0 +1,2 @@
+<?php
+// manage expense categories.
