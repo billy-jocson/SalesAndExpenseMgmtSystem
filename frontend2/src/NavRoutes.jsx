@@ -7,4 +7,5 @@ export const NavRoutes = {
   PRODMANAGER: "/productsmanager",
   SUPMANAGER: "/suppliermanager",
   RESTOCKPROD: "/restockproducts",
+  REPORTS: "/reports",
 };

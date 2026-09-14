@@ -15,22 +15,26 @@ import {
   Modal,
 } from "@heroui/react";
 import { loginUser } from "../api/auth";
-import useSessionStorage from "../hooks/useSessionStorage";
+import { useContext } from "react";
+import { userContext } from "../context/UserContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
-  const [errorModalMessage, setErrorModalMessage] = useState("");
+  const [errorModalMessage, setErrorModalMessage] = useState({
+    title: "",
+    message: "",
+  });
   const [formData, setFormData] = useState({ username: "", password: "" });
-  const [, setSessionData] = useSessionStorage("data", null);
+  const { setSession } = useContext(userContext);
 
   useEffect(() => {
     document.title = "Login";
   }, []);
 
-  const openErrorModal = (message) => {
-    setErrorModalMessage(message);
+  const openErrorModal = (title, message) => {
+    setErrorModalMessage({ title, message });
     setIsErrorModalOpen(true);
   };
 
@@ -38,20 +42,26 @@ export default function LoginPage() {
     e.preventDefault();
     const data = await loginUser(formData);
 
-    if (data.status === "error") {
-      openErrorModal(data.message);
+    if (data.status === "Error") {
+      openErrorModal(data.status, data.message);
       return;
     } else if (data.user?.username) {
-      setSessionData(data);
-      navigate(NavRoutes.DASHBOARD);
+      setSession(data);
+      sessionStorage.setItem("dashboardWelcomeToast", "1");
+      const normalizedRole = (data.user?.role ?? "").trim().toLowerCase();
+      const targetRoute =
+        normalizedRole === "supplier"
+          ? NavRoutes.PRODMANAGER
+          : NavRoutes.DASHBOARD;
+      navigate(targetRoute);
     } else {
-      openErrorModal(data.message);
+      openErrorModal(data.status, data.message);
     }
   };
 
   return (
-    <div className="flex flex-col lg:flex-row w-screen h-screen p-auto">
-      <div className="w-auto flex justify-center">
+    <div className="flex flex-col lg:flex-row w-auto h-full p-auto">
+      <div className="hidden w-auto lg:flex justify-center">
         <img src={LoginImg} alt="" className="w-[60%]" />
       </div>
       <div className="w-auto flex flex-col gap-5 m-auto">
@@ -68,7 +78,7 @@ export default function LoginPage() {
         <Form
           onSubmit={handleSubmit}
           validationBehavior="native"
-          className="flex flex-col gap-5 w-125"
+          className="flex flex-col gap-5 w-100 lg:w-125"
         >
           <TextField className="flex flex-col gap-1" isRequired>
             <Label htmlFor="input-type-username">Username</Label>
@@ -119,10 +129,10 @@ export default function LoginPage() {
                 <Modal.Icon className="bg-red-100 text-red-500">
                   <CircleExclamationFill className="size-5" />
                 </Modal.Icon>
-                <Modal.Heading>Error</Modal.Heading>
+                <Modal.Heading>{errorModalMessage.title}</Modal.Heading>
               </Modal.Header>
               <Modal.Body>
-                <p>{errorModalMessage}</p>
+                <p>{errorModalMessage.message}</p>
               </Modal.Body>
               <Modal.Footer>
                 <Button className="w-full" slot="close">

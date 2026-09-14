@@ -1,9 +1,18 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
 import DashboardCards from "../components/DashboardCards.jsx";
-import { useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Wallet } from "@gravity-ui/icons";
-import { Button, Dropdown, Label } from "@heroui/react";
+import {
+  Button,
+  DateField,
+  DateRangePicker,
+  RangeCalendar,
+  toast,
+} from "@heroui/react";
+import { getLocalTimeZone, today } from "@internationalized/date";
+import { getAnalytics, getChartData } from "../api/dashboard.js";
+import dashboardIcon from "../assets/images/dashboard.png";
 import {
   LineChart,
   Line,
@@ -17,6 +26,9 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import AddExpenseModal from "../components/AddExpenseModal.jsx";
+import { userContext } from "../context/UserContext.js";
+import { useNavigate } from "react-router-dom";
 
 const data = [
   { name: "Page A", sales: 4000, expense: 2300 },
@@ -28,27 +40,66 @@ const data = [
   { name: "Page G", sales: 3500, expense: 4300 },
 ];
 
-const expenseData = [
-  { name: "Lily", value: 400 },
-  { name: "Mike", value: 300 },
-  { name: "Matt", value: 220 },
-  { name: "Leila", value: 140 },
-  { name: "Jack", value: 80 },
-];
-
 const expenseColors = ["#8884d8", "#82ca9d", "#ffb82e", "#ff7043", "#168bf0"];
 
-import dashboardIcon from "../assets/images/dashboard.png";
-
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { user } = useContext(userContext);
+  const [businessData, setBusinessData] = useState({
+    netIncome: 0,
+    sales: 0,
+    expenses: 0,
+    salesStatus: 0,
+    expensesStatus: 0,
+    netIncomeStatus: 0,
+  });
+  const [chartData, setChartData] = useState([]);
+  const [dateRange, setDateRange] = useState(() => {
+    const currentDate = today(getLocalTimeZone());
+    return { start: currentDate, end: currentDate };
+  });
+
   useEffect(() => {
     document.title = "Dashboard";
-  }, []);
+
+    const loadAnalytics = async () => {
+      const response = await getAnalytics({
+        startDate: dateRange.start.toString(),
+        endDate: dateRange.end.toString(),
+      });
+
+      if (response.status === "success") {
+        setBusinessData(response.data);
+      }
+
+      const chartResponse = await getChartData();
+
+      if (chartResponse.status === "success") {
+        const nextData = Array.isArray(chartResponse.data)
+          ? chartResponse.data
+          : chartResponse.data
+            ? [chartResponse.data]
+            : [];
+        setChartData(nextData);
+      }
+    };
+
+    loadAnalytics();
+  }, [dateRange]);
+
+  useEffect(() => {
+    if (
+      user?.first_name &&
+      sessionStorage.getItem("dashboardWelcomeToast") === "1"
+    ) {
+      sessionStorage.removeItem("dashboardWelcomeToast");
+      toast.success(`Welcome back, ${user.first_name}`);
+    }
+  }, [user?.first_name]);
 
   return (
     <div className="flex gap-3">
       <Navbar />
-
       <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll">
         <TopBar
           title="Dashboard"
@@ -61,136 +112,163 @@ export default function Dashboard() {
             <Button
               variant="primary"
               className="rounded-lg text-white"
-              onClick={null}
+              onClick={() => navigate("/pos")}
             >
               + New Sale
             </Button>
-            <Button
-              variant="secondary"
-              className="bg-purple-600 rounded-lg text-white"
-              onClick={null}
-            >
-              + Add Expense
-            </Button>
-            <Dropdown>
-              <Button
-                aria-label="Menu"
-                variant="secondary"
-                className="rounded-lg"
-              >
-                Today
-              </Button>
-              <Dropdown.Popover>
-                <Dropdown.Menu
-                  onAction={(key) => console.log(`Selected: ${key}`)}
-                >
-                  <Dropdown.Item id="new-file" textValue="New file">
-                    <Label>Today</Label>
-                  </Dropdown.Item>
-                  <Dropdown.Item id="copy-link" textValue="Copy link">
-                    <Label>This Week</Label>
-                  </Dropdown.Item>
-                  <Dropdown.Item id="edit-file" textValue="Edit file">
-                    <Label>This Month</Label>
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
+            <AddExpenseModal />
+            <DateRangePicker value={dateRange} onChange={setDateRange}>
+              <DateField.Group>
+                <DateField.InputContainer>
+                  <DateField.Input slot="start">
+                    {(segment) => <DateField.Segment segment={segment} />}
+                  </DateField.Input>
+                  <DateRangePicker.RangeSeparator />
+                  <DateField.Input slot="end">
+                    {(segment) => <DateField.Segment segment={segment} />}
+                  </DateField.Input>
+                </DateField.InputContainer>
+                <DateField.Suffix>
+                  <DateRangePicker.Trigger>
+                    <DateRangePicker.TriggerIndicator />
+                  </DateRangePicker.Trigger>
+                </DateField.Suffix>
+              </DateField.Group>
+              <DateRangePicker.Popover>
+                <RangeCalendar aria-label="Choose dashboard date range">
+                  <RangeCalendar.Header>
+                    <RangeCalendar.YearPickerTrigger>
+                      <RangeCalendar.YearPickerTriggerHeading />
+                      <RangeCalendar.YearPickerTriggerIndicator />
+                    </RangeCalendar.YearPickerTrigger>
+                    <RangeCalendar.NavButton slot="previous" />
+                    <RangeCalendar.NavButton slot="next" />
+                  </RangeCalendar.Header>
+                  <RangeCalendar.Grid>
+                    <RangeCalendar.GridHeader>
+                      {(day) => (
+                        <RangeCalendar.HeaderCell>
+                          {day}
+                        </RangeCalendar.HeaderCell>
+                      )}
+                    </RangeCalendar.GridHeader>
+                    <RangeCalendar.GridBody>
+                      {(date) => <RangeCalendar.Cell date={date} />}
+                    </RangeCalendar.GridBody>
+                  </RangeCalendar.Grid>
+                </RangeCalendar>
+              </DateRangePicker.Popover>
+            </DateRangePicker>
           </div>
-          <div className="grid grid-cols-1 gap-3 pt-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-wrap gap-3 pt-5">
             <DashboardCards
               icon={Wallet}
-              status={25}
+              status={businessData.netIncomeStatus}
               title="Net Income"
-              body="₱15,000"
+              body={`₱${businessData.netIncome}`}
               highlighted
             />
             <DashboardCards
               icon={Wallet}
-              status={25}
+              status={businessData.salesStatus}
               title="Total Sales"
-              body="₱15,000"
+              body={`₱${businessData.sales}`}
             />
             <DashboardCards
               icon={Wallet}
-              status={-25}
+              status={businessData.expensesStatus}
               title="Total Expenses"
-              body="₱15,000"
+              body={`₱${businessData.expenses}`}
             />
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {/* LINE GRAPH CHART */}
             <div className="mt-5 rounded-lg bg-white p-5 shadow-md">
               <h2 className="text-lg font-semibold text-zinc-800">
                 Sales vs. Expense Trend
               </h2>
               <p className="mb-5 text-sm text-zinc-500">
-                Lorem ipsum tortor et eu egestas id quam.
+                Track your sales and expense here.
               </p>
               <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={data}
-                    margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-                  >
-                    <CartesianGrid stroke="#e4e4e7" strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                    <YAxis tickLine={false} axisLine={false} />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="sales"
-                      name="Lily"
-                      stroke="#8884d8"
-                      strokeWidth={1.5}
-                      dot={{ r: 2, fill: "#8884d8" }}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="expense"
-                      name="Mike"
-                      stroke="#68c58d"
-                      strokeWidth={1.5}
-                      dot={{ r: 2, fill: "#68c58d" }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {data && data.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={data}
+                      margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid stroke="#e4e4e7" strokeDasharray="3 3" />
+                      <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                      <YAxis tickLine={false} axisLine={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="lily"
+                        name="Sales"
+                        stroke="#8884d8"
+                        strokeWidth={1.5}
+                        dot={{ r: 2, fill: "#8884d8" }}
+                        activeDot={{ r: 6 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="mike"
+                        name="Expenses"
+                        stroke="#68c58d"
+                        strokeWidth={1.5}
+                        dot={{ r: 2, fill: "#68c58d" }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500">
+                    No data exists yet in the database.
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* PIE CHART */}
             <div className="mt-5 rounded-lg bg-white p-5 shadow-md">
               <h2 className="text-lg font-semibold text-zinc-800">
                 Expense Breakdown
               </h2>
               <p className="mb-5 text-sm text-zinc-500">
-                Lorem ipsum tortor et eu egestas id quam.
+                See where you spend your revenue.
               </p>
               <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={expenseData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="58%"
-                      startAngle={180}
-                      endAngle={0}
-                      outerRadius="78%"
-                      paddingAngle={0}
-                      label={false}
-                    >
-                      {expenseData.map((entry, index) => (
-                        <Cell
-                          key={entry.name}
-                          fill={expenseColors[index % expenseColors.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Legend verticalAlign="bottom" />
-                  </PieChart>
-                </ResponsiveContainer>
+                {chartData && chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={chartData}
+                        dataKey="total_amount"
+                        nameKey="category_name"
+                        cx="50%"
+                        cy="58%"
+                        startAngle={180}
+                        endAngle={0}
+                        outerRadius="78%"
+                        paddingAngle={0}
+                        label={false}
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell
+                            key={entry.category_name}
+                            fill={expenseColors[index % expenseColors.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Legend verticalAlign="bottom" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500">
+                    No data exists yet in the database.
+                  </div>
+                )}
               </div>
             </div>
           </div>

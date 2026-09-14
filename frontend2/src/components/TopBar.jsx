@@ -8,7 +8,7 @@ export default function TopBar({ title, body, emoji }) {
   const formattedDate = date.toLocaleDateString("en-US", options);
 
   return (
-    <div className="flex justify-between">
+    <div className="flex flex-col xl:flex-row justify-between">
       <div className="flex flex-col">
         <Typography type="h2" className="flex gap-2">
           {title}

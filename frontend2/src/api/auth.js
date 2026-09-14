@@ -13,13 +13,13 @@ export const loginUser = async (credentials) => {
     data = await response.json();
   } catch {
     return {
-      status: 'error',
+      status: 'Error',
       message: `Request failed with status ${response.status}.`,
     };
   }
 
   if (!response.ok) {
-    return { ...data, status: data.status ?? 'error' };
+    return { ...data, status: data.status ?? 'Error' };
   }
 
   return data;

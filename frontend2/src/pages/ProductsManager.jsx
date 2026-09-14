@@ -1,17 +1,51 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import productsIcon from "../assets/images/prodmanager.png";
 import { Magnifier } from "@gravity-ui/icons";
 import ProductCard from "../components/ProductCard.jsx";
-import { InputGroup, TextField, Dropdown, Label, Button } from "@heroui/react";
+import { InputGroup, TextField, Button } from "@heroui/react";
+import { userContext } from "../context/UserContext";
+import { fetchProducts } from "../api/productmanager.js";
+import ProductCategoryDropdown from "../components/ProductCategoryDropdown.jsx";
+import { useDebounce } from "../hooks/useDebounce.js";
+import NoItemFound from "../components/NoItemFound.jsx";
 
 export default function ProductsManager() {
-  const [searchItem, setSearchItem] = useState();
+  const [searchItem, setSearchItem] = useState("");
+  const [products, setProducts] = useState([]);
+  const [categorySelected, setCategorySelected] = useState("");
+  const [productsRefreshKey, setProductsRefreshKey] = useState(0);
+  const debouncedSearchItem = useDebounce(searchItem);
+  const { role, user } = useContext(userContext);
+  const canManageProducts = ["supplier"].includes(role);
 
   useEffect(() => {
     document.title = "Products Manager";
-  }, []);
+
+    const loadProducts = async () => {
+      const data = await fetchProducts(
+        role,
+        user?.supplier_id,
+        debouncedSearchItem,
+        categorySelected,
+      );
+
+      if (data?.status === "Success") {
+        setProducts(data.products ?? []);
+      } else {
+        setProducts([]);
+      }
+    };
+
+    loadProducts();
+  }, [
+    role,
+    user?.supplier_id,
+    debouncedSearchItem,
+    categorySelected,
+    productsRefreshKey,
+  ]);
 
   return (
     <div className="flex gap-3">
@@ -41,74 +75,46 @@ export default function ProductsManager() {
           </TextField>
 
           <div className="flex gap-2">
-            <Dropdown>
+            <ProductCategoryDropdown
+              selectedKey={categorySelected || undefined}
+              onSelectionChange={(key) =>
+                setCategorySelected(key === "all" ? "" : String(key))
+              }
+            />
+            {canManageProducts && (
               <Button
                 aria-label="Menu"
-                variant="tertiary"
+                variant="primary"
                 className="rounded-lg lg:w-fit w-full"
+                onClick={null}
               >
-                Select a category
+                + Add Product
               </Button>
-              <Dropdown.Popover>
-                <Dropdown.Menu
-                  onAction={(key) => console.log(`Selected: ${key}`)}
-                >
-                  <Dropdown.Item id="new-file" textValue="New file">
-                    <Label>Today</Label>
-                  </Dropdown.Item>
-                  <Dropdown.Item id="copy-link" textValue="Copy link">
-                    <Label>This Week</Label>
-                  </Dropdown.Item>
-                  <Dropdown.Item id="edit-file" textValue="Edit file">
-                    <Label>This Month</Label>
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
-            <Button
-              aria-label="Menu"
-              variant="primary"
-              className="rounded-lg lg:w-fit w-full"
-              onClick={null}
-            >
-              + Add Product
-            </Button>
+            )}
           </div>
         </div>
 
         {/* ProductCards */}
-        <div className="flex flex-wrap gap-3">
-          <ProductCard
-            name="C2 Apple"
-            category="Drinks & Beverages"
-            buyprice="20.00"
-            sellprice="25.00"
+        {products.length === 0 ? (
+          <NoItemFound
+            title="No products found"
+            body="There is nothing to show here."
           />
-          <ProductCard
-            name="C2 Apple"
-            category="Drinks & Beverages"
-            buyprice="20.00"
-            sellprice="25.00"
-          />
-          <ProductCard
-            name="C2 Apple"
-            category="Drinks & Beverages"
-            buyprice="20.00"
-            sellprice="25.00"
-          />
-          <ProductCard
-            name="C2 Apple"
-            category="Drinks & Beverages"
-            buyprice="20.00"
-            sellprice="25.00"
-          />
-          <ProductCard
-            name="C2 Apple"
-            category="Drinks & Beverages"
-            buyprice="20.00"
-            sellprice="25.00"
-          />
-        </div>
+        ) : (
+          <div className="gap-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                name={product.prodname}
+                category={product.category}
+                sellprice={product.sellprice}
+                role={role}
+                onSuccess={() => setProductsRefreshKey((key) => key + 1)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
