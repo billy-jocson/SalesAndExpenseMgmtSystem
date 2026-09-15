@@ -18,6 +18,25 @@ class SupplierController
         return $this->supplierModel->fetchSuppliers($data['search'] ?? '');
     }
 
+    // Added the corresponding functions to handle incoming requests
+    public function addSupplier($data)
+    {
+        $success = $this->supplierModel->addSupplier($data);
+        return [
+            'status' => $success ? 'Success' : 'Error',
+            'message' => $success ? 'Supplier added successfully.' : 'Failed to add supplier.'
+        ];
+    }
+
+    public function updateSupplier($data)
+    {
+        $success = $this->supplierModel->updateSupplier($data);
+        return [
+            'status' => $success ? 'Success' : 'Error',
+            'message' => $success ? 'Supplier updated successfully.' : 'Failed to update supplier.'
+        ];
+    }
+
     public function softDelete($data = [])
     {
         $supplierId = (int) ($data['supplier_id'] ?? 0);

@@ -142,6 +142,20 @@ switch ($requestUri) {
         echo json_encode($response);
         break;
 
+    case '/api/addSupplier':
+        $controller = new SupplierController();
+        $response = $controller->addSupplier($inputData);
+        http_response_code(200);
+        echo json_encode($response);
+        break;
+
+    case '/api/updateSupplier':
+        $controller = new SupplierController();
+        $response = $controller->updateSupplier($inputData);
+        http_response_code(200);
+        echo json_encode($response);
+        break;
+
     case '/api/deleteSupplier':
         $controller = new SupplierController();
         $response = $controller->softDelete($inputData);
@@ -161,3 +175,4 @@ switch ($requestUri) {
         echo json_encode(['message' => 'Endpoint not found']);
         break;
 }
+?>
