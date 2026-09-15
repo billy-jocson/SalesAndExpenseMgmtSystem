@@ -7,7 +7,7 @@ use mysqli_sql_exception;
 
 class Database
 {
-    private $host = 'localhost';
+    private $host = 'localhost:3307';
     private $dbname = 'inventory_system';
     private $username = 'root';
     private $password = '';
