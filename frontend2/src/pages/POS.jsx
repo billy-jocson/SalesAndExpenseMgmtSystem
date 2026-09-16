@@ -24,14 +24,55 @@ export default function POS() {
   const [products, setProducts] = useState([]);
   const [categorySelected, setCategorySelected] = useState("");
   const debouncedSearchItem = useDebounce(searchItem ?? "");
+  const [cartItems, setCartItems] = useState([]);
 
-  const billItems = [
-    { id: 1, name: "Potato Cheese", price: 15.0, quantity: 2 },
-    { id: 2, name: "Potato Cheese", price: 15.0, quantity: 2 },
-    { id: 3, name: "Potato Cheese", price: 15.0, quantity: 2 },
-  ];
+  const addToCart = (product, quantity) => {
+    setCartItems((prev) => {
+      const updatedCart = [];
+      let alreadyInCart = false;
 
-  const subtotal = billItems.reduce(
+      for (let i = 0; i < prev.length; i++) {
+        const item = prev[i];
+
+        if (item.id === product.id) {
+          alreadyInCart = true;
+
+          let newQuantity = item.quantity + quantity;
+          if (newQuantity > product.stock) {
+            newQuantity = product.stock;
+          }
+
+          const updatedItem = {
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            stock: item.stock,
+            quantity: newQuantity,
+          };
+
+          updatedCart.push(updatedItem);
+        } else {
+          updatedCart.push(item);
+        }
+      }
+
+      if (alreadyInCart === false) {
+        const newItem = {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          stock: product.stock,
+          quantity: quantity,
+        };
+
+        updatedCart.push(newItem);
+      }
+
+      return updatedCart;
+    });
+  };
+
+  const subtotal = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
@@ -49,7 +90,7 @@ export default function POS() {
       </div>
 
       <div className="space-y-3">
-        {billItems.map((item) => (
+        {cartItems.map((item) => (
           <POSBillItem
             key={item.id}
             name={item.name}
@@ -62,7 +103,7 @@ export default function POS() {
 
       <div className="mt-auto rounded-xl bg-slate-200/60 p-3 text-sm text-slate-700">
         <div className="flex items-center justify-between py-1">
-          <span>Items ({billItems.length})</span>
+          <span>Items ({cartItems.length})</span>
           <span>₱{subtotal.toFixed(2)}</span>
         </div>
         <div className="flex items-center justify-between py-1">
@@ -130,13 +171,13 @@ export default function POS() {
       <Navbar />
 
       <Button
-        aria-label={`Open customer cart with ${billItems.length} items`}
+        aria-label={`Open customer cart with ${cartItems.length} items`}
         className="fixed right-4 top-4 z-40 min-w-12 rounded-full bg-[#3f5fb2] p-3 text-white shadow-lg md:hidden"
         onClick={() => setIsCartOpen(true)}
       >
         <ShoppingBasket className="size-5" />
         <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
-          {billItems.length}
+          {cartItems.length}
         </span>
       </Button>
 
@@ -200,11 +241,13 @@ export default function POS() {
               ) : (
                 products.map((product) => (
                   <POSProductCard
-                    key={product.product_id ?? product.prodname}
+                    key={product.id}
+                    id={product.id}
                     image={null}
                     name={product.prodname}
-                    price={product.sellprice}
+                    price={parseFloat(product.sellprice)}
                     stock={product.stock}
+                    onAddToCart={addToCart}
                   />
                 ))
               )}

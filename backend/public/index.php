@@ -27,6 +27,8 @@ require_once __DIR__ . '/../app/Models/Sales.php';
 require_once __DIR__ . '/../app/Models/Product.php';
 require_once __DIR__ . '/../app/Models/Supplier.php';
 require_once __DIR__ . '/../app/Models/User.php';
+require_once __DIR__ . '/../app/Controllers/POSController.php';
+// require_once __DIR__ . '/../app/Controllers/POSController.php'; //dagdag ni aljon
 
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
@@ -34,6 +36,8 @@ use App\Controllers\ProductController;
 use App\Controllers\ExpenseController;
 use App\Controllers\SalesController;
 use App\Controllers\SupplierController;
+use App\Controllers\POSController;
+// use App\Controllers\POSController; //dagdag ni aljon
 
 // 3. Parse Request Path & HTTP Method
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -155,6 +159,19 @@ switch ($requestUri) {
         http_response_code(200);
         echo json_encode($response);
         break;
+    case '/api/checkout':
+        $controller = new POSController();
+        $response = $controller->checkout($inputData);
+        http_response_code(200);
+        echo json_encode($response);
+        break;
+
+    // case '/api/checkout': //dagdag ni aljon
+    //     $controller = new POSController();
+    //     $response = $controller->checkout($inputData);
+    //     http_response_code($response['status'] === 'Success' ? 200 : 400);
+    //     echo json_encode($response);
+    //     break;
 
     default:
         http_response_code(404);
