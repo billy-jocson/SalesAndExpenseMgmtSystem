@@ -20,6 +20,7 @@ require_once __DIR__ . '/../app/Controllers/ProductController.php';
 require_once __DIR__ . '/../app/Controllers/ExpenseController.php';
 require_once __DIR__ . '/../app/Controllers/SalesController.php';
 require_once __DIR__ . '/../app/Controllers/SupplierController.php';
+require_once __DIR__ . '/../app/Controllers/ReportController.php';
 require_once __DIR__ . '/../app/Models/Database.php';
 require_once __DIR__ . '/../app/Models/Dashboard.php';
 require_once __DIR__ . '/../app/Models/Expense.php';
@@ -27,6 +28,7 @@ require_once __DIR__ . '/../app/Models/Sales.php';
 require_once __DIR__ . '/../app/Models/Product.php';
 require_once __DIR__ . '/../app/Models/Supplier.php';
 require_once __DIR__ . '/../app/Models/User.php';
+require_once __DIR__ . '/../app/Models/Report.php';
 
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
@@ -34,6 +36,7 @@ use App\Controllers\ProductController;
 use App\Controllers\ExpenseController;
 use App\Controllers\SalesController;
 use App\Controllers\SupplierController;
+use App\Controllers\ReportController;
 
 // 3. Parse Request Path & HTTP Method
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -153,6 +156,13 @@ switch ($requestUri) {
         $controller = new ExpenseController();
         $response = $controller->getPaymentMethods();
         http_response_code(200);
+        echo json_encode($response);
+        break;
+
+    case '/api/reportSummary':
+        $controller = new ReportController();
+        $response = $controller->getSummary($inputData);
+        http_response_code($response['status'] === 'success' ? 200 : 422);
         echo json_encode($response);
         break;
 
