@@ -43,6 +43,13 @@ $requestMethod = $_SERVER['REQUEST_METHOD'];
 
 // Parse incoming JSON payload into an associative array
 $inputData = json_decode(file_get_contents('php://input'), true) ?? [];
+if (!is_array($inputData)) {
+    $inputData = [];
+}
+
+if (!empty($_POST)) {
+    $inputData = array_merge($inputData, $_POST);
+}
 
 if ($requestMethod !== 'POST') {
     http_response_code(405);
@@ -75,6 +82,20 @@ switch ($requestUri) {
     case '/api/fetchCategories':
         $controller = new ProductController();
         $response = $controller->getCategories();
+        http_response_code(200);
+        echo json_encode($response);
+        break;
+
+    case '/api/addProduct':
+        $controller = new ProductController();
+        $response = $controller->addProduct($inputData, $_FILES ?? []);
+        http_response_code(200);
+        echo json_encode($response);
+        break;
+
+    case '/api/updateProduct':
+        $controller = new ProductController();
+        $response = $controller->updateProduct($inputData, $_FILES ?? []);
         http_response_code(200);
         echo json_encode($response);
         break;

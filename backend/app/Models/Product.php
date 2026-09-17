@@ -33,6 +33,81 @@ class Product
         return $stmt->execute();
     }
 
+    public function addProduct($supplierId, $categoryId, $productName, $description, $wholesalePrice, $files = [])
+    {
+        $imagePath = '/uploads/products/default-product.png';
+
+        if (!empty($files['image']['name'])) {
+            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+            $fileName = basename($files['image']['name']);
+            $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+            if (!in_array($extension, $allowed, true)) {
+                throw new \RuntimeException('Only JPG, JPEG, PNG, and WEBP images are allowed.');
+            }
+
+            $uploadDir = __DIR__ . '/../../public/uploads/products';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+
+            $finalName = 'product_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
+            $targetPath = $uploadDir . '/' . $finalName;
+
+            if (!move_uploaded_file($files['image']['tmp_name'], $targetPath)) {
+                throw new \RuntimeException('Image upload failed.');
+            }
+
+            $imagePath = '/uploads/products/' . $finalName;
+        }
+
+        $stmt = $this->db->prepare("INSERT INTO supplier_products (supplier_id, category_id, product_name, description, image_path, wholesale_price, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, NOW())");
+        $stmt->bind_param('iisssd', $supplierId, $categoryId, $productName, $description, $imagePath, $wholesalePrice);
+
+        return $stmt->execute();
+    }
+
+    public function updateProduct($productId, $categoryId, $productName, $description, $wholesalePrice, $files = [], $role = '')
+    {
+        $isSupplier = strtolower(trim($role)) === 'supplier';
+        $table = $isSupplier ? 'supplier_products' : 'store_products';
+        $idColumn = $isSupplier ? 'supplier_product_id' : 'store_product_id';
+
+        $currentStmt = $this->db->prepare("SELECT image_path FROM {$table} WHERE {$idColumn} = ? LIMIT 1");
+        $currentStmt->bind_param('i', $productId);
+        $currentStmt->execute();
+        $currentProduct = $currentStmt->get_result()->fetch_assoc();
+        $imagePath = $currentProduct['image_path'] ?? '/uploads/products/default-product.png';
+
+        if (!empty($files['image']['name'])) {
+            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+            $fileName = basename($files['image']['name']);
+            $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+            if (!in_array($extension, $allowed, true)) {
+                throw new \RuntimeException('Only JPG, JPEG, PNG, and WEBP images are allowed.');
+            }
+
+            $uploadDir = __DIR__ . '/../../public/uploads/products';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+
+            $finalName = 'product_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
+            $targetPath = $uploadDir . '/' . $finalName;
+
+            if (!move_uploaded_file($files['image']['tmp_name'], $targetPath)) {
+                throw new \RuntimeException('Image upload failed.');
+            }
+
+            $imagePath = '/uploads/products/' . $finalName;
+        }
+
+        $stmt = $this->db->prepare("UPDATE {$table} SET category_id = ?, product_name = ?, description = ?, image_path = ?, wholesale_price = ? WHERE {$idColumn} = ?");
+        $stmt->bind_param('isssdi', $categoryId, $productName, $description, $imagePath, $wholesalePrice, $productId);
+        return $stmt->execute();
+    }
+
     public function softDelete($productId, $role = '')
     {
         $isSupplier = strtolower(trim($role)) === 'supplier';
@@ -131,6 +206,9 @@ class Product
             $stmt = $this->db->prepare("SELECT
                 sp.supplier_product_id as id,
                 sp.product_name as prodname,
+                sp.description as description,
+                sp.image_path as image_path,
+                pc.category_id as category_id,
                 pc.category_name as category,
                 sp.wholesale_price as sellprice,
                 0 as stock
@@ -150,6 +228,9 @@ class Product
             $stmt = $this->db->prepare("SELECT
                 stp.store_product_id as id,
                 sp.product_name as prodname,
+                sp.description as description,
+                sp.image_path as image_path,
+                pc.category_id as category_id,
                 pc.category_name as category,
                 s.supplier_name,
                 stp.selling_price as sellprice,
@@ -161,7 +242,7 @@ class Product
                 LEFT JOIN product_batches pb ON stp.store_product_id = pb.store_product_id
                 WHERE stp.is_active = 1 AND sp.is_active = 1
                     AND (sp.product_name LIKE ? OR pc.category_name LIKE ? OR s.supplier_name LIKE ?){$categoryCondition}
-                GROUP BY stp.store_product_id, sp.product_name, pc.category_name, s.supplier_name, stp.selling_price
+                GROUP BY stp.store_product_id, sp.product_name, sp.description, sp.image_path, pc.category_id, pc.category_name, s.supplier_name, stp.selling_price
                 ORDER BY sp.product_name ASC");
             if ($categoryId === '') {
                 $stmt->bind_param('sss', $searchTerm, $searchTerm, $searchTerm);

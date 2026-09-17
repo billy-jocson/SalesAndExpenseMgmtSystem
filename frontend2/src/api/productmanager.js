@@ -1,3 +1,81 @@
+export const buildProductImageUrl = (imagePath) => {
+  if (!imagePath) {
+    return "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTULlOeY6XTrnI_PT7ypqVrR-dHQghz7qnQxEV5IwZzrw&s";
+  }
+
+  if (imagePath.startsWith("http")) {
+    return imagePath;
+  }
+
+  return `http://localhost/SalesAndExpenseMgmtSystem/backend/public${imagePath}`;
+};
+
+export const addProduct = async ({
+  supplierId,
+  categoryId,
+  productName,
+  description,
+  wholesalePrice,
+  imageFile,
+  role = "",
+}) => {
+  const formData = new FormData();
+  formData.append("supplier_id", String(supplierId ?? ""));
+  formData.append("category_id", String(categoryId ?? ""));
+  formData.append("product_name", productName ?? "");
+  formData.append("description", description ?? "");
+  formData.append("wholesale_price", String(wholesalePrice ?? ""));
+  formData.append("role", role);
+
+  if (imageFile) {
+    formData.append("image", imageFile);
+  }
+
+  const response = await fetch("/backend/public/index.php/api/addProduct", {
+    method: "POST",
+    body: formData,
+  });
+
+  try {
+    return await response.json();
+  } catch {
+    return { status: "Error", message: "Unable to add product." };
+  }
+};
+
+export const updateProduct = async ({
+  productId,
+  categoryId,
+  productName,
+  description,
+  wholesalePrice,
+  imageFile,
+  role = "",
+}) => {
+  const formData = new FormData();
+  formData.append("product_id", String(productId ?? ""));
+  formData.append("category_id", String(categoryId ?? ""));
+  formData.append("product_name", productName ?? "");
+  formData.append("description", description ?? "");
+  formData.append("wholesale_price", String(wholesalePrice ?? ""));
+  formData.append("role", role);
+
+  if (imageFile) {
+    formData.append("image", imageFile);
+  }
+
+  const response = await fetch("/backend/public/index.php/api/updateProduct", {
+    method: "POST",
+    body: formData,
+  });
+
+  try {
+    return await response.json();
+  } catch {
+    return { status: "Error", message: "Unable to update product." };
+  }
+};
+
 export const fetchCategories = async () => {
   const response = await fetch(
     "/backend/public/index.php/api/fetchCategories",
