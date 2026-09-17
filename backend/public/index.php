@@ -1,163 +1,82 @@
 <?php
 
-// 1. Handle CORS (Cross-Origin Resource Sharing) for React frontend
-header("Access-Control-Allow-Origin: http://localhost:5173");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Content-Type: application/json; charset=UTF-8");
+header("Content-Type: application/json");
 
-// Handle preflight OPTIONS requests sent by browsers before actual POST/PUT requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
-    exit();
-}
-
-// 2. Autoload classes / Dependencies
-// Adjust path if using Composer autoload or manual imports
-require_once __DIR__ . '/../app/Controllers/AuthController.php';
-require_once __DIR__ . '/../app/Controllers/DashboardController.php';
-require_once __DIR__ . '/../app/Controllers/ProductController.php';
-require_once __DIR__ . '/../app/Controllers/ExpenseController.php';
-require_once __DIR__ . '/../app/Controllers/SalesController.php';
-require_once __DIR__ . '/../app/Controllers/SupplierController.php';
-require_once __DIR__ . '/../app/Models/Database.php';
-require_once __DIR__ . '/../app/Models/Dashboard.php';
-require_once __DIR__ . '/../app/Models/Expense.php';
-require_once __DIR__ . '/../app/Models/Sales.php';
-require_once __DIR__ . '/../app/Models/Product.php';
-require_once __DIR__ . '/../app/Models/Supplier.php';
-require_once __DIR__ . '/../app/Models/User.php';
-
-use App\Controllers\AuthController;
-use App\Controllers\DashboardController;
-use App\Controllers\ProductController;
-use App\Controllers\ExpenseController;
-use App\Controllers\SalesController;
-use App\Controllers\SupplierController;
-
-// 3. Parse Request Path & HTTP Method
-$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$apiPath = strpos($requestUri, '/api/');
-$requestUri = $apiPath === false ? $requestUri : substr($requestUri, $apiPath);
-$requestMethod = $_SERVER['REQUEST_METHOD'];
-
-// Parse incoming JSON payload into an associative array
-$inputData = json_decode(file_get_contents('php://input'), true) ?? [];
-
-if ($requestMethod !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['message' => 'Method not allowed']);
     exit;
 }
 
-// 4. Basic Router
-switch ($requestUri) {
-    case '/api/login':
-        $controller = new AuthController();
-        $response = $controller->login($inputData);
-        echo json_encode($response);
-        break;
+spl_autoload_register(function($class) {
+    $prefix = 'App\\';
+    if (strpos($class, $prefix) === 0) {
+        $relative = str_replace($prefix, '', $class);
+        $relative = str_replace('\\', '/', $relative);
+        $file = __DIR__ . '/../app/' . $relative . '.php';
+        if (file_exists($file)) require_once $file;
+    }
+});
 
-    case '/api/dashboardAnalytics':
-        $controller = new DashboardController();
-        $response = $controller->getDashboardCardData($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
+require_once __DIR__ . '/../app/Models/Database.php';
+use App\Models\Database;
+use App\Controllers\StaffController;
 
-    case '/api/chartData':
-        $controller = new DashboardController();
-        $response = $controller->getChartAnalytics();
-        http_response_code(200);
-        echo json_encode($response);
-        break;
+$uri = $_SERVER['REQUEST_URI'];
+$method = $_SERVER['REQUEST_METHOD'];
 
-    case '/api/fetchCategories':
-        $controller = new ProductController();
-        $response = $controller->getCategories();
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/fetchProducts':
-        $controller = new ProductController();
-        $response = $controller->getProducts($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/updateSellingPrice':
-        $controller = new ProductController();
-        $response = $controller->updateSellingPrice($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/deleteProduct':
-        $controller = new ProductController();
-        $response = $controller->softDelete($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/restockProduct':
-        $controller = new ProductController();
-        $response = $controller->restock($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/getExpenseCategories':
-        $controller = new ExpenseController();
-        $response = $controller->getExpenseCategories();
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/addExpense':
-        $controller = new ExpenseController();
-        $response = $controller->addExpense($inputData);
-        http_response_code(200);
-        echo json_encode($response ?? ['status' => 'success', 'message' => 'Expense added successfully.']);
-        break;
-
-    case '/api/fetchAllExpenses':
-        $controller = new ExpenseController();
-        $response = $controller->getAllExpenses($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/fetchAllSales':
-        $controller = new SalesController();
-        $response = $controller->getAllSales($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/fetchSuppliers':
-        $controller = new SupplierController();
-        $response = $controller->getSuppliers($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/deleteSupplier':
-        $controller = new SupplierController();
-        $response = $controller->softDelete($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/getPaymentMethods':
-        $controller = new ExpenseController();
-        $response = $controller->getPaymentMethods();
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    default:
-        http_response_code(404);
-        echo json_encode(['message' => 'Endpoint not found']);
-        break;
+function sendJson($data, $code = 200) {
+    http_response_code($code);
+    echo json_encode($data);
+    exit;
 }
+
+// AUTH
+if (strpos($uri, '/api/login') !== false && $method === 'POST') {
+    $input = json_decode(file_get_contents("php://input"), true);
+    $username = $input['username'] ?? '';
+    $password = $input['password'] ?? '';
+    if (empty($username) || empty($password)) {
+        sendJson(["status" => "Error", "message" => "Username and password required"], 400);
+    }
+    try {
+        $db = (new Database())->getConnection();
+        $stmt = $db->prepare("SELECT u.user_id, u.username, u.password_hash, u.role_id, r.role_name FROM users u LEFT JOIN roles r ON r.role_id = u.role_id WHERE u.username = ? AND u.is_active = 1 LIMIT 1");
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows === 0) sendJson(["status" => "Error", "message" => "Invalid username or password"], 401);
+        $user = $result->fetch_assoc();
+        if (!password_verify($password, $user['password_hash'])) sendJson(["status" => "Error", "message" => "Invalid username or password"], 401);
+        sendJson([
+            "status" => "Success",
+            "message" => "Login successful",
+            "user" => ["user_id" => $user['user_id'], "username" => $user['username'], "role" => $user['role_name'], "role_id" => $user['role_id']],
+            "token" => base64_encode($user['user_id'] . ":" . time())
+        ], 200);
+    } catch (Exception $e) {
+        sendJson(["status" => "Error", "message" => "Server error: " . $e->getMessage()], 500);
+    }
+}
+
+if (strpos($uri, '/api/health') !== false) {
+    sendJson(["status" => "OK", "message" => "Backend is running", "time" => date("Y-m-d H:i:s")], 200);
+}
+
+
+if (strpos($uri, '/api/getStaffRoles') !== false) {
+    (new StaffController())->getRoles();
+}
+if (strpos($uri, '/api/fetchStaffs') !== false) {
+    (new StaffController())->fetchStaffs();
+}
+if (strpos($uri, '/api/getStaff') !== false) {
+    (new StaffController())->getStaff();
+}
+if (strpos($uri, '/api/addStaff') !== false) {
+    (new StaffController())->addStaff();
+}
+
+sendJson(["status" => "Error", "message" => "Route not found: " . $uri], 404);

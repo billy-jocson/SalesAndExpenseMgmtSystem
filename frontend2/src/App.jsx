@@ -8,6 +8,7 @@ import Expenses from "./pages/Expenses";
 import SupplierManager from "./pages/SupplierManager";
 import RestockProducts from "./pages/RestockProducts";
 import Reports from "./pages/Reports";
+import StaffManager from "./pages/StaffManager";
 import NotFound from "./pages/NotFound";
 import { NavRoutes } from "./NavRoutes";
 import ContextProvider from "./context/ContextProvider";
@@ -42,6 +43,9 @@ export default function App() {
           </Route>
           <Route element={<ProtectedRoute path={NavRoutes.REPORTS} />}>
             <Route path={NavRoutes.REPORTS} element={<Reports />} />
+          </Route>
+          <Route element={<ProtectedRoute path={NavRoutes.STAFFMANAGER} />}>
+            <Route path={NavRoutes.STAFFMANAGER} element={<StaffManager />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

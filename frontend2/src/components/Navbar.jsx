@@ -29,6 +29,7 @@ import {
   Bars,
   ChartMixed,
   Xmark,
+  Person,
 } from "@gravity-ui/icons";
 
 function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
@@ -126,16 +127,19 @@ function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
         <div className="my-6 border-t border-zinc-200" />
         <div className="flex items-center gap-3">
           <Avatar color="soft">
-            <Avatar.Fallback>{initials}</Avatar.Fallback>
+            <Avatar.Fallback>{initials || "U"}</Avatar.Fallback>
           </Avatar>
 
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-semibold text-foreground">
+              
               {`${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim() ||
-                `${user?.supplier_name}`}
+                user?.username ||
+                user?.supplier_name ||
+                "User"}
             </span>
             <span className="truncate text-xs text-default-500">
-              {user?.role || "User"}
+              {user?.role || user?.role_name || "User"}
             </span>
           </div>
         </div>
@@ -148,13 +152,18 @@ export default function Navbar() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const { user, canAccess } = useContext(userContext);
+  
+  
   const firstName = user?.first_name ?? "";
   const lastName = user?.last_name ?? "";
+  const username = user?.username ?? "";
   const supplierWords = user?.supplier_name?.split(/\s+/).filter(Boolean) ?? [];
 
   const staffInitials =
     firstName || lastName
       ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+      : username
+      ? username.slice(0,2).toUpperCase()
       : "";
 
   const supplierInitials = supplierWords.length
@@ -164,7 +173,7 @@ export default function Navbar() {
         .join("")
     : "";
 
-  const initials = staffInitials || supplierInitials;
+  const initials = staffInitials || supplierInitials || "U";
 
   const menuItems = [
     { label: "Dashboard", path: NavRoutes.DASHBOARD, icon: LayoutCellsLarge },
@@ -180,6 +189,11 @@ export default function Navbar() {
       label: "Supplier Manager",
       path: NavRoutes.SUPMANAGER,
       icon: PersonWorker,
+    },
+    {
+      label: "Staff Manager",
+      path: NavRoutes.STAFFMANAGER,
+      icon: Person,
     },
     {
       label: "Restock Products",
