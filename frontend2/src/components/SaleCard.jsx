@@ -27,6 +27,16 @@ function SaleItemRow({ name, unitPrice, quantity, subtotal }) {
 export default function SaleCard({ data }) {
   const [logoDataUrl, setLogoDataUrl] = useState(null);
   const targetRef = useRef(null);
+  const subtotal = Number(
+    data?.subtotal ??
+      (data?.items ?? []).reduce(
+        (sum, item) => sum + Number(item?.subtotal ?? item?.unit_price * item?.quantity ?? 0),
+        0,
+      ) ??
+      0,
+  );
+  const taxAmount = Number(data?.tax_amount ?? 0);
+  const totalAmount = Number(data?.total_amount ?? subtotal + taxAmount);
 
   useEffect(() => {
     let isActive = true;
@@ -94,6 +104,21 @@ export default function SaleCard({ data }) {
           {data.items.map((item, index) => (
             <SaleItemRow key={`${item.name}-${index}`} {...item} />
           ))}
+        </Card.Content>
+        <Separator />
+        <Card.Content className="space-y-2 pt-3">
+          <div className="flex items-center justify-between text-sm text-slate-600">
+            <span>Subtotal</span>
+            <span className="font-medium">₱{subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm text-slate-600">
+            <span>Tax</span>
+            <span className="font-medium">₱{taxAmount.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-base font-semibold text-slate-800">
+            <span>Total</span>
+            <span>₱{totalAmount.toFixed(2)}</span>
+          </div>
         </Card.Content>
         <Separator />
         <Card.Footer className="flex justify-between">
