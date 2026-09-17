@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost/SalesAndExpenseSystem/backend/public/index.php";
+const API_BASE = "http://localhost/SalesAndExpenseMgmtSystem/backend/public/index.php";
 
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
