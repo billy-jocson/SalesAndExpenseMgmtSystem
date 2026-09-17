@@ -63,15 +63,15 @@ export default function POS() {
       <div className="mt-auto rounded-xl bg-slate-200/60 p-3 text-sm text-slate-700">
         <div className="flex items-center justify-between py-1">
           <span>Items ({billItems.length})</span>
-          <span>₱{subtotal.toFixed(2)}</span>
+          <span>PHP {subtotal.toFixed(2)}</span>
         </div>
         <div className="flex items-center justify-between py-1">
           <span>Tax (10%)</span>
-          <span>₱{tax.toFixed(2)}</span>
+          <span>PHP {tax.toFixed(2)}</span>
         </div>
         <div className="mt-2 flex items-center justify-between border-t border-slate-300 pt-2 text-base font-semibold text-slate-800">
           <span>Total</span>
-          <span>₱{total.toFixed(2)}</span>
+          <span>PHP {total.toFixed(2)}</span>
         </div>
       </div>
 

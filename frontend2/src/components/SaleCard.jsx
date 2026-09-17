@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Card, Separator, Typography } from "@heroui/react";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
+import { pdf } from "@react-pdf/renderer";
 import CalculaLogo from "../assets/Logo.svg";
-import Receipt from "./Receipt";
+import { ReceiptPDF } from "./Receipt";
 
 function SaleItemRow({ name, unitPrice, quantity, subtotal }) {
   return (
@@ -26,7 +25,6 @@ function SaleItemRow({ name, unitPrice, quantity, subtotal }) {
 
 export default function SaleCard({ data }) {
   const [logoDataUrl, setLogoDataUrl] = useState(null);
-  const targetRef = useRef(null);
   const subtotal = Number(
     data?.subtotal ??
       (data?.items ?? []).reduce(
@@ -70,15 +68,20 @@ export default function SaleCard({ data }) {
   }, []);
 
   const handleDownloadReceipt = async () => {
-    const canvas = await html2canvas(targetRef.current, {
-      backgroundColor: "#ffffff",
-      logging: false,
-      scale: 1,
-      useCORS: true,
-    });
-    const pdf = new jsPDF({ format: "a4", orientation: "portrait", unit: "mm" });
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 210, 297);
-    pdf.save(`receipt-${data.transaction_number}.pdf`);
+    if (!logoDataUrl) return;
+
+    const blob = await pdf(
+      <ReceiptPDF data={data} logoSrc={logoDataUrl} />,
+    ).toBlob();
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `receipt-${data.transaction_number}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -109,15 +112,15 @@ export default function SaleCard({ data }) {
         <Card.Content className="space-y-2 pt-3">
           <div className="flex items-center justify-between text-sm text-slate-600">
             <span>Subtotal</span>
-            <span className="font-medium">₱{subtotal.toFixed(2)}</span>
+            <span className="font-medium">PHP {subtotal.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between text-sm text-slate-600">
             <span>Tax</span>
-            <span className="font-medium">₱{taxAmount.toFixed(2)}</span>
+            <span className="font-medium">PHP {taxAmount.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-base font-semibold text-slate-800">
             <span>Total</span>
-            <span>₱{totalAmount.toFixed(2)}</span>
+            <span>PHP {totalAmount.toFixed(2)}</span>
           </div>
         </Card.Content>
         <Separator />
@@ -130,22 +133,6 @@ export default function SaleCard({ data }) {
           </Typography>
         </Card.Footer>
       </Card>
-      <div
-        ref={targetRef}
-        className="mt-3"
-        style={{
-          backgroundColor: "#ffffff",
-          color: "#000000",
-          position: "fixed",
-          left: "10000px",
-          top: 0,
-          width: "794px",
-          height: "1123px",
-          padding: 0,
-        }}
-      >
-        <Receipt data={data} logoSrc={logoDataUrl} />
-      </div>
     </>
   );
 }
