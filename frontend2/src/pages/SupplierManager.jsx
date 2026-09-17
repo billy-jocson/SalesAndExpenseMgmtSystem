@@ -14,12 +14,12 @@ export default function SupplierManager() {
   const [suppliers, setSuppliers] = useState([]);
   const [supplierRefreshKey, setSupplierRefreshKey] = useState(0);
 
-  // Modal states
+  
   const [supplierToDelete, setSupplierToDelete] = useState(null);
   const [supplierToEdit, setSupplierToEdit] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Form input state
+  
   const [formData, setFormData] = useState({
     supplier_name: "",
     contact_person: "",
@@ -47,7 +47,7 @@ export default function SupplierManager() {
           phone: supplier.phone,
           address: supplier.street_address,
           postalCode: supplier.postal_code,
-          username: supplier.username, // <-- DAGDAG TO KAYA BLANK
+          username: supplier.username,
           userId: supplier.user_id,
         })),
       );
@@ -90,17 +90,48 @@ export default function SupplierManager() {
 
   const handleSaveSupplier = async (e) => {
     e.preventDefault();
+    
+    
+    if (!formData.supplier_name.trim()) {
+      toast.danger("Supplier name is required.");
+      return;
+    }
+
+    if (!supplierToEdit) {
+      if (!formData.username.trim()) {
+        toast.danger("Username is required.");
+        return;
+      }
+      if (formData.username.length < 3) {
+        toast.danger("Username must be at least 3 characters.");
+        return;
+      }
+      if (!formData.password) {
+        toast.danger("Password is required.");
+        return;
+      }
+      if (formData.password.length < 8) {
+        toast.danger("Password must be at least 8 characters.");
+        return;
+      }
+    }
+
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast.danger("Invalid email format.");
+      return;
+    }
+
     let response;
 
     if (supplierToEdit) {
-      // Sa Edit: pag blank password, wag isama para hindi ma-overwrite
+      
       const payload = { ...formData };
       if (!payload.password) {
         delete payload.password;
       }
       response = await updateSupplier(payload);
     } else {
-      // Sa Add: send lahat kasama username/password
+      
       response = await addSupplier(formData);
     }
 
@@ -150,7 +181,6 @@ export default function SupplierManager() {
                 />
               </InputGroup>
             </TextField>
-            {/* Connected to openAddModal */}
             <Button variant="primary" className="rounded-lg" onPress={openAddModal}>
               + Add Supplier
             </Button>
@@ -167,7 +197,6 @@ export default function SupplierManager() {
                 <SupplierCard
                   key={supplier.supplierId}
                   {...supplier}
-                  // Connected to openEditModal
                   onEdit={() => openEditModal(supplier)}
                   onDelete={() => setSupplierToDelete(supplier)}
                 />
@@ -177,7 +206,7 @@ export default function SupplierManager() {
         </div>
       </div>
 
-      {/* Add / Edit Supplier Modal */}
+      
       <Modal
         isOpen={isAddModalOpen || Boolean(supplierToEdit)}
         onOpenChange={(open) => {
@@ -199,7 +228,7 @@ export default function SupplierManager() {
                   <input
                     type="text"
                     name="supplier_name"
-                    placeholder="Supplier Name"
+                    placeholder="Supplier Name *"
                     value={formData.supplier_name}
                     onChange={handleChange}
                     required
@@ -258,7 +287,7 @@ export default function SupplierManager() {
                   <input
                     type="password"
                     name="password"
-                    placeholder={supplierToEdit ? "New Password (blank to keep)" : "Password *"}
+                    placeholder={supplierToEdit ? "New Password (blank to keep)" : "Password * (min 8 chars)"}
                     value={formData.password}
                     onChange={handleChange}
                     required={!supplierToEdit}
@@ -287,7 +316,7 @@ export default function SupplierManager() {
         </Modal.Backdrop>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      
       <Modal
         isOpen={Boolean(supplierToDelete)}
         onOpenChange={(open) => {
