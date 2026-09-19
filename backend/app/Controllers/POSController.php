@@ -12,33 +12,32 @@ class POSController
     {
         $this->salesModel = new Sales();
     }
+  
+     public function checkout($data)
+    {
+        // 1. Validate payload requirements
+        if (empty($data['items']) || !is_array($data['items'])) {
+            return ['status' => 'Error', 'message' => 'Cart is empty or invalid.'];
+        }
+        if (empty($data['user_id'])) {
+            return ['status' => 'Error', 'message' => 'User authentication ID is missing.'];
+        }
+        if (empty($data['payment_method_id'])) {
+            return ['status' => 'Error', 'message' => 'Payment method is required.'];
+        }
 
-    // public function checkout($data = [])
-    // {
-    //     $userId = (int) ($data['user_id'] ?? 0);
-    //     $paymentMethodId = (int) ($data['payment_method_id'] ?? 0);
-    //     $items = $data['items'] ?? [];
+        // 2. Prepare parameters
+        $userId = (int)$data['user_id'];
+        $paymentMethodId = (int)$data['payment_method_id'];
+        
+        // We still accept reference number from the React frontend payload
+        $referenceNumber = $data['reference_number'] ?? null; 
+        
+        $taxAmount = (float)($data['tax_amount'] ?? 0);
+        $items = $data['items'];
 
-    //     if ($userId <= 0 || $paymentMethodId <= 0 || empty($items)) {
-    //         return [
-    //             'status' => 'Error',
-    //             'message' => 'User, payment method, and at least one item are required.',
-    //         ];
-    //     }
-
-    //     try {
-    //         $result = $this->salesModel->createSale($userId, $paymentMethodId, $items);
-
-    //         return [
-    //             'status' => 'Success',
-    //             'message' => 'Transaction completed successfully.',
-    //             'sale' => $result,
-    //         ];
-    //     } catch (\Throwable $error) {
-    //         return [
-    //             'status' => 'Error',
-    //             'message' => $error->getMessage(),
-    //         ];
-    //     }
-    // }
+        // 3. Process database insertion and batch deduction
+        return $this->salesModel->processCheckout($userId, $paymentMethodId, $referenceNumber, $taxAmount, $items);
+    }
+    
 }

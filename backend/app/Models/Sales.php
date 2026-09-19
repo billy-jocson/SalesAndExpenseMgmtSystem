@@ -90,150 +90,89 @@ class Sales
         return $sales;
     }
    
-     
-    //add ni aljon
-    //     public function resolveStaffId($userId)
-    // {
-    //     $stmt = $this->db->prepare("SELECT staff_id FROM staffs WHERE user_id = ?");
-    //     $stmt->bind_param('i', $userId);
-    //     $stmt->execute();
-    //     $staff = $stmt->get_result()->fetch_assoc();
+    public function processCheckout($userId, $paymentMethodId, $referenceNumber, $taxAmount, $items)
+    {
+        $this->db->begin_transaction();
 
-    //     return $staff ? (int) $staff['staff_id'] : null;
-    // }
+        try {
+            // 1. Resolve staff_id from the requesting user_id
+            $stmt = $this->db->prepare("SELECT staff_id FROM staffs WHERE user_id = ?");
+            $stmt->bind_param('i', $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $staff = $result->fetch_assoc();
 
-    // public function createSale($userId, $paymentMethodId, $items, $taxRate = 0.10)
-    // {
-    //     $staffId = $this->resolveStaffId($userId);
+            if (!$staff) {
+                throw new \Exception("Authorized staff record not found.");
+            }
+            $staffId = $staff['staff_id'];
 
-    //     if (!$staffId) {
-    //         throw new \RuntimeException('Staff record not found for this user.');
-    //     }
+            // 2. NO DB CHANGE REQUIRED: GCash workaround applies reference code straight to transaction_number
+            if ($paymentMethodId === 2 && !empty($referenceNumber)) {
+                $txnNumber = 'GCASH-' . $referenceNumber;
+            } else {
+                $txnNumber = 'TXN-' . rand(100000, 999999);
+            }
 
-    //     if (empty($items)) {
-    //         throw new \RuntimeException('Cart is empty.');
-    //     }
+            // 3. Insert core sale record
+            $stmt = $this->db->prepare("INSERT INTO sales (staff_id, payment_method_id, transaction_number, tax_amount) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param('iisd', $staffId, $paymentMethodId, $txnNumber, $taxAmount);
+            $stmt->execute();
+            $saleId = $stmt->insert_id;
 
-    //     $this->db->begin_transaction();
+            // 4. Process each item and apply FIFO (First-In, First-Out) physical batch deduction
+            foreach ($items as $item) {
+                $storeProductId = (int) $item['id'];
+                $qty = (int) $item['quantity'];
+                $price = (float) $item['price'];
 
-    //     try {
-    //         // 1. Lock and validate each product's current price + stock
-    //         $lineItems = [];
-    //         $subtotal = 0.0;
+                // Insert receipt item
+                $stmtItem = $this->db->prepare("INSERT INTO sales_items (sale_id, store_product_id, quantity, unit_price) VALUES (?, ?, ?, ?)");
+                $stmtItem->bind_param('iiid', $saleId, $storeProductId, $qty, $price);
+                $stmtItem->execute();
 
-    //         foreach ($items as $item) {
-    //             $storeProductId = (int) ($item['store_product_id'] ?? 0);
-    //             $quantity = (int) ($item['quantity'] ?? 0);
+                // Get batches ordered by expiration then received date
+                $stmtBatch = $this->db->prepare("SELECT batch_id, quantity_in_stock FROM product_batches WHERE store_product_id = ? AND quantity_in_stock > 0 ORDER BY expiration_date ASC, received_date ASC");
+                $stmtBatch->bind_param('i', $storeProductId);
+                $stmtBatch->execute();
+                $batches = $stmtBatch->get_result()->fetch_all(MYSQLI_ASSOC);
 
-    //             if ($storeProductId <= 0 || $quantity <= 0) {
-    //                 throw new \RuntimeException('Invalid cart item.');
-    //             }
+                $remainingQty = $qty;
 
-    //             $priceStmt = $this->db->prepare(
-    //                 "SELECT stp.selling_price, sp.product_name,
-    //                     COALESCE(SUM(pb.quantity_in_stock), 0) AS stock
-    //                 FROM store_products stp
-    //                 JOIN supplier_products sp ON sp.supplier_product_id = stp.supplier_product_id
-    //                 LEFT JOIN product_batches pb ON pb.store_product_id = stp.store_product_id
-    //                 WHERE stp.store_product_id = ? AND stp.is_active = 1
-    //                 GROUP BY stp.store_product_id, stp.selling_price, sp.product_name
-    //                 FOR UPDATE"
-    //             );
-    //             $priceStmt->bind_param('i', $storeProductId);
-    //             $priceStmt->execute();
-    //             $product = $priceStmt->get_result()->fetch_assoc();
+                foreach ($batches as $batch) {
+                    if ($remainingQty <= 0) break;
 
-    //             if (!$product) {
-    //                 throw new \RuntimeException("Product not found or inactive (id {$storeProductId}).");
-    //             }
+                    // Deduct mathematically from each oldest batch until fulfilled
+                    $deduct = min($remainingQty, $batch['quantity_in_stock']);
+                    $remainingQty -= $deduct;
 
-    //             if ((int) $product['stock'] < $quantity) {
-    //                 throw new \RuntimeException("Not enough stock for {$product['product_name']}.");
-    //             }
+                    $stmtUpdate = $this->db->prepare("UPDATE product_batches SET quantity_in_stock = quantity_in_stock - ? WHERE batch_id = ?");
+                    $stmtUpdate->bind_param('ii', $deduct, $batch['batch_id']);
+                    $stmtUpdate->execute();
+                }
 
-    //             $unitPrice = (float) $product['selling_price'];
-    //             $subtotal += $unitPrice * $quantity;
+                if ($remainingQty > 0) {
+                    throw new \Exception("Insufficient physical stock for product ID {$storeProductId}.");
+                }
+            }
 
-    //             $lineItems[] = [
-    //                 'store_product_id' => $storeProductId,
-    //                 'quantity' => $quantity,
-    //                 'unit_price' => $unitPrice,
-    //             ];
-    //         }
+            $this->db->commit();
 
-    //         $taxAmount = round($subtotal * $taxRate, 2);
-    //         $transactionNumber = 'TXN-' . date('YmdHis') . '-' . strtoupper(substr(bin2hex(random_bytes(2)), 0, 4));
+            return [
+                'status' => 'Success',
+                'message' => 'Transaction processed successfully.',
+                'transaction' => [
+                    'sale_id' => $saleId,
+                    'transaction_number' => $txnNumber
+                ]
+            ];
 
-    //         // 2. Insert the sale header
-    //         $saleStmt = $this->db->prepare(
-    //             "INSERT INTO sales (staff_id, payment_method_id, transaction_number, tax_amount)
-    //             VALUES (?, ?, ?, ?)"
-    //         );
-    //         $saleStmt->bind_param('iisd', $staffId, $paymentMethodId, $transactionNumber, $taxAmount);
-    //         $saleStmt->execute();
-    //         $saleId = $this->db->insert_id;
-
-    //         // 3. Insert line items + deduct stock FEFO
-    //         $itemStmt = $this->db->prepare(
-    //             "INSERT INTO sales_items (sale_id, store_product_id, quantity, unit_price)
-    //             VALUES (?, ?, ?, ?)"
-    //         );
-
-    //         $batchStmt = $this->db->prepare(
-    //             "SELECT batch_id, quantity_in_stock FROM product_batches
-    //             WHERE store_product_id = ? AND quantity_in_stock > 0
-    //             ORDER BY expiration_date ASC
-    //             FOR UPDATE"
-    //         );
-
-    //         $deductStmt = $this->db->prepare(
-    //             "UPDATE product_batches SET quantity_in_stock = quantity_in_stock - ? WHERE batch_id = ?"
-    //         );
-
-    //         foreach ($lineItems as $line) {
-    //             $itemStmt->bind_param(
-    //                 'iiid',
-    //                 $saleId,
-    //                 $line['store_product_id'],
-    //                 $line['quantity'],
-    //                 $line['unit_price']
-    //             );
-    //             $itemStmt->execute();
-
-    //             $remaining = $line['quantity'];
-    //             $batchStmt->bind_param('i', $line['store_product_id']);
-    //             $batchStmt->execute();
-    //             $batches = $batchStmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
-    //             foreach ($batches as $batch) {
-    //                 if ($remaining <= 0) {
-    //                     break;
-    //                 }
-
-    //                 $take = min($remaining, (int) $batch['quantity_in_stock']);
-    //                 $batchId = (int) $batch['batch_id'];
-    //                 $deductStmt->bind_param('ii', $take, $batchId);
-    //                 $deductStmt->execute();
-    //                 $remaining -= $take;
-    //             }
-
-    //             if ($remaining > 0) {
-    //                 throw new \RuntimeException('Stock changed mid-transaction, please retry.');
-    //             }
-    //         }
-
-    //         $this->db->commit();
-
-    //         return [
-    //             'sale_id' => $saleId,
-    //             'transaction_number' => $transactionNumber,
-    //             'subtotal' => round($subtotal, 2),
-    //             'tax_amount' => $taxAmount,
-    //             'total_amount' => round($subtotal + $taxAmount, 2),
-    //         ];
-    //     } catch (\Throwable $error) {
-    //         $this->db->rollback();
-    //         throw $error;
-    //     }
-    // }
+        } catch (\Exception $e) {
+            $this->db->rollback();
+            return [
+                'status' => 'Error',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
 }

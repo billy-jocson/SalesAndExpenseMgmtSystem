@@ -1,17 +1,28 @@
 import { NumberField } from "@heroui/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-export default function QtyButtons({ initialQuantity = 0, stock, onChange }) {
-  const safeStock =
-    stock === undefined ? Infinity : Math.max(Number(stock) || 0, 0);
+export default function QtyButtons({ value, initialQuantity, stock, onChange }) {
+  const safeStock = stock === undefined ? Infinity : Math.max(Number(stock) || 0, 0);
+  
+  // Determine starting value
+  const startValue = value !== undefined ? value : (initialQuantity !== undefined ? initialQuantity : 0);
+  
   const [quantity, setQuantity] = useState(
-    Math.min(Math.max(Number(initialQuantity) || 0, 0), safeStock),
+    Math.min(Math.max(Number(startValue) || 0, 0), safeStock)
   );
+
+  // BUG FIX: Ensure the visual input dynamically syncs if the parent resets the value
+  useEffect(() => {
+    const nextVal = value !== undefined ? value : initialQuantity;
+    if (nextVal !== undefined) {
+       setQuantity(Math.min(Math.max(Number(nextVal) || 0, 0), safeStock));
+    }
+  }, [value, initialQuantity, safeStock]);
+
   const displayQuantity = Math.min(Math.max(quantity, 0), safeStock);
 
   const updateQuantity = (nextQuantity) => {
     const clampedQuantity = Math.min(Math.max(nextQuantity, 0), safeStock);
-
     setQuantity(clampedQuantity);
     onChange?.(clampedQuantity);
   };
