@@ -29,6 +29,7 @@ import {
   Bars,
   ChartMixed,
   Xmark,
+  Person,
 } from "@gravity-ui/icons";
 
 function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
@@ -182,6 +183,11 @@ export default function Navbar() {
       icon: PersonWorker,
     },
     {
+      label: "Staff Manager",
+      path: NavRoutes.STAFFMANAGER,
+      icon: Person,
+    },
+    {
       label: "Restock Products",
       path: NavRoutes.RESTOCKPROD,
       icon: ArrowChevronUp,
@@ -196,7 +202,7 @@ export default function Navbar() {
   return (
     <>
       <div className="hidden md:block">
-        <aside className="box-border flex h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)] w-fit min-w-[15rem] max-w-[18rem] flex-col justify-between overflow-hidden rounded-[1.75rem] bg-white px-7 py-9 shadow-md">
+        <aside className="box-border flex h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)] w-[300px] flex-col justify-between overflow-hidden rounded-[1.75rem] bg-white px-7 py-9 shadow-md">
           <SidebarContent
             menuItems={menuItems}
             location={location}

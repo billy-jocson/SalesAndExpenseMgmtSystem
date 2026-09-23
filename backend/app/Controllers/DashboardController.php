@@ -56,21 +56,91 @@ class DashboardController
         ];
     }
 
-    public function getChartAnalytics()
+    public function getChartAnalytics($data)
     {
-        $data = $this->dashboardModel->getChartData();
+        if (empty($data['startDate']) || empty($data['endDate'])) {
+            return [
+                'status' => 'error',
+                'message' => 'Date range is required.'
+            ];
+        }
 
-        if (!empty($data)) {
+        $responsedata = $this->dashboardModel->getChartData(
+            $data['startDate'],
+            $data['endDate']
+        );
+
+
+
+        if (!empty($responsedata)) {
             return [
                 'status' => 'success',
                 'message' => 'Chart data fetched successfully!',
-                'data' => $data
+                'data' => $responsedata,
             ];
         }
 
         return [
             'status' => 'error',
-            'message' => 'No chart data available.'
+            'message' => 'No expense data available for this range.'
+        ];
+    }
+    public function getLineChartData($data)
+    {
+        if (empty($data['startDate']) || empty($data['endDate'])) {
+            return [
+                'status' => 'error',
+                'message' => 'Date range is required.'
+            ];
+        }
+
+        $responsedata = $this->dashboardModel->getLineChartData(
+            $data['startDate'],
+            $data['endDate']
+        );
+
+
+        if (!empty($responsedata)) {
+            return [
+                'status' => 'success',
+                'message' => 'Line chart data fetched successfully!',
+                'data' => $responsedata,
+            ];
+        }
+        return [
+            'status' => 'error',
+            'message' => 'No line chart data available.'
+        ];
+    }
+
+    public function getTotalProductCardData($data)
+    {
+
+        if (empty($data['supplierId'])) {
+            return [
+                'status' => 'error',
+                'message' => 'Supplier ID is required.'
+            ];
+        }
+
+        $reponsedata = $this->dashboardModel->getTotalProductsCardAnalytics(
+            $data['supplierId']
+        );
+
+        if ($reponsedata) {
+            return [
+                'status' => 'success',
+                'message' => 'Card data fetched successfully!',
+                'data' => [
+                    'totalProducts' => $reponsedata['totalProducts'],
+                    'totalRevenue' => $reponsedata['totalRevenue'],
+                ]
+            ];
+        }
+
+        return [
+            'status' => 'error',
+            'message' => 'Failed to fetch card data.'
         ];
     }
 }

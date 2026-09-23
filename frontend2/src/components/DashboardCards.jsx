@@ -7,13 +7,14 @@ export default function DashboardCards({
   title,
   body,
   highlighted = false,
+  noChip = false,
 }) {
   const Icon = icon ?? Wallet;
   const textColor = highlighted ? "text-white" : "text-zinc-800";
 
   return (
     <div
-      className={`flex grow min-h-40 w-fit flex-col rounded-2xl p-6 shadow-md ${
+      className={`flex grow min-h-40 w-full flex-col rounded-2xl p-6 shadow-md ${
         highlighted
           ? "bg-gradient-to-br from-[#2f82e8] to-[#1554b7]"
           : "bg-white"
@@ -34,15 +35,19 @@ export default function DashboardCards({
             {title}
           </Typography>
         </div>
-        <Chip
-          color={status >= 0 ? "success" : "danger"}
-          variant="primary"
-          className="h-fit"
-        >
-          <Chip.Label>
-            {status === 0 ? "0%" : status > 0 ? `+${status}%` : `${status}%`}
-          </Chip.Label>
-        </Chip>
+        {noChip ? (
+          <></>
+        ) : (
+          <Chip
+            color={status >= 0 ? "success" : "danger"}
+            variant="primary"
+            className="h-fit"
+          >
+            <Chip.Label>
+              {status === 0 ? "0%" : status > 0 ? `+${status}%` : `${status}%`}
+            </Chip.Label>
+          </Chip>
+        )}
       </div>
       <Typography type="h2" className={textColor}>
         {body}

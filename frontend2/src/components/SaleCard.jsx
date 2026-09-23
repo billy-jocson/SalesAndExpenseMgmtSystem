@@ -1,3 +1,4 @@
+import { Receipt } from "@gravity-ui/icons";
 import { Button, Card, Separator, Typography } from "@heroui/react";
 
 function SaleItemRow({ name, unitPrice, quantity, subtotal }) {
@@ -43,7 +44,10 @@ export default function SaleCard({ data }) {
       </Card.Content>
       <Separator />
       <Card.Footer className="flex justify-between">
-        <Button size="sm">Download Receipt</Button>
+        <Button>
+          <Receipt className="size-4" />
+          Download Receipt
+        </Button>
         <Typography type="body-sm" color="muted" className="flex gap-1">
           {data.sale_date}
         </Typography>

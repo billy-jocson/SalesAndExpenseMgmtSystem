@@ -1,13 +1,30 @@
 import { Card, Button } from "@heroui/react";
 import QtyButtons from "./QtyButtons.jsx";
+import { useState } from "react";
 
-export default function POSProductCard({ name, price, stock }) {
+export default function POSProductCard({
+  id,
+  name,
+  price,
+  stock,
+  onAddToCart,
+}) {
   const safeStock = Number(stock) || 0;
+  const [quantity, setQuantity] = useState(0);
+
+  function addtoCart() {
+    if (quantity > 0) {
+      onAddToCart({ id, name, price, stock: safeStock }, quantity);
+
+      // Resets back to 0. QtyButtons will now visually respect this reset.
+      setQuantity(0);
+    }
+  }
 
   return (
     <Card className="w-auto grow gap-2 shadow-md">
       <img
-        alt="Indie Hackers community"
+        alt={name}
         className="pointer-events-none aspect-square w-fit mx-auto rounded-2xl object-cover select-none"
         loading="lazy"
         src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTULlOeY6XTrnI_PT7ypqVrR-dHQghz7qnQxEV5IwZzrw&s"
@@ -17,7 +34,7 @@ export default function POSProductCard({ name, price, stock }) {
           <Card.Header className="p-0">
             <Card.Title className="text-sm font-semibold">{name}</Card.Title>
             <Card.Description className="text-sm font-medium">
-              ${price}
+              ₱{price}
             </Card.Description>
           </Card.Header>
         </div>
@@ -26,14 +43,24 @@ export default function POSProductCard({ name, price, stock }) {
           <span className="text-[11px] font-medium text-slate-500">
             Quantity
           </span>
-          <QtyButtons stock={safeStock} />
+          {/* Changed initialQuantity to value to enforce controlled reactivity */}
+          <QtyButtons
+            stock={safeStock}
+            value={quantity}
+            onChange={setQuantity}
+          />
           <Card.Description className="text-[11px] text-slate-500">
             {safeStock} stock(s) left
           </Card.Description>
         </div>
       </div>
       <Card.Footer className="flex gap-2">
-        <Button variant="primary" className="w-full">
+        <Button
+          variant="primary"
+          className="w-full"
+          onPress={addtoCart}
+          isDisabled={quantity === 0 || safeStock === 0}
+        >
           Add to Cart
         </Button>
       </Card.Footer>

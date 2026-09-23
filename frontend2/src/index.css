@@ -16,3 +16,14 @@
 .expense-card-in {
 	animation: expense-card-in 220ms ease-out both;
 }
+
+@media print {
+	@page {
+		size: letter;
+		margin: 0.35in;
+	}
+
+	body {
+		background: #fff;
+	}
+}

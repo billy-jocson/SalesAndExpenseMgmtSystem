@@ -1,163 +1,185 @@
 <?php
 
-// 1. Handle CORS (Cross-Origin Resource Sharing) for React frontend
-header("Access-Control-Allow-Origin: http://localhost:5173");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Content-Type: application/json; charset=UTF-8");
+header('Access-Control-Allow-Origin: http://localhost:5173');
+header('Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Content-Type: application/json; charset=UTF-8');
 
-// Handle preflight OPTIONS requests sent by browsers before actual POST/PUT requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
-
-// 2. Autoload classes / Dependencies
-// Adjust path if using Composer autoload or manual imports
-require_once __DIR__ . '/../app/Controllers/AuthController.php';
-require_once __DIR__ . '/../app/Controllers/DashboardController.php';
-require_once __DIR__ . '/../app/Controllers/ProductController.php';
-require_once __DIR__ . '/../app/Controllers/ExpenseController.php';
-require_once __DIR__ . '/../app/Controllers/SalesController.php';
-require_once __DIR__ . '/../app/Controllers/SupplierController.php';
-require_once __DIR__ . '/../app/Models/Database.php';
-require_once __DIR__ . '/../app/Models/Dashboard.php';
-require_once __DIR__ . '/../app/Models/Expense.php';
-require_once __DIR__ . '/../app/Models/Sales.php';
-require_once __DIR__ . '/../app/Models/Product.php';
-require_once __DIR__ . '/../app/Models/Supplier.php';
-require_once __DIR__ . '/../app/Models/User.php';
-
-use App\Controllers\AuthController;
-use App\Controllers\DashboardController;
-use App\Controllers\ProductController;
-use App\Controllers\ExpenseController;
-use App\Controllers\SalesController;
-use App\Controllers\SupplierController;
-
-// 3. Parse Request Path & HTTP Method
-$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$apiPath = strpos($requestUri, '/api/');
-$requestUri = $apiPath === false ? $requestUri : substr($requestUri, $apiPath);
-$requestMethod = $_SERVER['REQUEST_METHOD'];
-
-// Parse incoming JSON payload into an associative array
-$inputData = json_decode(file_get_contents('php://input'), true) ?? [];
-
-if ($requestMethod !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['message' => 'Method not allowed']);
+    http_response_code(204);
     exit;
 }
 
-// 4. Basic Router
-switch ($requestUri) {
-    case '/api/login':
-        $controller = new AuthController();
-        $response = $controller->login($inputData);
-        echo json_encode($response);
-        break;
+foreach (glob(__DIR__ . '/../app/{Controllers,Models}/*.php', GLOB_BRACE) as $file) {
+    require_once $file;
+}
 
-    case '/api/dashboardAnalytics':
-        $controller = new DashboardController();
-        $response = $controller->getDashboardCardData($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
+use App\Controllers\AuthController;
+use App\Controllers\DashboardController;
+use App\Controllers\ExpenseController;
+use App\Controllers\ProductController;
+use App\Controllers\ReportController;
+use App\Controllers\SalesController;
+use App\Controllers\StaffController;
+use App\Controllers\SupplierController;
+use App\Controllers\POSController;
 
-    case '/api/chartData':
-        $controller = new DashboardController();
-        $response = $controller->getChartAnalytics();
-        http_response_code(200);
-        echo json_encode($response);
-        break;
+function jsonResponse($data, int $status = 200): void
+{
+    http_response_code($status);
+    echo json_encode($data ?? ['status' => 'Success']);
+    exit;
+}
 
-    case '/api/fetchCategories':
-        $controller = new ProductController();
-        $response = $controller->getCategories();
-        http_response_code(200);
-        echo json_encode($response);
-        break;
+// POST (Recording), GET (Fetching), DELETE (Deletion), PATCH (Updating)
+$requestMethod = $_SERVER['REQUEST_METHOD'];
 
-    case '/api/fetchProducts':
-        $controller = new ProductController();
-        $response = $controller->getProducts($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
+// Extract the URL path after /api/ so the router can match endpoint names.
+$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '';
+$apiPath = strpos($requestUri, '/api/');
+$path = $apiPath === false ? '/' : rtrim(substr($requestUri, $apiPath + 4), '/');
 
-    case '/api/updateSellingPrice':
-        $controller = new ProductController();
-        $response = $controller->updateSellingPrice($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
+// Split the path into segments for routes with dynamic IDs, such as /products/12.
+$segments = array_values(array_filter(explode('/', trim($path, '/'))));
 
-    case '/api/deleteProduct':
-        $controller = new ProductController();
-        $response = $controller->softDelete($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
+// Read JSON request data and combine it with URL query parameters.
+$input = json_decode(file_get_contents('php://input'), true);
+$input = is_array($input) ? array_merge($_GET, $input) : $_GET;
+if (!is_array($input)) {
+    $input = [];
+}
 
-    case '/api/restockProduct':
-        $controller = new ProductController();
-        $response = $controller->restock($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
+if (!empty($_POST)) {
+    $input = array_merge($input, $_POST);
+}
 
-    case '/api/getExpenseCategories':
-        $controller = new ExpenseController();
-        $response = $controller->getExpenseCategories();
-        http_response_code(200);
-        echo json_encode($response);
-        break;
+try {
+    $response = null;
+    $status = 200;
 
-    case '/api/addExpense':
-        $controller = new ExpenseController();
-        $response = $controller->addExpense($inputData);
-        http_response_code(200);
-        echo json_encode($response ?? ['status' => 'success', 'message' => 'Expense added successfully.']);
-        break;
+    switch (true) {
+        case $requestMethod === 'POST' && $path === '/login':
+            $response = (new AuthController())->login($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/dashboard/analytics':
+            $response = (new DashboardController())->getDashboardCardData($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/dashboard/chart':
+            $response = (new DashboardController())->getChartAnalytics($input);
+            break;
+        case $requestMethod === 'GET'
+            && ($path === '/dashboard/line-chart' || $path === '/dashboard/LineChartData'):
+            $response = (new DashboardController())->getLineChartData($input);
+            break;
+        case $requestMethod === 'GET'
+            && ($path === '/dashboard/total-products' || $path === '/supplierProductAnalytics'):
+            $response = (new DashboardController())->getTotalProductCardData($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/products/categories':
+            $response = (new ProductController())->getCategories();
+            break;
+        case $requestMethod === 'GET' && $path === '/products':
+            $response = (new ProductController())->getProducts($input);
+            break;
+        case $requestMethod === 'POST' && $path === '/products':
+            $response = (new ProductController())->addProduct($input, $_FILES ?? []);
+            break;
+        case $requestMethod === 'PATCH'
+            && count($segments) === 2
+            && $segments[0] === 'products':
+            $input['product_id'] = $segments[1];
+            $response = (new ProductController())->updateProduct($input, $_FILES ?? []);
+            break;
+        case $requestMethod === 'PATCH'
+            && count($segments) === 3
+            && $segments[0] === 'products'
+            && $segments[2] === 'price':
+            $input['product_id'] = $segments[1];
+            $response = (new ProductController())->updateSellingPrice($input);
+            break;
+        case $requestMethod === 'DELETE'
+            && count($segments) === 2
+            && $segments[0] === 'products':
+            $input['product_id'] = $segments[1];
+            $response = (new ProductController())->softDelete($input);
+            break;
+        case $requestMethod === 'POST' && $path === '/products/store':
+            $response = (new ProductController())->ensureStoreProduct($input);
+            break;
+        case $requestMethod === 'POST'
+            && count($segments) === 3
+            && $segments[0] === 'products'
+            && $segments[2] === 'restock':
+            $input['product_id'] = $segments[1];
+            $response = (new ProductController())->restock($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/expenses/categories':
+            $response = (new ExpenseController())->getExpenseCategories();
+            break;
+        case $requestMethod === 'POST' && $path === '/expenses':
+            $response = (new ExpenseController())->addExpense($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/expenses':
+            $response = (new ExpenseController())->getAllExpenses($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/sales':
+            $response = (new SalesController())->getAllSales($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/suppliers':
+            $response = (new SupplierController())->getSuppliers($input);
+            break;
+        case $requestMethod === 'POST' && $path === '/suppliers':
+            $response = (new SupplierController())->addSupplier($input);
+            break;
+        case $requestMethod === 'PATCH'
+            && count($segments) === 2
+            && $segments[0] === 'suppliers':
+            $input['supplier_id'] = $segments[1];
+            $response = (new SupplierController())->updateSupplier($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/suppliers/postal-codes':
+            $response = (new SupplierController())->fetchPostalCodes($input);
+            break;
+        case $requestMethod === 'POST' && $path === '/suppliers/postal-codes':
+            $response = (new SupplierController())->addPostalCode($input);
+            break;
+        case $requestMethod === 'DELETE'
+            && count($segments) === 2
+            && $segments[0] === 'suppliers':
+            $input['supplier_id'] = $segments[1];
+            $response = (new SupplierController())->softDelete($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/payment-methods':
+            $response = (new ExpenseController())->getPaymentMethods();
+            break;
+        case $requestMethod === 'GET' && $path === '/reports/summary':
+            $response = (new ReportController())->getSummary($input);
+            $status = ($response['status'] ?? '') === 'success' ? 200 : 422;
+            break;
+        case $requestMethod === 'GET' && $path === '/staff/roles':
+            (new StaffController())->getRoles();
+            break;
+        case $requestMethod === 'GET' && $path === '/staff':
+            (new StaffController())->fetchStaffs();
+            break;
+        case $requestMethod === 'GET'
+            && count($segments) === 2
+            && $segments[0] === 'staff':
+            $_GET['staff_id'] = $segments[1];
+            (new StaffController())->getStaff();
+            break;
+        case $requestMethod === 'POST' && $path === '/staff':
+            (new StaffController())->addStaff();
+            break;
+        case $requestMethod === 'POST' && $path === '/checkout':
+            $response = (new POSController())->checkout($input);
+            $status = ($response['status'] ?? '') === 'success' ? 200 : 422;
+            break;
+        default:
+            jsonResponse(['status' => 'Error', 'message' => 'Endpoint not found'], 404);
+    }
 
-    case '/api/fetchAllExpenses':
-        $controller = new ExpenseController();
-        $response = $controller->getAllExpenses($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/fetchAllSales':
-        $controller = new SalesController();
-        $response = $controller->getAllSales($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/fetchSuppliers':
-        $controller = new SupplierController();
-        $response = $controller->getSuppliers($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/deleteSupplier':
-        $controller = new SupplierController();
-        $response = $controller->softDelete($inputData);
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    case '/api/getPaymentMethods':
-        $controller = new ExpenseController();
-        $response = $controller->getPaymentMethods();
-        http_response_code(200);
-        echo json_encode($response);
-        break;
-
-    default:
-        http_response_code(404);
-        echo json_encode(['message' => 'Endpoint not found']);
-        break;
+    jsonResponse($response, $status);
+} catch (Throwable $error) {
+    jsonResponse(['status' => 'Error', 'message' => $error->getMessage()], 500);
 }

@@ -1,14 +1,11 @@
-export const getSales = async (search = "", startDate = "", endDate = "") => {
-  const response = await fetch("/backend/public/index.php/api/fetchAllSales", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ search, startDate, endDate }),
-  });
+import { queryString, request } from "./client";
 
-  try {
-    const data = await response.json();
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  }
+export const getSales = async (search = "", startDate = "", endDate = "") => {
+  const data = await request(
+    `/sales${queryString({ search, startDate, endDate })}`,
+    {
+      method: "GET",
+    },
+  );
+  return Array.isArray(data) ? data : [];
 };
