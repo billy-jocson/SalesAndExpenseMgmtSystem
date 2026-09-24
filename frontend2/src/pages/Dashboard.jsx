@@ -1,3 +1,4 @@
+// Imports
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
 import DashboardCards from "../components/DashboardCards.jsx";
@@ -35,6 +36,7 @@ import AddExpenseModal from "../components/AddExpenseModal.jsx";
 import { userContext } from "../context/UserContext.js";
 import { useNavigate } from "react-router-dom";
 
+// Pie chart colors
 const expenseColors = [
   "#8884d8",
   "#82ca9d",
@@ -44,8 +46,12 @@ const expenseColors = [
   "#df05fc",
 ];
 
+// Main dashboard page
 export default function Dashboard() {
+  // Used for the new sale button to navigat to pos page
   const navigate = useNavigate();
+
+  // Contains current user information from the session
   const { user } = useContext(userContext);
   const [businessData, setBusinessData] = useState({
     netIncome: 0,
@@ -123,13 +129,9 @@ export default function Dashboard() {
     };
     const fetchProductMetrics = async () => {
       try {
-        console.log("Fetching for Supplier ID:", user?.supplier_id);
-
         const response = await getSupplierProductAnalytics({
           supplierId: user?.supplier_id,
         });
-
-        console.log("Product analytics response:", response);
 
         if (response?.status === "success" && response?.data) {
           setProductData({
@@ -137,10 +139,10 @@ export default function Dashboard() {
             totalRevenue: response.data.totalRevenue ?? 0,
           });
         } else {
-          console.warn("API Error:", response?.message);
+          toast.danger(`API Error: ${response?.message}`);
         }
       } catch (error) {
-        console.error("Failed to load product analytics:", error);
+        toast.danger(`Failed to load product analytics: ${error}`);
       }
     };
 

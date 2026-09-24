@@ -16,7 +16,7 @@ import ProtectedRoute from "./context/ProtectedRoute";
 
 export default function App() {
   return (
-    <div className="box-border h-dvh w-screen scrollbar-thin scrollbar-thumb-slate-400 hover:scrollbar-thumb-slate-500 p-4">
+    <div className="dark:bg-zinc-950 box-border h-dvh w-screen scrollbar-thin scrollbar-thumb-slate-400 hover:scrollbar-thumb-slate-500 lg:p-4">
       <ContextProvider>
         <Routes>
           <Route path={NavRoutes.LOGIN} element={<LoginPage />} />
