@@ -1,30 +1,15 @@
-import { Document, Font, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-
-// 1. Register a font that supports "₱" using reliable remote Google Fonts URLs
-Font.register({
-  family: "Roboto",
-  fonts: [
-    {
-      src: "https://fonts.gstatic.com/s/roboto/v29/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf",
-      fontWeight: 400,
-    },
-    {
-      src: "https://fonts.gstatic.com/s/roboto/v29/KFOlCnqEu92Fr1MmWUlfChc9.ttf",
-      fontWeight: 700,
-    },
-  ],
-});
+import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
 // 2. Update your formatters to use the Peso symbol
-const formatMoney = (value) => `₱ ${Number(value ?? 0).toFixed(2)}`;
+const formatMoney = (value) => `PHP ${Number(value ?? 0).toFixed(2)}`;
 
-const moneyText = (value) => `₱ ${Number(value ?? 0).toFixed(2)}`;
+const moneyText = (value) => `PHP ${Number(value ?? 0).toFixed(2)}`;
 
 const styles = StyleSheet.create({
   page: {
     backgroundColor: "#ffffff",
     padding: 28,
-    fontFamily: "Roboto", // 3. Change this from Helvetica to the registered font
+    fontFamily: "Helvetica",
   },
   pageContent: {
     width: "100%",
@@ -126,7 +111,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ReceiptPDF({ data, logoSrc }) {
+export function ReceiptPDF({ data }) {
   const subtotal = Number(
     data?.subtotal ??
       (data?.items ?? []).reduce(
@@ -144,7 +129,6 @@ export function ReceiptPDF({ data, logoSrc }) {
       <Page size="A4" style={styles.page}>
         <View style={styles.pageContent}>
           <View style={styles.header}>
-            {logoSrc ? <Image src={logoSrc} style={styles.logo} /> : null}
             <Text style={styles.title}>SALES RECEIPT</Text>
           </View>
 

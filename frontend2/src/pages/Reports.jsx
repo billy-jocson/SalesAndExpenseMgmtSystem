@@ -58,6 +58,8 @@ export default function Reports() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState("");
   const { toPDF, targetRef } = usePDF({
     filename: "calcula-financial-report.pdf",
     method: "save",
@@ -109,6 +111,39 @@ export default function Reports() {
   const profit = Math.max(Number(totals.profitLoss), 0);
   const loss = Math.max(Number(totals.profitLoss) * -1, 0);
 
+  const handleDownloadReport = async () => {
+    setPdfError("");
+    setIsGeneratingPdf(true);
+    const exportElement = targetRef.current;
+    const originalStyle = exportElement
+      ? {
+          position: exportElement.style.position,
+          left: exportElement.style.left,
+          top: exportElement.style.top,
+          zIndex: exportElement.style.zIndex,
+        }
+      : null;
+    try {
+      if (!exportElement) throw new Error("Report content is not ready.");
+      Object.assign(exportElement.style, {
+        position: "fixed",
+        left: "0px",
+        top: "0px",
+        zIndex: "-1",
+      });
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      await toPDF();
+    } catch (downloadError) {
+      console.error("Unable to generate financial report PDF:", downloadError);
+      setPdfError("Could not create the report PDF. Please try again.");
+    } finally {
+      if (exportElement && originalStyle) {
+        Object.assign(exportElement.style, originalStyle);
+      }
+      setIsGeneratingPdf(false);
+    }
+  };
+
   return (
     <div className="flex gap-3 print:m-0 print:block [&>nav]:print:hidden">
       <Navbar />
@@ -131,9 +166,10 @@ export default function Reports() {
               <Button
                 variant="secondary"
                 className="rounded-lg"
-                onClick={() => toPDF()}
+                onClick={handleDownloadReport}
+                isDisabled={loading || !report || isGeneratingPdf}
               >
-                Download Report
+                {isGeneratingPdf ? "Preparing PDF..." : "Download Report"}
               </Button>
               <Dropdown>
                 <Button
@@ -159,6 +195,11 @@ export default function Reports() {
               </Dropdown>
             </div>
           </div>
+          {pdfError && (
+            <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+              {pdfError}
+            </p>
+          )}
           {error && (
             <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
               {error}

@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button, Card, Separator, Typography } from "@heroui/react";
 import { pdf } from "@react-pdf/renderer";
-import CalculaLogo from "../assets/Logo.svg";
 import { ReceiptPDF } from "./Receipt";
 
 function SaleItemRow({ name, unitPrice, quantity, subtotal }) {
@@ -11,20 +10,21 @@ function SaleItemRow({ name, unitPrice, quantity, subtotal }) {
         <Typography type="body-sm">{name}</Typography>
         <div className="flex gap-2">
           <Typography type="body-sm" weight="semibold">
-            ₱{unitPrice}
+            PHP {unitPrice}
           </Typography>
           <Typography type="body-sm">{quantity}x</Typography>
         </div>
       </div>
       <Typography type="body-sm" weight="bold" className="my-auto">
-        ₱{subtotal}
+        PHP {subtotal}
       </Typography>
     </div>
   );
 }
 
 export default function SaleCard({ data }) {
-  const [logoDataUrl, setLogoDataUrl] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
   const subtotal = Number(
     data?.subtotal ??
       (data?.items ?? []).reduce(
@@ -36,52 +36,25 @@ export default function SaleCard({ data }) {
   const taxAmount = Number(data?.tax_amount ?? 0);
   const totalAmount = Number(data?.total_amount ?? subtotal + taxAmount);
 
-  useEffect(() => {
-    let isActive = true;
-    let logoUrl;
-
-    const loadLogo = async () => {
-      const response = await fetch(CalculaLogo);
-      const svgText = await response.text();
-      logoUrl = URL.createObjectURL(
-        new Blob([svgText], { type: "image/svg+xml" }),
-      );
-
-      const image = new Image();
-      image.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = 330;
-        canvas.height = 104;
-        canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
-        if (isActive) setLogoDataUrl(canvas.toDataURL("image/png"));
-        URL.revokeObjectURL(logoUrl);
-      };
-      image.src = logoUrl;
-    };
-
-    loadLogo();
-
-    return () => {
-      isActive = false;
-      if (logoUrl) URL.revokeObjectURL(logoUrl);
-    };
-  }, []);
-
   const handleDownloadReceipt = async () => {
-    if (!logoDataUrl) return;
-
-    const blob = await pdf(
-      <ReceiptPDF data={data} logoSrc={logoDataUrl} />,
-    ).toBlob();
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `receipt-${data.transaction_number}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    setIsGenerating(true);
+    setDownloadError("");
+    try {
+      const blob = await pdf(<ReceiptPDF data={data} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `receipt-${data.transaction_number || "sale"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      console.error("Unable to generate sales receipt PDF:", error);
+      setDownloadError("Could not create the receipt PDF. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -125,13 +98,18 @@ export default function SaleCard({ data }) {
         </Card.Content>
         <Separator />
         <Card.Footer className="flex justify-between">
-          <Button size="sm" onClick={handleDownloadReceipt} isDisabled={!logoDataUrl}>
-            Download Receipt
+          <Button size="sm" onClick={handleDownloadReceipt} isDisabled={isGenerating}>
+            {isGenerating ? "Preparing PDF..." : "Download Receipt"}
           </Button>
           <Typography type="body-sm" color="muted" className="flex gap-1">
             {data.sale_date}
           </Typography>
         </Card.Footer>
+        {downloadError && (
+          <p role="alert" className="px-4 pb-3 text-sm text-red-600">
+            {downloadError}
+          </p>
+        )}
       </Card>
     </>
   );
