@@ -3,12 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 14, 2026 at 05:23 PM
+-- Generation Time: Sep 24, 2026 at 03:43 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
-
-CREATE DATABASE IF NOT EXISTS `inventory_system` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-USE `inventory_system`;
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -23,6 +20,12 @@ SET time_zone = "+00:00";
 --
 -- Database: `inventory_system`
 --
+DROP DATABASE IF EXISTS inventory_system;
+CREATE DATABASE inventory_system;
+USE inventory_system;
+
+-- Disable foreign key checks for clean drop and creation
+SET FOREIGN_KEY_CHECKS = 0;
 
 DELIMITER $$
 --
@@ -154,7 +157,12 @@ CREATE TABLE `expenses` (
 
 INSERT INTO `expenses` (`expense_id`, `category_id`, `supplier_id`, `payment_method_id`, `reference_code`, `amount`, `additional_description`, `expense_date`) VALUES
 (1, 1, NULL, 1, '', 50000.00, 'Gave employees their salaries', '2026-09-14 04:16:24'),
-(2, 3, NULL, 2, '1245617893124', 5000.00, 'Paid business insurance', '2026-09-14 07:07:05');
+(2, 3, NULL, 2, '1245617893124', 5000.00, 'Paid business insurance', '2026-09-14 07:07:05'),
+(3, 1, NULL, 2, '1546789432165', 500.00, 'Paid operating expenses', '2026-09-22 11:58:24'),
+(4, 6, 8, 1, 'BATCH-33-001', 28.00, 'Inventory restock: BATCH-33-001', '2026-09-23 10:09:23'),
+(5, 6, 4, 1, 'BATCH-14-001', 60.00, 'Inventory restock: BATCH-14-001', '2026-09-23 10:09:23'),
+(6, 6, 1, 1, 'BATCH-1-001', 1500.00, 'Inventory restock: BATCH-1-001', '2026-09-23 10:10:03'),
+(7, 6, 1, 1, 'BATCH-2-001', 50000.00, 'Inventory restock: BATCH-2-001', '2026-09-23 10:10:34');
 
 -- --------------------------------------------------------
 
@@ -218,6 +226,7 @@ CREATE TABLE `postal_codes` (
 
 INSERT INTO `postal_codes` (`postal_code`, `city`, `state`, `country`) VALUES
 ('1000', 'Manila', 'NCR', 'Philippines'),
+('1006', 'Binondo, Manila', 'Metro Manila', 'Philippines'),
 ('4027', 'Calamba', 'Laguna', 'Philippines'),
 ('6000', 'Cebu', 'Cebu', 'Philippines');
 
@@ -251,13 +260,13 @@ INSERT INTO `product_batches` (`batch_id`, `store_product_id`, `batch_number`, `
 (7, 6, 'BATCH-6-002', 60, 14.50, '2027-04-01', '2026-08-15'),
 (8, 7, 'BATCH-7-001', 50, 14.00, '2027-03-02', '2026-08-02'),
 (9, 7, 'BATCH-7-002', 60, 14.50, '2027-04-02', '2026-08-16'),
-(10, 8, 'BATCH-8-001', 100, 16.00, '2027-03-10', '2026-08-03'),
+(10, 8, 'BATCH-8-001', 95, 16.00, '2027-03-10', '2026-08-03'),
 (11, 9, 'BATCH-9-001', 150, 7.00, '2027-03-15', '2026-08-05'),
 (12, 10, 'BATCH-10-001', 80, 18.00, '2027-04-10', '2026-08-06'),
 (13, 10, 'BATCH-10-002', 70, 18.50, '2027-05-10', '2026-08-20'),
 (14, 11, 'BATCH-11-001', 50, 32.00, '2028-01-01', '2026-08-10'),
-(15, 12, 'BATCH-12-001', 50, 16.00, '2028-01-05', '2026-08-11'),
-(16, 13, 'BATCH-13-001', 50, 60.00, '2028-02-01', '2026-08-12'),
+(15, 12, 'BATCH-12-001', 23, 16.00, '2028-01-05', '2026-08-11'),
+(16, 13, 'BATCH-13-001', 30, 60.00, '2028-02-01', '2026-08-12'),
 (17, 14, 'BATCH-14-001', 50, 35.00, '2028-02-10', '2026-08-13'),
 (18, 15, 'BATCH-15-001', 50, 80.00, '2029-01-01', '2026-08-14'),
 (19, 16, 'BATCH-16-001', 100, 12.00, '2027-01-10', '2026-08-15'),
@@ -277,11 +286,15 @@ INSERT INTO `product_batches` (`batch_id`, `store_product_id`, `batch_number`, `
 (33, 30, 'BATCH-30-001', 50, 45.00, '2028-02-10', '2026-09-05'),
 (34, 31, 'BATCH-31-001', 100, 8.00, '2027-10-01', '2026-09-06'),
 (35, 31, 'BATCH-31-002', 100, 8.20, '2027-11-01', '2026-09-15'),
-(36, 32, 'BATCH-32-001', 100, 28.00, '2027-10-05', '2026-09-07'),
+(36, 32, 'BATCH-32-001', 98, 28.00, '2027-10-05', '2026-09-07'),
 (37, 33, 'BATCH-33-001', 150, 3.00, '2027-10-10', '2026-09-08'),
 (38, 33, 'BATCH-33-002', 150, 3.10, '2027-11-10', '2026-09-16'),
 (39, 34, 'BATCH-34-001', 100, 5.00, '2027-10-12', '2026-09-09'),
-(40, 35, 'BATCH-35-001', 100, 5.00, '2027-10-15', '2026-09-10');
+(40, 35, 'BATCH-35-001', 100, 5.00, '2027-10-15', '2026-09-10'),
+(66, 32, 'BATCH-33-001', 0, 28.00, '2026-11-27', '2026-09-23'),
+(67, 13, 'BATCH-14-001', 0, 60.00, '2026-11-27', '2026-09-23'),
+(68, 36, 'BATCH-1-001', 3, 500.00, '2027-01-23', '2026-09-23'),
+(69, 36, 'BATCH-2-001', 93, 500.00, '2026-12-16', '2026-09-23');
 
 -- --------------------------------------------------------
 
@@ -342,8 +355,22 @@ CREATE TABLE `sales` (
   `payment_method_id` int(11) NOT NULL,
   `transaction_number` varchar(50) NOT NULL,
   `tax_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `amount` decimal(10,2) NOT NULL DEFAULT 0.00,
   `sale_date` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `sales`
+--
+
+INSERT INTO `sales` (`sale_id`, `staff_id`, `payment_method_id`, `transaction_number`, `tax_amount`, `amount`, `sale_date`) VALUES
+(1, 1, 1, 'TXN-1-2026', 21.00, 231.00, '2026-09-20 15:03:10'),
+(2, 1, 2, 'GCASH-8192307130291', 26.00, 286.00, '2026-09-20 15:05:04'),
+(3, 1, 1, 'TXN-3-2026', 31.20, 343.20, '2026-09-22 11:55:05'),
+(4, 1, 1, 'TXN-4-2026', 136.00, 1496.00, '2026-09-22 12:05:05'),
+(5, 1, 1, 'TXN-5-2026', 20.80, 228.80, '2026-09-23 05:01:54'),
+(6, 1, 1, 'TXN-6-2026', 64.90, 713.90, '2026-09-23 13:10:53'),
+(7, 1, 1, 'TXN-7-2026', 365.00, 5000.00, '2026-09-23 13:31:38');
 
 -- --------------------------------------------------------
 
@@ -358,6 +385,22 @@ CREATE TABLE `sales_items` (
   `quantity` int(11) NOT NULL,
   `unit_price` decimal(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `sales_items`
+--
+
+INSERT INTO `sales_items` (`sales_item_id`, `sale_id`, `store_product_id`, `quantity`, `unit_price`) VALUES
+(1, 1, 12, 7, 30.00),
+(2, 2, 12, 5, 52.00),
+(3, 3, 12, 6, 52.00),
+(4, 4, 13, 16, 85.00),
+(5, 5, 12, 4, 52.00),
+(6, 6, 32, 3, 38.00),
+(7, 6, 8, 5, 22.00),
+(8, 6, 13, 5, 85.00),
+(9, 7, 12, 5, 30.00),
+(10, 7, 36, 7, 500.00);
 
 -- --------------------------------------------------------
 
@@ -439,7 +482,8 @@ INSERT INTO `store_products` (`store_product_id`, `supplier_product_id`, `sellin
 (32, 32, 38.00, 1, '2026-09-13 02:56:12'),
 (33, 33, 5.00, 1, '2026-09-13 02:56:12'),
 (34, 34, 8.00, 1, '2026-09-13 02:56:12'),
-(35, 35, 8.00, 1, '2026-09-13 02:56:12');
+(35, 35, 8.00, 1, '2026-09-13 02:56:12'),
+(36, 36, 500.00, 1, '2026-09-23 09:23:10');
 
 -- --------------------------------------------------------
 
@@ -474,7 +518,8 @@ INSERT INTO `suppliers` (`supplier_id`, `user_id`, `supplier_name`, `contact_per
 (7, 10, 'Unilever Philippines', 'Unilever Sales', 'sales@unilever.com.ph', '09170000007', 'Unilever BGC', '1000', '2026-09-13 02:56:12', 0),
 (8, 11, 'Nestle Philippines', 'Nestle Sales', 'sales@nestle.com.ph', '09170000008', 'Nestle Cabuyao', '4027', '2026-09-13 02:56:12', 1),
 (9, 12, 'Zest-O Corporation', 'Zest-O Sales', 'sales@zesto.com.ph', '09170000009', 'Zest-O Caloocan', '1000', '2026-09-13 02:56:12', 1),
-(10, 13, 'Colgate-Palmolive Philippines', 'Colgate Sales', 'sales@colgate.com.ph', '09170000010', 'Colgate Mkt', '1000', '2026-09-13 02:56:12', 1);
+(10, 13, 'Colgate-Palmolive Philippines', 'Colgate Sales', 'sales@colgate.com.ph', '09170000010', 'Colgate Mkt', '1000', '2026-09-13 02:56:12', 1),
+(11, 14, 'Super 8 Grocery Warehouse', 'Corporate Customer Care', 'contact@super8.ph', '0995-0946590', '11th Floor, UnionBank Centre-Manila (formerly G.A. Cu-Unjieng Centre), 208 Dasmariñas Street corner Quintin Paredes Street', '1006', '2026-09-23 10:18:21', 1);
 
 -- --------------------------------------------------------
 
@@ -533,7 +578,9 @@ INSERT INTO `supplier_products` (`supplier_product_id`, `supplier_id`, `category
 (32, 8, 7, 'Alaska Evaporated Milk 370ml', 'Evap milk', '/uploads/products/alaska_evap.jpg', 28.00, 1, '2026-09-13 02:56:12'),
 (33, 8, 7, 'Nescafe Original Stick 2g', 'Coffee stick', '/uploads/products/nescafe_stick.jpg', 3.00, 1, '2026-09-13 02:56:12'),
 (34, 8, 7, 'Kopiko Brown Coffee 27.5g', 'Brown coffee', '/uploads/products/kopiko_brown.jpg', 5.00, 1, '2026-09-13 02:56:12'),
-(35, 8, 7, 'Great Taste White Coffee 26g', 'White coffee', '/uploads/products/great_taste_white.jpg', 5.00, 1, '2026-09-13 02:56:12');
+(35, 8, 7, 'Great Taste White Coffee 26g', 'White coffee', '/uploads/products/great_taste_white.jpg', 5.00, 1, '2026-09-13 02:56:12'),
+(36, 1, 5, '555 Sardines Tomato 155g', 'sddsadasd', '/uploads/products/product_1790141604_a95b69c4.png', 500.00, 1, '2026-09-23 05:33:24'),
+(37, 10, 1, 'sdddsdsd', 'Green tea apple', '/uploads/products/product_1790153273_d0c084ae.png', 321.00, 1, '2026-09-23 08:47:53');
 
 -- --------------------------------------------------------
 
@@ -568,7 +615,8 @@ INSERT INTO `users` (`user_id`, `role_id`, `username`, `password_hash`, `is_acti
 (10, 4, 'unilever_supplier', '$2y$10$A/5.2.ayAbXV8e0pKIVEV.2iocwLFuzuCrq14JdUFGqsNbgj4r/Ye', 1, NULL, '2026-09-13 06:42:25'),
 (11, 4, 'nestle_supplier', '$2y$10$3FpFQy82CNz8Ta6Ji16xk.CQqEXckkjNlIb9/XiMPSiNTs6x3yhFW', 1, NULL, '2026-09-13 06:42:25'),
 (12, 4, 'zesto_supplier', '$2y$10$nbwIU05lzY73/5LgHBFTEOAZw5RgmLinmj5YgxFlr94vnEibPQGI6', 1, NULL, '2026-09-13 06:42:25'),
-(13, 4, 'colgate_supplier', '$2y$10$uOHy/nWPdtIL/LfT3bjtt..err7wDsLR31/1nvOfWGnWWfEKMs4uW', 1, NULL, '2026-09-13 06:42:25');
+(13, 4, 'colgate_supplier', '$2y$10$uOHy/nWPdtIL/LfT3bjtt..err7wDsLR31/1nvOfWGnWWfEKMs4uW', 1, NULL, '2026-09-13 06:42:25'),
+(14, 4, 'super8_user', '$2y$10$icAxUiqdOpWTe9lT8z5DF.ou4zMktdcQpH9V.MwUwhypykAkosCPW', 1, NULL, '2026-09-23 10:18:21');
 
 -- --------------------------------------------------------
 
@@ -713,7 +761,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `expenses`
 --
 ALTER TABLE `expenses`
-  MODIFY `expense_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `expense_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `expense_categories`
@@ -731,7 +779,7 @@ ALTER TABLE `payment_methods`
 -- AUTO_INCREMENT for table `product_batches`
 --
 ALTER TABLE `product_batches`
-  MODIFY `batch_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `batch_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
 
 --
 -- AUTO_INCREMENT for table `product_categories`
@@ -749,13 +797,13 @@ ALTER TABLE `roles`
 -- AUTO_INCREMENT for table `sales`
 --
 ALTER TABLE `sales`
-  MODIFY `sale_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `sale_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `sales_items`
 --
 ALTER TABLE `sales_items`
-  MODIFY `sales_item_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `sales_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `staffs`
@@ -767,25 +815,25 @@ ALTER TABLE `staffs`
 -- AUTO_INCREMENT for table `store_products`
 --
 ALTER TABLE `store_products`
-  MODIFY `store_product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+  MODIFY `store_product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- AUTO_INCREMENT for table `suppliers`
 --
 ALTER TABLE `suppliers`
-  MODIFY `supplier_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `supplier_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `supplier_products`
 --
 ALTER TABLE `supplier_products`
-  MODIFY `supplier_product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+  MODIFY `supplier_product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- Constraints for dumped tables

@@ -1,5 +1,39 @@
 @import "tailwindcss";
 @import "@heroui/styles";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: 'Lora-Bold';
+  src: url('./assets/fonts/Lora/Lora-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Lora-Medium';
+  src: url('./assets/fonts/Lora/Lora-Medium.ttf') format('truetype');
+  font-weight: medium;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Lora';
+  src: url('./assets/fonts/Lora/Lora-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.lora-bold{
+	font-family: 'Lora-Bold';
+}
+
+.lora-medium{
+	font-family: 'Lora-Medium';
+}
+
+.lora-regular{
+	font-family: 'Lora';
+}
 
 @keyframes expense-card-in {
 	from {
@@ -15,4 +49,15 @@
 
 .expense-card-in {
 	animation: expense-card-in 220ms ease-out both;
+}
+
+@media print {
+	@page {
+		size: letter;
+		margin: 0.35in;
+	}
+
+	body {
+		background: #fff;
+	}
 }

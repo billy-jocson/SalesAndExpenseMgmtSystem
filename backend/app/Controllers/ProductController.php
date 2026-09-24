@@ -37,7 +37,8 @@ class ProductController
             $data['role'] ?? '',
             $data['supplier_id'] ?? null,
             $data['search'] ?? '',
-            $data['category_id'] ?? ''
+            $data['category_id'] ?? '',
+            filter_var($data['isAll'] ?? false, FILTER_VALIDATE_BOOLEAN)
         );
 
         if ($products !== null) {
@@ -140,13 +141,35 @@ class ProductController
         ];
     }
 
+    public function ensureStoreProduct($data = [])
+    {
+        $supplierProductId = (int) ($data['supplier_product_id'] ?? 0);
+        $sellingPrice = isset($data['selling_price']) ? (float) $data['selling_price'] : null;
+
+        if ($supplierProductId <= 0) {
+            return ['status' => 'Error', 'message' => 'A valid supplier product is required.'];
+        }
+
+        try {
+            $storeProductId = $this->productModel->ensureStoreProduct($supplierProductId, $sellingPrice);
+            return [
+                'status' => 'Success',
+                'message' => 'Store product is ready for restocking.',
+                'store_product_id' => $storeProductId
+            ];
+        } catch (\Throwable $error) {
+            return ['status' => 'Error', 'message' => $error->getMessage()];
+        }
+    }
+
     public function restock($data = [])
     {
         $productId = (int) ($data['product_id'] ?? 0);
         $quantity = (int) ($data['quantity'] ?? 0);
         $expirationDate = $data['expiration_date'] ?? '';
+        $paymentMethod = trim((string) ($data['payment_method'] ?? 'Cash'));
 
-        if ($productId <= 0 || $quantity <= 0 || $expirationDate === '') {
+        if ($productId <= 0 || $quantity <= 0 || $expirationDate === '' || !in_array($paymentMethod, ['Cash', 'GCash'], true)) {
             return ['status' => 'Error', 'message' => 'Complete all restock fields with valid values.'];
         }
 
@@ -154,7 +177,8 @@ class ProductController
             $result = $this->productModel->restock(
                 $productId,
                 $quantity,
-                $expirationDate
+                $expirationDate,
+                $paymentMethod
             );
             return [
                 'status' => 'Success',

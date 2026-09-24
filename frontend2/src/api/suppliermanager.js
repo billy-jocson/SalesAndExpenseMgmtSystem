@@ -1,42 +1,35 @@
+import { queryString, request } from "./client";
+
 export const getSuppliers = async (search = "") => {
-  const response = await fetch("/backend/public/index.php/api/fetchSuppliers", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ search }),
-  });
-
-  let data;
-
-  try {
-    data = await response.json();
-  } catch {
-    return {
-      status: "Error",
-      message: `Request failed with status ${response.status}.`,
-    };
-  }
-
-  if (!response.ok) {
-    return { ...data, status: data.status ?? "Error" };
-  }
-
-  return data;
+  return request(`/suppliers${queryString({ search })}`, { method: "GET" });
 };
 
 export const deleteSupplier = async (supplierId) => {
-  const response = await fetch("/backend/public/index.php/api/deleteSupplier", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ supplier_id: supplierId }),
+  return request(`/suppliers/${supplierId}`, {
+    method: "DELETE",
   });
+};
 
-  try {
-    return await response.json();
-  } catch {
-    return { status: "Error", message: "Unable to delete supplier." };
-  }
+export const addSupplier = async (supplierData) => {
+  return request("/suppliers", { method: "POST", body: supplierData });
+};
+
+export const updateSupplier = async (supplierData) => {
+  return request(`/suppliers/${supplierData.supplier_id}`, {
+    method: "PATCH",
+    body: supplierData,
+  });
+};
+
+export const fetchPostalCodes = async (search = "") => {
+  return request(`/suppliers/postal-codes${queryString({ search })}`, {
+    method: "GET",
+  });
+};
+
+export const addPostalCode = async (postalData) => {
+  return request("/suppliers/postal-codes", {
+    method: "POST",
+    body: postalData,
+  });
 };

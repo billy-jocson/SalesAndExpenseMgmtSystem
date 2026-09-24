@@ -1,5 +1,4 @@
-import LoginImg from "../assets/LoginImg.svg";
-import CalculaLogo from "../assets/Logo.svg";
+import CalculaLogo from "../assets/Logo_light.svg";
 import { Eye, EyeClosed, CircleExclamationFill } from "@gravity-ui/icons";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -13,10 +12,12 @@ import {
   FieldError,
   InputGroup,
   Modal,
+  Typography,
 } from "@heroui/react";
 import { loginUser } from "../api/auth";
 import { useContext } from "react";
 import { userContext } from "../context/UserContext";
+import loginVideo from "../assets/loginvideo.mp4";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ export default function LoginPage() {
   });
   const [formData, setFormData] = useState({ username: "", password: "" });
   const { setSession } = useContext(userContext);
+  const trimmedSrc = `${loginVideo}#t=7`;
 
   useEffect(() => {
     document.title = "Login";
@@ -60,28 +62,34 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row w-auto h-full p-auto">
-      <div className="hidden w-auto lg:flex justify-center">
-        <img src={LoginImg} alt="" className="w-[60%]" />
+    <div className="flex justify-center w-auto h-full lg:static relative">
+      <div className="absolute top-0 left-0 lg:left-15 p-8">
+        <img src={CalculaLogo} alt="Calcula logo" className="" />
       </div>
-      <div className="w-auto flex flex-col gap-5 m-auto">
+      <div className="flex-1 h-full flex flex-col gap-8 justify-center items-center">
         {/* Text Above Forms */}
-        <img src={CalculaLogo} alt="" className="w-36 mb-12" />
-        <div>
-          <h1 className="text-3xl font-semibold text-zinc-800">
-            Welcome Back!
-          </h1>
-          <p className="text-zinc-800">Login using your Calcula account.</p>
+        <div className="space-y-4">
+          <Typography className="dark:text-zinc-100 text-zinc-800 w-full font-light text-center text-3xl lg:text-4xl lora-regular">
+            Track Your Sales & Expenses
+          </Typography>
+          <Typography
+            type="body"
+            className="dark:text-zinc-100 text-zinc-800 w-full text-center lora-medium"
+          >
+            Sign in to manage your finances with Calcula.
+          </Typography>
         </div>
 
         {/* Forms */}
         <Form
           onSubmit={handleSubmit}
           validationBehavior="native"
-          className="flex flex-col gap-5 w-100 lg:w-125"
+          className="bg-white flex flex-col gap-5 w-[87%] lg:w-125 p-5 rounded-4xl border border-zinc-200"
         >
           <TextField className="flex flex-col gap-1" isRequired>
-            <Label htmlFor="input-type-username">Username</Label>
+            <Label htmlFor="input-type-username" className="dark:text-zinc-100">
+              Username
+            </Label>
             <Input
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, username: e.target.value }))
@@ -92,7 +100,7 @@ export default function LoginPage() {
             />
             <FieldError>Please enter your username</FieldError>
           </TextField>
-          <TextField fullWidth name="password" isRequired>
+          <TextField name="password" isRequired>
             <Label>Password</Label>
             <InputGroup fullWidth>
               <InputGroup.Input
@@ -115,11 +123,25 @@ export default function LoginPage() {
             </InputGroup>
             <FieldError>Please enter your password</FieldError>
           </TextField>
-          <Button className="rounded-lg" fullWidth type="submit">
+          <Button
+            className="rounded-2xl bg-black hover:bg-zinc-900 transition-all"
+            fullWidth
+            type="submit"
+          >
             Login
           </Button>
         </Form>
       </div>
+      <div className="flex flex-1 justify-center items-center lg:static absolute z-[-1]">
+        <video
+          src={trimmedSrc}
+          autoPlay
+          loop
+          muted
+          className="transition-all w-screen h-screen lg:w-[70%] lg:h-[80%] lg:rounded-4xl object-cover lg:opacity-100 lg:blur-none opacity-20 blur-sm"
+        />
+      </div>
+
       <Modal isOpen={isErrorModalOpen} onOpenChange={setIsErrorModalOpen}>
         <Modal.Backdrop>
           <Modal.Container>

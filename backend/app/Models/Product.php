@@ -119,7 +119,44 @@ class Product
         return $stmt->execute();
     }
 
-    public function restock($storeProductId, $quantity, $expirationDate)
+    public function ensureStoreProduct($supplierProductId, $sellingPrice = null)
+    {
+        $supplierProductId = (int) $supplierProductId;
+
+        $supplierStmt = $this->db->prepare("SELECT wholesale_price FROM supplier_products WHERE supplier_product_id = ? AND is_active = 1 LIMIT 1");
+        $supplierStmt->bind_param('i', $supplierProductId);
+        $supplierStmt->execute();
+        $supplierProduct = $supplierStmt->get_result()->fetch_assoc();
+
+        if (!$supplierProduct) {
+            throw new \RuntimeException('Supplier product not found.');
+        }
+
+        $existingStmt = $this->db->prepare("SELECT store_product_id FROM store_products WHERE supplier_product_id = ? LIMIT 1");
+        $existingStmt->bind_param('i', $supplierProductId);
+        $existingStmt->execute();
+        $existingProduct = $existingStmt->get_result()->fetch_assoc();
+
+        if ($existingProduct) {
+            $storeProductId = (int) $existingProduct['store_product_id'];
+            $activateStmt = $this->db->prepare("UPDATE store_products SET is_active = 1 WHERE store_product_id = ?");
+            $activateStmt->bind_param('i', $storeProductId);
+            $activateStmt->execute();
+
+            return $storeProductId;
+        }
+
+        $sellingPrice = $sellingPrice === null
+            ? (float) $supplierProduct['wholesale_price']
+            : (float) $sellingPrice;
+        $insertStmt = $this->db->prepare("INSERT INTO store_products (supplier_product_id, selling_price, is_active, created_at) VALUES (?, ?, 1, NOW())");
+        $insertStmt->bind_param('id', $supplierProductId, $sellingPrice);
+        $insertStmt->execute();
+
+        return (int) $this->db->insert_id;
+    }
+
+    public function restock($storeProductId, $quantity, $expirationDate, $paymentMethod = 'Cash')
     {
         $this->db->begin_transaction();
 
@@ -156,16 +193,17 @@ class Product
             $batchStmt->bind_param('isids', $storeProductId, $batchNumber, $quantity, $unitCost, $expirationDate);
             $batchStmt->execute();
 
-            $categoryStmt = $this->db->prepare("SELECT category_id FROM expense_categories WHERE category_name = 'Inventory Purchases' LIMIT 1");
+            $categoryStmt = $this->db->prepare("SELECT category_id FROM expense_categories WHERE category_name = 'Inventory' LIMIT 1");
             $categoryStmt->execute();
             $category = $categoryStmt->get_result()->fetch_assoc();
 
-            $paymentStmt = $this->db->prepare("SELECT payment_method_id FROM payment_methods WHERE method_name = 'Cash' LIMIT 1");
+            $paymentStmt = $this->db->prepare("SELECT payment_method_id FROM payment_methods WHERE method_name = ? LIMIT 1");
+            $paymentStmt->bind_param('s', $paymentMethod);
             $paymentStmt->execute();
             $payment = $paymentStmt->get_result()->fetch_assoc();
 
             if (!$category || !$payment) {
-                throw new \RuntimeException('Inventory category or Cash payment method is missing.');
+                throw new \RuntimeException("Inventory category or {$paymentMethod} payment method is missing.");
             }
 
             $amount = $quantity * $unitCost;
@@ -196,13 +234,35 @@ class Product
         }
     }
 
-    public function getProducts($role = '', $supplierId = null, $search = '', $categoryId = '')
+    public function getProducts($role = '', $supplierId = null, $search = '', $categoryId = '', $isAll = false)
     {
         $isSupplier = strtolower(trim($role)) === 'supplier';
         $searchTerm = "%{$search}%";
         $categoryCondition = $categoryId === '' ? '' : ' AND sp.category_id = ?';
 
-        if ($isSupplier) {
+        if ($isAll) {
+            $stmt = $this->db->prepare("SELECT
+                sp.supplier_product_id as id,
+                sp.product_name as prodname,
+                sp.description as description,
+                sp.image_path as image_path,
+                pc.category_id as category_id,
+                pc.category_name as category,
+                s.supplier_name,
+                sp.wholesale_price as wholesaleprice
+                FROM supplier_products sp
+                LEFT JOIN product_categories pc USING(category_id)
+                LEFT JOIN suppliers s ON sp.supplier_id = s.supplier_id
+                WHERE sp.is_active = 1 AND s.is_active = 1
+                    AND (sp.product_name LIKE ? OR pc.category_name LIKE ? OR s.supplier_name LIKE ?){$categoryCondition}
+                ORDER BY sp.product_name ASC");
+            if ($categoryId === '') {
+                $stmt->bind_param('sss', $searchTerm, $searchTerm, $searchTerm);
+            } else {
+                $categoryId = (int) $categoryId;
+                $stmt->bind_param('sssi', $searchTerm, $searchTerm, $searchTerm, $categoryId);
+            }
+        } elseif ($isSupplier) {
             $stmt = $this->db->prepare("SELECT
                 sp.supplier_product_id as id,
                 sp.product_name as prodname,
@@ -213,7 +273,7 @@ class Product
                 sp.wholesale_price as sellprice,
                 0 as stock
                 FROM supplier_products sp
-                LEFT JOIN product_categories pc ON sp.category_id = pc.category_id
+                LEFT JOIN product_categories pc USING(category_id)
                 WHERE sp.supplier_id = ? AND sp.is_active = 1
                     AND (sp.product_name LIKE ? OR pc.category_name LIKE ?){$categoryCondition}
                 ORDER BY sp.product_name ASC");

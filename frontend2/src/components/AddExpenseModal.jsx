@@ -1,4 +1,9 @@
-import { SquareDashedLetterA, TagDollar, Wallet } from "@gravity-ui/icons";
+import {
+  SquareDashedLetterA,
+  TagDollar,
+  Wallet,
+  CirclePlusFill,
+} from "@gravity-ui/icons";
 import {
   Button,
   InputGroup,
@@ -101,7 +106,8 @@ export default function AddExpenseModal({ onSuccess }) {
         variant="primary"
         className="w-full rounded-lg bg-purple-600 text-white"
       >
-        + Add Expense
+        <CirclePlusFill className="size-4" />
+        Add Expense
       </Button>
       <Modal.Backdrop>
         <Modal.Container>

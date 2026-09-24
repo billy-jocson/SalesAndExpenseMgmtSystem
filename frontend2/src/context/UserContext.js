@@ -13,5 +13,5 @@ export const ROLE_PERMISSIONS = {
     "/suppliermanager",
     "/restockproducts",
   ],
-  supplier: ["/productsmanager"],
+  supplier: ["/dashboard", "/productsmanager"],
 };

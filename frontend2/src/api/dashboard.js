@@ -1,54 +1,26 @@
+import { queryString, request } from "./client";
+
 export const getAnalytics = async ({ startDate, endDate }) => {
-  const response = await fetch(
-    "/backend/public/index.php/api/dashboardAnalytics",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ startDate, endDate }),
-    },
-  );
-  let data;
-
-  try {
-    data = await response.json();
-  } catch {
-    return {
-      status: "Error",
-      message: `Request failed with status ${response.status}.`,
-    };
-  }
-
-  if (!response.ok) {
-    return { ...data, status: data.status ?? "Error" };
-  }
-
-  return data;
+  return request(`/dashboard/analytics${queryString({ startDate, endDate })}`, {
+    method: "GET",
+  });
 };
 
 export const getChartData = async (period) => {
-  const response = await fetch("/backend/public/index.php/api/chartData", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return request(`/dashboard/chart${queryString(period)}`, { method: "GET" });
+};
+
+export const getLineChartData = async ({ startDate, endDate }) => {
+  return request(
+    `/dashboard/line-chart${queryString({ startDate, endDate })}`,
+    {
+      method: "GET",
     },
-    body: JSON.stringify(period),
+  );
+};
+
+export const getSupplierProductAnalytics = async ({ supplierId }) => {
+  return request(`/dashboard/total-products${queryString({ supplierId })}`, {
+    method: "GET",
   });
-  let data;
-
-  try {
-    data = await response.json();
-  } catch {
-    return {
-      status: "Error",
-      message: `Request failed with status ${response.status}.`,
-    };
-  }
-
-  if (!response.ok) {
-    return { ...data, status: data.status ?? "Error" };
-  }
-
-  return data;
 };
