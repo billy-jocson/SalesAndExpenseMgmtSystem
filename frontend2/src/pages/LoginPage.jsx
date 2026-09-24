@@ -63,7 +63,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex justify-center w-auto h-full lg:static relative">
-      <div className="absolute top-0 left-0 lg:left-15 p-4">
+      <div className="absolute top-0 left-0 lg:left-15 p-8">
         <img src={CalculaLogo} alt="Calcula logo" className="" />
       </div>
       <div className="flex-1 h-full flex flex-col gap-8 justify-center items-center">
@@ -138,7 +138,7 @@ export default function LoginPage() {
           autoPlay
           loop
           muted
-          className="w-screen h-screen lg:w-[70%] lg:h-[80%] lg:rounded-4xl object-cover lg:opacity-100 opacity-10"
+          className="transition-all w-screen h-screen lg:w-[70%] lg:h-[80%] lg:rounded-4xl object-cover lg:opacity-100 lg:blur-none opacity-20 blur-sm"
         />
       </div>
 
