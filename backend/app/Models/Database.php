@@ -8,6 +8,7 @@ use mysqli_sql_exception;
 class Database
 {
     private $host = 'localhost';
+    private $port = 3307;
     private $dbname = 'inventory_system';
     private $username = 'root';
     private $password = '';
@@ -22,7 +23,8 @@ class Database
                     $this->host,
                     $this->username,
                     $this->password,
-                    $this->dbname
+                    $this->dbname,
+                    $this->port
                 );
                 $this->conn->set_charset('utf8mb4');
             } catch (mysqli_sql_exception $e) {
