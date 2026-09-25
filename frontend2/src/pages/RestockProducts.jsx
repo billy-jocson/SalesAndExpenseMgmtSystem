@@ -1,6 +1,6 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import restockIcon from "../assets/images/restockprod.png";
 import {
   Table,
@@ -17,8 +17,10 @@ import { useDebounce } from "../hooks/useDebounce.js";
 import RestockModal from "../components/RestockModal.jsx";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { TableSkeleton } from "../components/PageSkeleton.jsx";
+import { userContext } from "../context/UserContext.js";
 
 export default function RestockProducts() {
+  const user = useContext(userContext);
   const [searchItem, setSearchItem] = useState("");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +33,7 @@ export default function RestockProducts() {
       setLoading(true);
       try {
         const data = await fetchProducts(
-          "",
+          user?.role,
           null,
           debouncedSearchItem,
           categorySelected,
@@ -42,7 +44,7 @@ export default function RestockProducts() {
       }
     };
     loadProducts();
-  }, [debouncedSearchItem, categorySelected, productsRefreshKey]);
+  }, [debouncedSearchItem, categorySelected, productsRefreshKey, user?.role]);
 
   return (
     <div className="flex gap-3">
@@ -122,15 +124,19 @@ export default function RestockProducts() {
                           : stock <= 10
                             ? "warning"
                             : "success";
+                      const imagePath = `/backend/public${product.image_path}`;
 
                       return (
                         <Table.Row key={product.id}>
+                          <Table.Cell>
+                            <img
+                              src={imagePath}
+                              className="w-16 h-16 object-cover rounded-lg"
+                            ></img>
+                          </Table.Cell>
                           <Table.Cell>{product.prodname}</Table.Cell>
                           <Table.Cell>{product.category}</Table.Cell>
-                          <Table.Cell>
-                            {product.supplier_name ?? "-"}
-                          </Table.Cell>
-                          <Table.Cell>{stock}</Table.Cell>
+                          <Table.Cell>{product.supplier_name}</Table.Cell>
                           <Table.Cell>{stock}</Table.Cell>
                           <Table.Cell>
                             <Chip
