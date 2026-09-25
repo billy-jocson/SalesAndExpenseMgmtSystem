@@ -4,6 +4,7 @@ import { useState } from "react";
 
 export default function POSProductCard({
   id,
+  image,
   name,
   price,
   stock,
@@ -11,6 +12,7 @@ export default function POSProductCard({
 }) {
   const safeStock = Number(stock) || 0;
   const [quantity, setQuantity] = useState(0);
+  const imagePath = `/backend/public${image}`;
 
   function addtoCart() {
     if (quantity > 0) {
@@ -25,9 +27,9 @@ export default function POSProductCard({
     <Card className="w-auto grow gap-2 shadow-md">
       <img
         alt={name}
-        className="pointer-events-none aspect-square w-fit mx-auto rounded-2xl object-cover select-none"
+        className="pointer-events-none aspect-square w-56 mx-auto rounded-2xl object-cover select-none"
         loading="lazy"
-        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTULlOeY6XTrnI_PT7ypqVrR-dHQghz7qnQxEV5IwZzrw&s"
+        src={imagePath}
       />
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">

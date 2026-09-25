@@ -409,7 +409,7 @@ export default function POS() {
                   <POSProductCard
                     key={product.id}
                     id={product.id}
-                    image={null}
+                    image={product.image_path}
                     name={product.prodname}
                     price={parseFloat(product.sellprice)}
                     stock={product.stock}

@@ -245,7 +245,7 @@ class Product
                 sp.supplier_product_id as id,
                 sp.product_name as prodname,
                 sp.description as description,
-                sp.image_path as image_path,
+                sp.image_path as image,
                 pc.category_id as category_id,
                 pc.category_name as category,
                 s.supplier_name,

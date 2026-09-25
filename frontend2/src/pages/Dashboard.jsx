@@ -127,6 +127,7 @@ export default function Dashboard() {
         setData(formattedData);
       }
     };
+
     const fetchProductMetrics = async () => {
       try {
         const response = await getSupplierProductAnalytics({
@@ -146,12 +147,12 @@ export default function Dashboard() {
       }
     };
 
-    if (user?.role === "Administrator") {
+    if (user?.role !== "Supplier") {
       loadAnalytics();
     } else {
       fetchProductMetrics();
     }
-  }, [dateRange]);
+  }, [dateRange, user?.role, user?.supplier_id]);
 
   useEffect(() => {
     if (
@@ -159,9 +160,9 @@ export default function Dashboard() {
       sessionStorage.getItem("dashboardWelcomeToast") === "1"
     ) {
       sessionStorage.removeItem("dashboardWelcomeToast");
-      toast.success(`Welcome back, ${user.first_name}`);
+      toast.success(`Welcome back, ${user.first_name} ${user.last_name}`);
     }
-  }, [user?.first_name]);
+  }, [user?.first_name, user?.last_name]);
 
   return (
     <div className="flex gap-3">
@@ -178,17 +179,20 @@ export default function Dashboard() {
         />
 
         <div className="flex flex-col flex-1">
-          {user?.role === "Administrator" ? (
+          {user?.role !== "Supplier" ? (
             <>
               <div className="flex flex-col md:flex-row md:ms-auto gap-2 mb-5">
-                <Button
-                  variant="primary"
-                  className="rounded-lg text-white w-full"
-                  onClick={() => navigate("/pos")}
-                >
-                  <CirclePlusFill className="size-4" />
-                  New Sale
-                </Button>
+                {user?.role !== "Inventory Staff" && (
+                  <Button
+                    variant="primary"
+                    className="rounded-lg text-white w-full"
+                    onClick={() => navigate("/pos")}
+                  >
+                    <CirclePlusFill className="size-4" />
+                    New Sale
+                  </Button>
+                )}
+
                 <AddExpenseModal />
                 <DateRangePicker value={dateRange} onChange={setDateRange}>
                   <DateField.Group>
