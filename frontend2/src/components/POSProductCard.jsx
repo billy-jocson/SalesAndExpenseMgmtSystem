@@ -16,7 +16,7 @@ export default function POSProductCard({
 
   function addtoCart() {
     if (quantity > 0) {
-      onAddToCart({ id, name, price, stock: safeStock }, quantity);
+      onAddToCart({ id, imagePath, name, price, stock: safeStock }, quantity);
 
       // Resets back to 0. QtyButtons will now visually respect this reset.
       setQuantity(0);

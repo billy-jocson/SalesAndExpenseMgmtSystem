@@ -4,9 +4,9 @@ import QtyButtons from "./QtyButtons.jsx";
 
 export default function POSBillItem({
   name,
+  imagePath,
   price,
   quantity,
-  image,
   onQuantityChange,
   onRemove,
 }) {
@@ -14,7 +14,7 @@ export default function POSBillItem({
     <div className="flex items-center justify-between gap-3 rounded-xl bg-white p-2 shadow-sm relative">
       <div className="flex items-center gap-3">
         <img
-          src={image}
+          src={imagePath}
           alt={name}
           className="w-14 rounded-lg aspect-square object-cover bg-white"
         />

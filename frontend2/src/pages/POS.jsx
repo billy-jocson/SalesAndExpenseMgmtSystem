@@ -60,6 +60,7 @@ export default function POS() {
 
           const updatedItem = {
             id: item.id,
+            imagePath: item.imagePath,
             name: item.name,
             price: item.price,
             stock: item.stock,
@@ -75,6 +76,7 @@ export default function POS() {
       if (alreadyInCart === false) {
         const newItem = {
           id: product.id,
+          imagePath: product.imagePath,
           name: product.name,
           price: product.price,
           stock: product.stock,
@@ -168,7 +170,7 @@ export default function POS() {
             name={item.name}
             price={item.price}
             quantity={item.quantity}
-            image="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTULlOeY6XTrnI_PT7ypqVrR-dHQghz7qnQxEV5IwZzrw&s"
+            imagePath={item.imagePath}
             onQuantityChange={(newQuantity) =>
               handleQuantityChange(item.id, newQuantity)
             }
