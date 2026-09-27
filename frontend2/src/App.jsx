@@ -13,6 +13,7 @@ import StaffManager from "./pages/StaffManager";
 import NotFound from "./pages/NotFound";
 import ContextProvider from "./context/ContextProvider";
 import ProtectedRoute from "./context/ProtectedRoute";
+import RoleManager from "./pages/RoleManager";
 
 export default function App() {
   return (
@@ -46,6 +47,9 @@ export default function App() {
           </Route>
           <Route element={<ProtectedRoute path={NavRoutes.STAFFMANAGER} />}>
             <Route path={NavRoutes.STAFFMANAGER} element={<StaffManager />} />
+          </Route>
+          <Route element={<ProtectedRoute path={NavRoutes.ROLEMANAGER} />}>
+            <Route path={NavRoutes.ROLEMANAGER} element={<RoleManager />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

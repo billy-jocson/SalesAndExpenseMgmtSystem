@@ -23,6 +23,7 @@ use App\Controllers\SalesController;
 use App\Controllers\StaffController;
 use App\Controllers\SupplierController;
 use App\Controllers\POSController;
+use App\Controllers\RoleController;
 
 function jsonResponse($data, int $status = 200): void
 {
@@ -174,6 +175,22 @@ try {
         case $requestMethod === 'POST' && $path === '/checkout':
             $response = (new POSController())->checkout($input);
             $status = ($response['status'] ?? '') === 'success' ? 200 : 422;
+            break;
+        case $requestMethod === 'GET' && $path === '/roles':
+            // $input carries user_id from the query string (?user_id=..),
+            // which RoleController uses to look up the caller's real role.
+            $response = (new RoleController())->getRoles($input);
+            break;
+        case $requestMethod === 'POST' && $path === '/roles':
+            $response = (new RoleController())->addRole($input);
+            break;
+        case $requestMethod === 'PATCH' && count($segments) === 2 && $segments[0] === 'roles':
+            $input['role_id'] = $segments[1];
+            $response = (new RoleController())->updateRole($input);
+            break;
+        case $requestMethod === 'DELETE' && count($segments) === 2 && $segments[0] === 'roles':
+            $input['role_id'] = $segments[1];
+            $response = (new RoleController())->deleteRole($input);
             break;
         default:
             jsonResponse(['status' => 'Error', 'message' => 'Endpoint not found'], 404);

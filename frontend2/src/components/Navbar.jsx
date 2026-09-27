@@ -30,6 +30,7 @@ import {
   ChartMixed,
   Xmark,
   Person,
+  Shield,
 } from "@gravity-ui/icons";
 
 function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
@@ -186,6 +187,11 @@ export default function Navbar() {
       label: "Staff Manager",
       path: NavRoutes.STAFFMANAGER,
       icon: Person,
+    },
+    {
+      label: "Role Manager",
+      path: NavRoutes.ROLEMANAGER,
+      icon: Shield,
     },
     {
       label: "Restock Products",

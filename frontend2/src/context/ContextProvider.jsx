@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ROLE_PERMISSIONS, userContext } from "./UserContext";
+import { ROLE_PERMISSIONS, permissionsToRoutes, userContext } from "./UserContext";
 
 function getStoredUser() {
   try {
@@ -13,7 +13,7 @@ function getStoredUser() {
 export default function ContextProvider({ children }) {
   const [user, setUser] = useState(getStoredUser);
   const role = user?.role?.trim().toLowerCase() ?? "";
-  const permissions = ROLE_PERMISSIONS[role] ?? [];
+  const permissions = ROLE_PERMISSIONS[role] ?? permissionsToRoutes(user?.permissions);
 
   const setSession = (session) => {
     const nextUser = session?.user ?? session ?? null;
