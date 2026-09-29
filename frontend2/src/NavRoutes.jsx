@@ -9,4 +9,5 @@ export const NavRoutes = {
   RESTOCKPROD: "/restockproducts",
   REPORTS: "/reports",
   STAFFMANAGER: "/staffmanager",
+  ROLEMANAGER: "/rolemanager",
 };

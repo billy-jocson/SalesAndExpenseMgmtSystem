@@ -1,5 +1,4 @@
 <?php
-// create sales and retrieve sales history.
 
 namespace App\Controllers;
 

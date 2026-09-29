@@ -18,3 +18,16 @@ export const addStaff = (staffData) => {
     body: staffData,
   });
 };
+
+export const deleteStaff = (staff_id) => {
+  return request(`/staff/${staff_id}`, {
+    method: "DELETE",
+  });
+};
+
+export const updateStaff = (staffId, staffData) => {
+  return request(`/staff/${staffId}`, {
+    method: "PATCH",
+    body: staffData,
+  });
+};

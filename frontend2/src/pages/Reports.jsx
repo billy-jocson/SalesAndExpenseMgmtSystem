@@ -263,7 +263,7 @@ export default function Reports() {
                 >
                   <Table.Header>
                     <Table.Column>#</Table.Column>
-                    <Table.Column id="product_name" allowsSorting>
+                    <Table.Column id="product_name" isRowHeader allowsSorting>
                       Product Name
                     </Table.Column>
                     <Table.Column id="total_qty" allowsSorting>
@@ -335,7 +335,8 @@ export default function Reports() {
       </div>
       <div
         ref={targetRef}
-        className="fixed left-[-10000px] top-0 block w-[8.5in] bg-white font-[Arial,sans-serif] text-[9px] text-[#172033] print:static print:w-auto"
+        className="fixed left-[-10000px] top-0 block w-[8.5in] font-[Arial,sans-serif] text-[9px] text-[#172033] print:static print:w-auto"
+        style={{ backgroundColor: "#ffffff" }}
         aria-hidden="true"
       >
         <header className="flex items-start justify-between border-b-2 border-[#172033] py-2 pb-3">

@@ -86,6 +86,110 @@ class Staff
         return $result->fetch_assoc() ?: null;
     }
 
+    public function deleteStaff(int $staffId): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE users u
+             JOIN staffs s ON s.user_id = u.user_id
+             SET u.is_active = 0
+             WHERE s.staff_id = ?
+             AND u.is_active = 1"
+        );
+        $stmt->bind_param("i", $staffId);
+        $stmt->execute();
+
+        return $stmt->affected_rows > 0;
+    }
+
+    public function updateStaff(array $data): array
+    {
+        $staffId = (int) ($data['staff_id'] ?? 0);
+        $firstName = trim((string) ($data['first_name'] ?? ''));
+        $middleName = trim((string) ($data['middle_name'] ?? ''));
+        $lastName = trim((string) ($data['last_name'] ?? ''));
+        $email = trim((string) ($data['email'] ?? ''));
+        $phone = trim((string) ($data['phone'] ?? ''));
+        $hireDate = trim((string) ($data['hire_date'] ?? '')) ?: null;
+        $username = trim((string) ($data['username'] ?? ''));
+        $password = (string) ($data['password'] ?? '');
+        $roleName = trim((string) ($data['role_name'] ?? ''));
+
+        if ($staffId <= 0 || $firstName === '' || $lastName === '' || $username === '' || $roleName === '') {
+            throw new Exception("Staff ID, first name, last name, username, and role are required");
+        }
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception("Invalid email format");
+        }
+        if ($password !== '' && strlen($password) < 6) {
+            throw new Exception("Password must be at least 6 characters");
+        }
+
+        $staffStmt = $this->db->prepare("SELECT user_id FROM staffs WHERE staff_id = ? LIMIT 1");
+        $staffStmt->bind_param("i", $staffId);
+        $staffStmt->execute();
+        $staff = $staffStmt->get_result()->fetch_assoc();
+        if (!$staff) {
+            throw new Exception("Staff member not found");
+        }
+        $userId = (int) $staff['user_id'];
+
+        $usernameStmt = $this->db->prepare("SELECT 1 FROM users WHERE username = ? AND user_id != ? LIMIT 1");
+        $usernameStmt->bind_param("si", $username, $userId);
+        $usernameStmt->execute();
+        if ($usernameStmt->get_result()->num_rows > 0) {
+            throw new Exception("Username already exists");
+        }
+
+        if ($email !== '') {
+            $emailStmt = $this->db->prepare("SELECT 1 FROM staffs WHERE email = ? AND staff_id != ? LIMIT 1");
+            $emailStmt->bind_param("si", $email, $staffId);
+            $emailStmt->execute();
+            if ($emailStmt->get_result()->num_rows > 0) {
+                throw new Exception("Email already exists");
+            }
+        }
+
+        $roleId = $this->getRoleIdByName($roleName);
+        $this->db->begin_transaction();
+        try {
+            $staffUpdate = $this->db->prepare(
+                "UPDATE staffs
+                 SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ?, hire_date = ?
+                 WHERE staff_id = ?"
+            );
+            $staffUpdate->bind_param(
+                "ssssssi",
+                $firstName,
+                $middleName,
+                $lastName,
+                $email,
+                $phone,
+                $hireDate,
+                $staffId
+            );
+            $staffUpdate->execute();
+
+            $userUpdate = $this->db->prepare("UPDATE users SET username = ?, role_id = ? WHERE user_id = ?");
+            $userUpdate->bind_param("sii", $username, $roleId, $userId);
+            $userUpdate->execute();
+
+            if ($password !== '') {
+                $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+                $passwordUpdate = $this->db->prepare("UPDATE users SET password_hash = ? WHERE user_id = ?");
+                $passwordUpdate->bind_param("si", $passwordHash, $userId);
+                $passwordUpdate->execute();
+            }
+
+            $this->db->commit();
+        } catch (Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+
+        return $this->getStaffById($staffId) ?? throw new Exception("Updated staff member could not be loaded");
+    }
+
+
     private function validateCreateData(array $data): void
     {
         if (empty($data['first_name']) || empty($data['last_name'])) {

@@ -4,6 +4,7 @@ import CalculaLogo from "../assets/Logo_light.svg";
 import { NavRoutes } from "../NavRoutes";
 import {
   AlertDialog,
+  Accordion,
   Avatar,
   Button,
   DrawerBackdrop,
@@ -25,16 +26,25 @@ import {
   Receipt,
   PersonWorker,
   ArrowChevronUp,
+  ChevronDown,
   ArrowRightFromSquare,
   Bars,
   ChartMixed,
   Xmark,
   Person,
+  Shield,
 } from "@gravity-ui/icons";
 
 function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
   const [, , removeCookie] = useCookies(["username"]);
   const { logout } = useContext(userContext);
+  const [openGroup, setOpenGroup] = useState(() => {
+    return (
+      menuItems.find(({ children }) =>
+        children?.some(({ path }) => location.pathname === path),
+      )?.label ?? null
+    );
+  });
 
   return (
     <>
@@ -53,36 +63,129 @@ function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
             Menu
           </p>
           <nav
-            className="flex min-h-0 flex-col gap-1 overflow-y-auto"
+            className="flex min-h-0 flex-col gap-2 overflow-y-auto"
             aria-label="Main navigation"
           >
-            {menuItems.map(({ label, path, icon: Icon }) => {
-              const isActive = location.pathname === path;
+            {menuItems
+              .filter(({ path }) => path === NavRoutes.DASHBOARD)
+              .map(({ label, path, icon: Icon }) => {
+                const isActive = location.pathname === path;
 
-              return (
-                <Link
-                  key={path}
-                  to={path}
-                  onClick={onNavigate}
-                  className={`relative flex min-h-10 shrink-0 items-center gap-3 rounded-md pl-3 text-[0.95rem] font-medium transition-colors ${
-                    isActive
-                      ? "text-[#3f5fb2] before:absolute before:left-0 before:top-0 before:h-full before:w-1 before:rounded-full before:bg-[#3f5fb2]"
-                      : "text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700"
-                  }`}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
+                return (
+                  <Link
+                    key={path}
+                    to={path}
+                    onClick={onNavigate}
+                    className={`relative flex min-h-8 shrink-0 items-center gap-3 rounded-md pl-3 text-[0.95rem] font-medium transition-colors ${
+                      isActive
+                        ? "text-[#3f5fb2] before:absolute before:left-0 before:top-0 before:h-full before:w-1 before:rounded-full before:bg-[#3f5fb2]"
+                        : "text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700"
+                    }`}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            <Accordion
+              allowsMultipleExpanded={false}
+              expandedKeys={openGroup ? [openGroup] : []}
+              onExpandedChange={(keys) =>
+                setOpenGroup(Array.from(keys)[0] ?? null)
+              }
+              className="flex flex-col gap-2"
+              hideSeparator
+            >
+              {menuItems
+                .filter(({ children }) => children)
+                .map(({ label, icon: Icon, children }) => {
+                  const isActive = children.some(
+                    ({ path }) => location.pathname === path,
+                  );
+
+                  return (
+                    <Accordion.Item
+                      key={label}
+                      id={label}
+                      className="shrink-0 border-0"
+                    >
+                      <Accordion.Heading className="m-0">
+                        <Accordion.Trigger
+                          className={`flex h-5 w-full items-center gap-3 pl-3 rounded-md text-left text-[0.95rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3f5fb2] ${
+                            isActive
+                              ? "text-[#3f5fb2]"
+                              : "text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5 shrink-0" />
+                          <span className="flex-1">{label}</span>
+                          <Accordion.Indicator className="h-4 w-4 shrink-0 transition-transform data-[expanded=true]:rotate-180">
+                            <ChevronDown />
+                          </Accordion.Indicator>
+                        </Accordion.Trigger>
+                      </Accordion.Heading>
+                      <Accordion.Panel className="ml-5 border-l border-zinc-200 pl-3">
+                        <Accordion.Body className="flex flex-col gap-1 py-2">
+                          {children.map(
+                            ({ label: childLabel, path, icon: ChildIcon }) => {
+                              const isChildActive = location.pathname === path;
+
+                              return (
+                                <Link
+                                  key={path}
+                                  to={path}
+                                  onClick={onNavigate}
+                                  className={`relative flex min-h-8 shrink-0 items-center gap-2 rounded-md text-sm font-medium transition-colors ${
+                                    isChildActive
+                                      ? "text-[#3f5fb2] before:absolute before:-left-4 before:top-0 before:h-full before:w-1 before:rounded-full before:bg-[#3f5fb2]"
+                                      : "text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700"
+                                  }`}
+                                  aria-current={
+                                    isChildActive ? "page" : undefined
+                                  }
+                                >
+                                  <ChildIcon className="h-4 w-4 shrink-0" />
+                                  <span>{childLabel}</span>
+                                </Link>
+                              );
+                            },
+                          )}
+                        </Accordion.Body>
+                      </Accordion.Panel>
+                    </Accordion.Item>
+                  );
+                })}
+            </Accordion>
+            {menuItems
+              .filter(({ path }) => path === NavRoutes.REPORTS)
+              .map(({ label, path, icon: Icon }) => {
+                const isActive = location.pathname === path;
+
+                return (
+                  <Link
+                    key={path}
+                    to={path}
+                    onClick={onNavigate}
+                    className={`relative flex min-h-10 shrink-0 items-center gap-3 rounded-md pl-3 text-[0.95rem] font-medium transition-colors ${
+                      isActive
+                        ? "text-[#3f5fb2] before:absolute before:left-0 before:top-0 before:h-full before:w-1 before:rounded-full before:bg-[#3f5fb2]"
+                        : "text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700"
+                    }`}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
           </nav>
         </div>
       </div>
 
       <div className="mt-6 shrink-0 w-auto">
         <AlertDialog>
-          <AlertDialog.Trigger className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-red-400 p-2 text-left text-sm font-medium text-red-500 transition-all hover:bg-red-50">
+          <AlertDialog.Trigger className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-red-100 p-2 text-left text-sm font-medium text-red-500 transition-all hover:bg-red-50">
             <ArrowRightFromSquare className="h-6 w-6" />
             <span>Log Out</span>
           </AlertDialog.Trigger>
@@ -169,35 +272,69 @@ export default function Navbar() {
 
   const menuItems = [
     { label: "Dashboard", path: NavRoutes.DASHBOARD, icon: LayoutCellsLarge },
-    { label: "Point of Sales", path: NavRoutes.POS, icon: Calculator },
     {
-      label: "Products Manager",
-      path: NavRoutes.PRODMANAGER,
+      label: "Transactions",
+      icon: BookOpen,
+      children: [
+        { label: "Point of Sales", path: NavRoutes.POS, icon: Calculator },
+        { label: "Sales", path: NavRoutes.SALES, icon: BookOpen },
+        { label: "Expenses", path: NavRoutes.EXPENSES, icon: Receipt },
+      ],
+    },
+    {
+      label: "Inventory",
       icon: ShoppingBasket,
+      children: [
+        {
+          label: "Products Manager",
+          path: NavRoutes.PRODMANAGER,
+          icon: ShoppingBasket,
+        },
+        {
+          label: "Restock Products",
+          path: NavRoutes.RESTOCKPROD,
+          icon: ArrowChevronUp,
+        },
+      ],
     },
-    { label: "Sales", path: NavRoutes.SALES, icon: BookOpen },
-    { label: "Expenses", path: NavRoutes.EXPENSES, icon: Receipt },
     {
-      label: "Supplier Manager",
-      path: NavRoutes.SUPMANAGER,
+      label: "Management",
       icon: PersonWorker,
-    },
-    {
-      label: "Staff Manager",
-      path: NavRoutes.STAFFMANAGER,
-      icon: Person,
-    },
-    {
-      label: "Restock Products",
-      path: NavRoutes.RESTOCKPROD,
-      icon: ArrowChevronUp,
+      children: [
+        {
+          label: "Supplier Manager",
+          path: NavRoutes.SUPMANAGER,
+          icon: PersonWorker,
+        },
+        {
+          label: "Staff Manager",
+          path: NavRoutes.STAFFMANAGER,
+          icon: Person,
+        },
+        {
+          label: "Role Manager",
+          path: NavRoutes.ROLEMANAGER,
+          icon: Shield,
+        },
+      ],
     },
     {
       label: "Reports",
       path: NavRoutes.REPORTS,
       icon: ChartMixed,
     },
-  ].filter(({ path }) => canAccess(path));
+  ]
+    .map((item) =>
+      item.children
+        ? {
+            ...item,
+            children: item.children.filter(({ path }) => canAccess(path)),
+          }
+        : item,
+    )
+    .filter((item) =>
+      item.children ? item.children.length > 0 : canAccess(item.path),
+    );
 
   return (
     <>

@@ -900,6 +900,77 @@ ALTER TABLE `users`
   ADD CONSTRAINT `fk_users_roles` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 
+-- --------------------------------------------------------
+
+--
+-- Role-based access control (MySQL/MariaDB native ROLE objects)
+--
+-- No column was added to `roles` for this -- storing a permission matrix
+-- as JSON/text in a relational column just re-implements privileges the
+-- database already has a proper mechanism for, and breaks normalization
+-- (a single cell holding a multi-valued Module -> [Actions] structure).
+-- Instead, each application role in `roles` has a matching MySQL ROLE
+-- object carrying REAL, enforced GRANT privileges -- this is what
+-- Role.php (see backend/app/Models/Role.php) creates, edits, and drops
+-- through CREATE ROLE / GRANT / REVOKE / DROP ROLE whenever an
+-- administrator manages roles in the Role Manager page.
+--
+-- Naming convention: application role_id N <-> MySQL role `app_role_N`.
+-- This block seeds the ROLE objects for the 4 roles already inserted
+-- above (role_id 1-4), with the same access each already has in the app
+-- today. Requires the account running this script (and the account
+-- backend/app/Models/Database.php connects as) to have CREATE ROLE and
+-- GRANT OPTION privileges -- the default XAMPP/Laragon `root` account has
+-- this already.
+--
+
+-- app_role_1 - Administrator: unrestricted, matches ROLE_PERMISSIONS "*"
+-- on the frontend. Role Manager treats this one as fully locked (name AND
+-- privileges) since accidentally narrowing it could lock every admin out.
+CREATE ROLE IF NOT EXISTS 'app_role_1';
+GRANT ALL PRIVILEGES ON `inventory_system`.* TO 'app_role_1';
+
+-- app_role_2 - Cashier Staff: POS checkout (Sales), views products
+-- (Inventory), can Add Expense from the dashboard (Expenses), sees
+-- supplier names on product listings (Suppliers). No Staff access.
+CREATE ROLE IF NOT EXISTS 'app_role_2';
+GRANT SELECT, INSERT ON `inventory_system`.`sales` TO 'app_role_2';
+GRANT SELECT, INSERT ON `inventory_system`.`sales_items` TO 'app_role_2';
+GRANT SELECT ON `inventory_system`.`store_products` TO 'app_role_2';
+GRANT SELECT ON `inventory_system`.`supplier_products` TO 'app_role_2';
+GRANT SELECT, UPDATE ON `inventory_system`.`product_batches` TO 'app_role_2';
+GRANT SELECT ON `inventory_system`.`product_categories` TO 'app_role_2';
+GRANT SELECT, INSERT ON `inventory_system`.`expenses` TO 'app_role_2';
+GRANT SELECT ON `inventory_system`.`expense_categories` TO 'app_role_2';
+GRANT EXECUTE ON PROCEDURE `inventory_system`.`sp_add_expense` TO 'app_role_2';
+GRANT SELECT ON `inventory_system`.`suppliers` TO 'app_role_2';
+
+-- app_role_3 - Inventory Staff: manages products/batches/restocking
+-- (Inventory), restock creates expense entries + can Add Expense
+-- (Expenses), manages Supplier Manager (Suppliers), views sales on the
+-- dashboard (Sales). No Staff access.
+CREATE ROLE IF NOT EXISTS 'app_role_3';
+GRANT SELECT ON `inventory_system`.`sales` TO 'app_role_3';
+GRANT SELECT ON `inventory_system`.`sales_items` TO 'app_role_3';
+GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`store_products` TO 'app_role_3';
+GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`supplier_products` TO 'app_role_3';
+GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`product_batches` TO 'app_role_3';
+GRANT SELECT ON `inventory_system`.`product_categories` TO 'app_role_3';
+GRANT SELECT, INSERT ON `inventory_system`.`expenses` TO 'app_role_3';
+GRANT SELECT ON `inventory_system`.`expense_categories` TO 'app_role_3';
+GRANT EXECUTE ON PROCEDURE `inventory_system`.`sp_add_expense` TO 'app_role_3';
+GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`suppliers` TO 'app_role_3';
+GRANT SELECT, INSERT ON `inventory_system`.`postal_codes` TO 'app_role_3';
+GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`users` TO 'app_role_3';
+GRANT SELECT ON `inventory_system`.`roles` TO 'app_role_3';
+
+-- app_role_4 - Supplier: manages their own submitted products only
+-- (Inventory, no Delete). No Sales, Expenses, Suppliers, or Staff access.
+CREATE ROLE IF NOT EXISTS 'app_role_4';
+GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`supplier_products` TO 'app_role_4';
+GRANT SELECT ON `inventory_system`.`product_categories` TO 'app_role_4';
+GRANT SELECT ON `inventory_system`.`store_products` TO 'app_role_4';
+
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

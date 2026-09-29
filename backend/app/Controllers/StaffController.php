@@ -65,6 +65,58 @@ class StaffController
         }
     }
 
+    public function deleteStaff(): void
+    {
+        try {
+            $staffId = (int) ($_GET['staff_id'] ?? 0);
+
+            if ($staffId <= 0) {
+                $this->sendJson([
+                    "status" => "Error",
+                    "message" => "A valid staff ID is required"
+                ], 400);
+            }
+
+            $deleted = $this->staffModel->deleteStaff($staffId);
+
+            if (!$deleted) {
+                $this->sendJson([
+                    "status" => "Error",
+                    "message" => "Staff member was not found or already deleted"
+                ], 404);
+            }
+
+            $this->sendJson([
+                "status" => "Success",
+                "message" => "Staff member deleted successfully"
+            ], 200);
+        } catch (Exception $e) {
+            $this->sendJson([
+                "status" => "Error",
+                "message" => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updateStaff(array $input): void
+    {
+        try {
+            $staff = $this->staffModel->updateStaff($input);
+            $this->sendJson([
+                "status" => "Success",
+                "message" => "Staff updated successfully",
+                "data" => $staff
+            ], 200);
+        } catch (Exception $e) {
+            $message = $e->getMessage();
+            $code = str_contains($message, "already exists") ? 409 : 400;
+            $this->sendJson([
+                "status" => "Error",
+                "message" => $message
+            ], $code);
+        }
+    }
+
     public function addStaff(): void
     {
         try {

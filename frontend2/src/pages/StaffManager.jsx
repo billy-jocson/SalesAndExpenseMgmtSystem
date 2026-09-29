@@ -2,29 +2,69 @@ import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
 import {
   Button,
+  Calendar,
+  DateField,
+  DatePicker,
+  FieldError,
   InputGroup,
+  Input,
+  Label,
+  ListBox,
   Modal,
+  Select,
   TextField,
   toast,
   Typography,
 } from "@heroui/react";
-import { Magnifier } from "@gravity-ui/icons";
+import {
+  Envelope,
+  Magnifier,
+  Person,
+  PersonFill,
+  Smartphone,
+  TrashBin,
+} from "@gravity-ui/icons";
 import { useContext, useEffect, useState } from "react";
+import { parseDate } from "@internationalized/date";
 import staffIcon from "../assets/images/supmanager.png";
-import { fetchStaffs, addStaff, getStaffRoles } from "../api/staffmanager.js";
+import {
+  fetchStaffs,
+  addStaff,
+  updateStaff,
+  getStaffRoles,
+  deleteStaff,
+} from "../api/staffmanager.js";
 import { useDebounce } from "../hooks/useDebounce.js";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { ListCardSkeleton } from "../components/PageSkeleton.jsx";
 import { userContext } from "../context/UserContext";
 
-function StaffCard({ staff }) {
+const getTodayDate = () => {
+  const today = new Date();
+  today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+  return today.toISOString().slice(0, 10);
+};
+
+const createStaffForm = () => ({
+  first_name: "",
+  middle_name: "",
+  last_name: "",
+  email: "",
+  phone: "",
+  hire_date: getTodayDate(),
+  username: "",
+  password: "",
+  role_name: "",
+});
+
+function StaffCard({ staff, onDelete, onEdit }) {
   const initials =
     `${staff.first_name?.charAt(0) ?? ""}${staff.last_name?.charAt(0) ?? ""}`.toUpperCase();
 
   return (
     <div className="p-4 rounded-2xl border border-zinc-200 bg-white shadow-sm hover:shadow-md transition-all flex flex-col gap-1">
       <div className="flex gap-4 items-start">
-        <div className="h-12 w-12 rounded-full bg-[#3f5fb2] text-white flex items-center justify-center font-bold text-sm shrink-0">
+        <div className="h-12 w-12 rounded-full bg-foreground text-white flex items-center justify-center font-bold text-sm shrink-0">
           {initials}
         </div>
         <div className="flex-1 min-w-0">
@@ -35,18 +75,31 @@ function StaffCard({ staff }) {
             @{staff.username} • {staff.role_name}
           </p>
           <div className="mt-2 flex flex-col gap-1 text-xs text-zinc-600">
-            {staff.email && <span>📧 {staff.email}</span>}
-            {staff.phone && <span>📱 {staff.phone}</span>}
-            {staff.hire_date && <span>📅 Hired: {staff.hire_date}</span>}
+            {staff.email && (
+              <span className="flex gap-1">
+                <Envelope /> {staff.email}
+              </span>
+            )}
+            {staff.phone && (
+              <span className="flex gap-1">
+                <Smartphone /> {staff.phone}
+              </span>
+            )}
+            {staff.hire_date && (
+              <span className="flex gap-1">
+                <PersonFill /> Hired: {staff.hire_date}
+              </span>
+            )}
           </div>
         </div>
-        <span className="text-[10px] px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-          Active
-        </span>
       </div>
       <div className="flex gap-1 justify-end mt-auto">
-        <Button className="bg-amber-500">Edit</Button>
-        <Button variant="danger">Delete</Button>
+        <Button className="bg-amber-500" onPress={() => onEdit(staff)}>
+          Edit
+        </Button>
+        <Button variant="danger" onPress={() => onDelete(staff)}>
+          Delete
+        </Button>
       </div>
     </div>
   );
@@ -60,17 +113,10 @@ export default function StaffManager() {
   const [roles, setRoles] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    first_name: "",
-    middle_name: "",
-    last_name: "",
-    email: "",
-    phone: "",
-    hire_date: "",
-    username: "",
-    password: "",
-    role_name: "",
-  });
+  const [formData, setFormData] = useState(createStaffForm);
+  const [formErrors, setFormErrors] = useState({});
+  const [editingStaff, setEditingStaff] = useState(null);
+  const [staffToDelete, setStaffToDelete] = useState(null);
 
   const debouncedSearch = useDebounce(search);
 
@@ -107,37 +153,94 @@ export default function StaffManager() {
   }, []);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
+    const errors = {};
+
+    if (!formData.first_name.trim())
+      errors.first_name = "First name is required.";
+    if (!formData.last_name.trim()) errors.last_name = "Last name is required.";
+    if (!formData.username.trim()) errors.username = "Username is required.";
+    if (!editingStaff && !formData.password) {
+      errors.password = "Password is required.";
+    }
+    if (formData.password && formData.password.length < 8) {
+      errors.password = "Password must be at least 8 characters.";
+    }
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = "Enter a valid email address.";
+    }
+    if (!formData.role_name) errors.role_name = "Select a role.";
+
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     try {
-      const response = await addStaff(formData);
+      const response = editingStaff
+        ? await updateStaff(editingStaff.staff_id, formData)
+        : await addStaff(formData);
       if (
         response?.status?.toLowerCase() !== "success" &&
         response?.status !== "Success"
       ) {
-        toast.danger(response?.message ?? "Failed to add staff");
+        toast.danger(response?.message ?? "Failed to save staff");
         return;
       }
-      toast.success("Staff added successfully.");
+      toast.success(
+        editingStaff
+          ? "Staff updated successfully."
+          : "Staff added successfully.",
+      );
       setIsAddOpen(false);
-      setFormData({
-        first_name: "",
-        middle_name: "",
-        last_name: "",
-        email: "",
-        phone: "",
-        hire_date: "",
-        username: "",
-        password: "",
-        role_name: "",
-      });
-      setRefreshKey((k) => k + 1);
+      setEditingStaff(null);
+      setFormData(createStaffForm());
+      setFormErrors({});
+      setRefreshKey((key) => key + 1);
     } catch (err) {
       toast.danger(err.message);
     }
+  };
+
+  const handleDelete = async () => {
+    if (!staffToDelete) return;
+    try {
+      const response = await deleteStaff(staffToDelete.staff_id);
+
+      if (response?.status !== "Success") {
+        toast.danger(response?.message ?? "Failed to delete staff");
+        return;
+      }
+
+      toast.success("Staff deleted successfully.");
+      setStaffToDelete(null);
+      setRefreshKey((key) => key + 1);
+    } catch (error) {
+      toast.danger(error.message);
+    }
+  };
+
+  const handleEdit = (staff) => {
+    setEditingStaff(staff);
+    setFormErrors({});
+
+    setFormData({
+      first_name: staff.first_name ?? "",
+      middle_name: staff.middle_name ?? "",
+      last_name: staff.last_name ?? "",
+      email: staff.email ?? "",
+      phone: staff.phone ?? "",
+      hire_date: staff.hire_date ?? "",
+      username: staff.username ?? "",
+      password: "",
+      role_name: staff.role_name ?? "",
+    });
+
+    setIsAddOpen(true);
   };
 
   return (
@@ -147,7 +250,7 @@ export default function StaffManager() {
         <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-4 max-h-[calc(100dvh-2rem)] overflow-y-scroll">
           <TopBar
             title="Staff Manager"
-            body="Create and view staff accounts - Assigned: Create + Read"
+            body="Create and view staff accounts"
             emoji={staffIcon}
           />
 
@@ -168,7 +271,12 @@ export default function StaffManager() {
             <Button
               variant="primary"
               className="rounded-lg"
-              onPress={() => setIsAddOpen(true)}
+              onPress={() => {
+                setEditingStaff(null);
+                setFormData(createStaffForm());
+                setFormErrors({});
+                setIsAddOpen(true);
+              }}
             >
               + Add Staff
             </Button>
@@ -187,7 +295,14 @@ export default function StaffManager() {
                 body="Add your first staff account."
               />
             ) : (
-              staffs.map((s) => <StaffCard key={s.staff_id} staff={s} />)
+              staffs.map((s) => (
+                <StaffCard
+                  key={s.staff_id}
+                  staff={s}
+                  onDelete={setStaffToDelete}
+                  onEdit={handleEdit}
+                />
+              ))
             )}
           </div>
         </div>
@@ -200,91 +315,231 @@ export default function StaffManager() {
         }}
       >
         <Modal.Backdrop>
-          <Modal.Container>
-            <Modal.Dialog className="w-[min(32rem,calc(100vw-2rem))] rounded-2xl bg-white p-6 shadow-xl">
+          <Modal.Container size="lg" scroll="inside">
+            <Modal.Dialog className="rounded-2xl bg-white p-6 shadow-xl">
               <Modal.CloseTrigger />
-              <Modal.Header>
-                <Modal.Heading>Add New Staff</Modal.Heading>
+              <Modal.Header className="flex items-start gap-3">
+                <Modal.Icon className="bg-blue-500 text-white">
+                  <Person className="size-5" />
+                </Modal.Icon>
+                <Modal.Heading>
+                  {editingStaff ? "Edit Staff" : "Add New Staff"}
+                </Modal.Heading>
               </Modal.Header>
-              <form onSubmit={handleSave}>
-                <Modal.Body className="flex flex-col gap-3 py-3">
-                  <input
+              <form noValidate onSubmit={handleSave}>
+                <Modal.Body className="grid grid-cols-1 gap-4 py-3 sm:grid-cols-2">
+                  <TextField
                     name="first_name"
-                    placeholder="First Name *"
-                    value={formData.first_name}
-                    onChange={handleChange}
-                    required
-                    className="w-full p-2 border rounded-lg text-sm"
-                  />
-                  <input
-                    name="middle_name"
-                    placeholder="Middle Name"
-                    value={formData.middle_name}
-                    onChange={handleChange}
-                    className="w-full p-2 border rounded-lg text-sm"
-                  />
-                  <input
-                    name="last_name"
-                    placeholder="Last Name *"
-                    value={formData.last_name}
-                    onChange={handleChange}
-                    required
-                    className="w-full p-2 border rounded-lg text-sm"
-                  />
-                  <input
-                    name="email"
-                    type="email"
-                    placeholder="Email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full p-2 border rounded-lg text-sm"
-                  />
-                  <input
-                    name="phone"
-                    placeholder="Phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full p-2 border rounded-lg text-sm"
-                  />
-                  <input
-                    name="hire_date"
-                    type="date"
-                    value={formData.hire_date}
-                    onChange={handleChange}
-                    className="w-full p-2 border rounded-lg text-sm"
-                  />
-                  <input
-                    name="username"
-                    placeholder="Username *"
-                    value={formData.username}
-                    onChange={handleChange}
-                    required
-                    className="w-full p-2 border rounded-lg text-sm"
-                  />
-                  <input
-                    name="password"
-                    type="password"
-                    placeholder="Password *"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    className="w-full p-2 border rounded-lg text-sm"
-                  />
-
-                  <select
-                    name="role_name"
-                    value={formData.role_name}
-                    onChange={handleChange}
-                    required
-                    className="w-full p-2 border rounded-lg text-sm bg-white"
+                    isInvalid={Boolean(formErrors.first_name)}
+                    className="flex flex-col gap-1"
                   >
-                    <option value="">Select Role *</option>
-                    {roles.map((r) => (
-                      <option key={r.role_id} value={r.role_name}>
-                        {r.role_name}
-                      </option>
-                    ))}
-                  </select>
+                    <Label htmlFor="staff-first-name">First Name *</Label>
+                    <Input
+                      id="staff-first-name"
+                      name="first_name"
+                      type="text"
+                      placeholder="Enter first name"
+                      value={formData.first_name}
+                      onChange={handleChange}
+                      className="w-full"
+                    />
+                    <FieldError>{formErrors.first_name}</FieldError>
+                  </TextField>
+                  <TextField name="middle_name" className="flex flex-col gap-1">
+                    <Label htmlFor="staff-middle-name">Middle Name</Label>
+                    <Input
+                      id="staff-middle-name"
+                      name="middle_name"
+                      type="text"
+                      placeholder="Enter middle name (optional)"
+                      value={formData.middle_name}
+                      onChange={handleChange}
+                      className="w-full"
+                    />
+                  </TextField>
+                  <TextField
+                    name="last_name"
+                    isInvalid={Boolean(formErrors.last_name)}
+                    className="flex flex-col gap-1"
+                  >
+                    <Label htmlFor="staff-last-name">Last Name *</Label>
+                    <Input
+                      id="staff-last-name"
+                      name="last_name"
+                      type="text"
+                      placeholder="Enter last name"
+                      value={formData.last_name}
+                      onChange={handleChange}
+                      className="w-full"
+                    />
+                    <FieldError>{formErrors.last_name}</FieldError>
+                  </TextField>
+                  <TextField
+                    name="email"
+                    isInvalid={Boolean(formErrors.email)}
+                    className="flex flex-col gap-1"
+                  >
+                    <Label htmlFor="staff-email">Email</Label>
+                    <Input
+                      id="staff-email"
+                      name="email"
+                      type="email"
+                      placeholder="name@example.com (optional)"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full"
+                    />
+                    <FieldError>{formErrors.email}</FieldError>
+                  </TextField>
+                  <TextField name="phone" className="flex flex-col gap-1">
+                    <Label htmlFor="staff-phone">Phone</Label>
+                    <Input
+                      id="staff-phone"
+                      name="phone"
+                      type="tel"
+                      placeholder="Enter contact number (optional)"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className="w-full"
+                    />
+                  </TextField>
+                  {editingStaff && (
+                    <DatePicker
+                      className="w-full"
+                      name="hire_date"
+                      value={
+                        formData.hire_date
+                          ? parseDate(formData.hire_date.slice(0, 10))
+                          : null
+                      }
+                      onChange={(date) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          hire_date: date?.toString() ?? "",
+                        }))
+                      }
+                    >
+                      <Label>Hire Date</Label>
+                      <DateField.Group fullWidth>
+                        <DateField.Input>
+                          {(segment) => <DateField.Segment segment={segment} />}
+                        </DateField.Input>
+                        <DateField.Suffix>
+                          <DatePicker.Trigger>
+                            <DatePicker.TriggerIndicator />
+                          </DatePicker.Trigger>
+                        </DateField.Suffix>
+                      </DateField.Group>
+                      <DatePicker.Popover>
+                        <Calendar aria-label="Hire date">
+                          <Calendar.Header>
+                            <Calendar.YearPickerTrigger>
+                              <Calendar.YearPickerTriggerHeading />
+                              <Calendar.YearPickerTriggerIndicator />
+                            </Calendar.YearPickerTrigger>
+                            <Calendar.NavButton slot="previous" />
+                            <Calendar.NavButton slot="next" />
+                          </Calendar.Header>
+                          <Calendar.Grid>
+                            <Calendar.GridHeader>
+                              {(day) => (
+                                <Calendar.HeaderCell>{day}</Calendar.HeaderCell>
+                              )}
+                            </Calendar.GridHeader>
+                            <Calendar.GridBody>
+                              {(date) => <Calendar.Cell date={date} />}
+                            </Calendar.GridBody>
+                          </Calendar.Grid>
+                          <Calendar.YearPickerGrid>
+                            <Calendar.YearPickerGridBody>
+                              {({ year }) => (
+                                <Calendar.YearPickerCell year={year} />
+                              )}
+                            </Calendar.YearPickerGridBody>
+                          </Calendar.YearPickerGrid>
+                        </Calendar>
+                      </DatePicker.Popover>
+                    </DatePicker>
+                  )}
+                  <TextField
+                    name="username"
+                    isInvalid={Boolean(formErrors.username)}
+                    className="flex flex-col gap-1"
+                  >
+                    <Label htmlFor="staff-username">Username *</Label>
+                    <Input
+                      id="staff-username"
+                      name="username"
+                      type="text"
+                      placeholder="Choose a sign-in username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      className="w-full"
+                    />
+                    <FieldError>{formErrors.username}</FieldError>
+                  </TextField>
+                  <TextField
+                    name="password"
+                    isInvalid={Boolean(formErrors.password)}
+                    className="flex flex-col gap-1"
+                  >
+                    <Label htmlFor="staff-password">
+                      {editingStaff ? "New Password" : "Password *"}
+                    </Label>
+                    <Input
+                      id="staff-password"
+                      name="password"
+                      type="password"
+                      placeholder={
+                        editingStaff
+                          ? "Leave blank to keep the current password"
+                          : "Create a password (8+ characters)"
+                      }
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full"
+                    />
+                    <FieldError>{formErrors.password}</FieldError>
+                  </TextField>
+                  <TextField
+                    name="role_name"
+                    isInvalid={Boolean(formErrors.role_name)}
+                    className="flex flex-col gap-1 sm:col-span-2"
+                  >
+                    <Label>Role *</Label>
+                    <Select
+                      className="w-full"
+                      placeholder="Choose a staff role"
+                      selectedKey={formData.role_name || null}
+                      onSelectionChange={(key) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          role_name: key == null ? "" : String(key),
+                        }));
+                        setFormErrors((prev) => ({ ...prev, role_name: "" }));
+                      }}
+                    >
+                      <Select.Trigger>
+                        <Select.Value />
+                        <Select.Indicator />
+                      </Select.Trigger>
+                      <Select.Popover>
+                        <ListBox>
+                          {roles.map((role) => (
+                            <ListBox.Item
+                              key={role.role_id}
+                              id={role.role_name}
+                              textValue={role.role_name}
+                            >
+                              {role.role_name}
+                              <ListBox.ItemIndicator />
+                            </ListBox.Item>
+                          ))}
+                        </ListBox>
+                      </Select.Popover>
+                    </Select>
+                    <FieldError>{formErrors.role_name}</FieldError>
+                  </TextField>
                 </Modal.Body>
                 <Modal.Footer className="flex justify-end gap-2 mt-4">
                   <Button
@@ -295,10 +550,46 @@ export default function StaffManager() {
                     Cancel
                   </Button>
                   <Button variant="primary" type="submit">
-                    Create Staff
+                    {editingStaff ? "Save Changes" : "Create Staff"}
                   </Button>
                 </Modal.Footer>
               </form>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(staffToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setStaffToDelete(null);
+        }}
+      >
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog className="w-[min(24rem,calc(100vw-2rem))] rounded-2xl bg-white p-6 shadow-xl">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Icon className="bg-red-100 text-red-600">
+                  <TrashBin className="size-5" />
+                </Modal.Icon>
+                <Modal.Heading>Delete Staff</Modal.Heading>
+              </Modal.Header>
+              <Modal.Body className="py-2 text-sm text-zinc-600">
+                Delete {staffToDelete?.first_name} {staffToDelete?.last_name}?
+                This action cannot be undone.
+              </Modal.Body>
+              <Modal.Footer className="mt-4 flex justify-end gap-2">
+                <Button
+                  variant="tertiary"
+                  onPress={() => setStaffToDelete(null)}
+                >
+                  Cancel
+                </Button>
+                <Button variant="danger" onPress={handleDelete}>
+                  Delete Staff
+                </Button>
+              </Modal.Footer>
             </Modal.Dialog>
           </Modal.Container>
         </Modal.Backdrop>
