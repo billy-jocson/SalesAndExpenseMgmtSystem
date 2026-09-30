@@ -16,33 +16,21 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Button, Dropdown, Label, Table, Typography } from "@heroui/react";
+import {
+  Button,
+  DateField,
+  DateRangePicker,
+  RangeCalendar,
+  Table,
+  Typography,
+} from "@heroui/react";
+import { getLocalTimeZone, today } from "@internationalized/date";
 import { getReportSummary } from "../api/reports.js";
 import { usePDF } from "react-to-pdf";
 import { ChartSkeleton, TableSkeleton } from "../components/PageSkeleton.jsx";
 
 const expenseColors = ["#8884d8", "#82ca9d", "#ffb82e", "#ff7043", "#168bf0"];
 const categoryColors = ["#8884d8", "#82ca9d", "#ffb82e", "#ff7043", "#168bf0"];
-const periodRanges = {
-  Today: 0,
-  "This Week": 6,
-  "This Month": null,
-  "This Year": null,
-};
-
-const formatDate = (date) => date.toISOString().slice(0, 10);
-
-const getRangeForPeriod = (period) => {
-  const end = new Date();
-  const start = new Date(end);
-
-  if (period === "This Month") start.setDate(1);
-  else if (period === "This Year") start.setMonth(0, 1);
-  else start.setDate(end.getDate() - periodRanges[period]);
-
-  return { startDate: formatDate(start), endDate: formatDate(end) };
-};
-
 const currency = (value) =>
   `₱${Number(value ?? 0).toLocaleString("en-PH", {
     minimumFractionDigits: 2,
@@ -50,7 +38,15 @@ const currency = (value) =>
   })}`;
 
 export default function Reports() {
-  const [period, setPeriod] = useState("Today");
+  const [dateRange, setDateRange] = useState(() => {
+    const currentDate = today(getLocalTimeZone());
+    const sevenDaysAgo = currentDate.subtract({ days: 6 });
+
+    return {
+      start: sevenDaysAgo,
+      end: currentDate,
+    };
+  });
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -69,11 +65,18 @@ export default function Reports() {
   }, []);
 
   useEffect(() => {
+    if (!dateRange?.start || !dateRange?.end) {
+      return;
+    }
+
     let active = true;
     const loadReport = async () => {
       setLoading(true);
       setError("");
-      const response = await getReportSummary(getRangeForPeriod(period));
+      const response = await getReportSummary({
+        startDate: dateRange.start.toString(),
+        endDate: dateRange.end.toString(),
+      });
       if (!active) return;
       if (response.status !== "success") {
         setError(response.message ?? "Unable to load report data.");
@@ -85,12 +88,12 @@ export default function Reports() {
     return () => {
       active = false;
     };
-  }, [period]);
+  }, [dateRange]);
 
   const products = useMemo(() => {
     const rows = [...(report?.topProducts ?? [])];
     return rows.sort(
-      (first, second) => Number(second.total_sales) - Number(first.total_sales),
+      (first, second) => Number(second.total_qty) - Number(first.total_qty),
     );
   }, [report]);
 
@@ -124,28 +127,48 @@ export default function Reports() {
               >
                 Download Report
               </Button>
-              <Dropdown>
-                <Button
-                  aria-label="Report period"
-                  variant="secondary"
-                  className="rounded-lg"
-                >
-                  {period}
-                </Button>
-                <Dropdown.Popover>
-                  <Dropdown.Menu onAction={(key) => setPeriod(String(key))}>
-                    {Object.keys(periodRanges).map((option) => (
-                      <Dropdown.Item
-                        key={option}
-                        id={option}
-                        textValue={option}
-                      >
-                        <Label>{option}</Label>
-                      </Dropdown.Item>
-                    ))}
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
+              <DateRangePicker value={dateRange} onChange={setDateRange}>
+                <DateField.Group>
+                  <DateField.InputContainer>
+                    <DateField.Input slot="start">
+                      {(segment) => <DateField.Segment segment={segment} />}
+                    </DateField.Input>
+                    <DateRangePicker.RangeSeparator />
+                    <DateField.Input slot="end">
+                      {(segment) => <DateField.Segment segment={segment} />}
+                    </DateField.Input>
+                  </DateField.InputContainer>
+                  <DateField.Suffix>
+                    <DateRangePicker.Trigger>
+                      <DateRangePicker.TriggerIndicator />
+                    </DateRangePicker.Trigger>
+                  </DateField.Suffix>
+                </DateField.Group>
+                <DateRangePicker.Popover>
+                  <RangeCalendar aria-label="Choose report date range">
+                    <RangeCalendar.Header>
+                      <RangeCalendar.YearPickerTrigger>
+                        <RangeCalendar.YearPickerTriggerHeading />
+                        <RangeCalendar.YearPickerTriggerIndicator />
+                      </RangeCalendar.YearPickerTrigger>
+                      <RangeCalendar.NavButton slot="previous" />
+                      <RangeCalendar.NavButton slot="next" />
+                    </RangeCalendar.Header>
+                    <RangeCalendar.Grid>
+                      <RangeCalendar.GridHeader>
+                        {(day) => (
+                          <RangeCalendar.HeaderCell>
+                            {day}
+                          </RangeCalendar.HeaderCell>
+                        )}
+                      </RangeCalendar.GridHeader>
+                      <RangeCalendar.GridBody>
+                        {(date) => <RangeCalendar.Cell date={date} />}
+                      </RangeCalendar.GridBody>
+                    </RangeCalendar.Grid>
+                  </RangeCalendar>
+                </DateRangePicker.Popover>
+              </DateRangePicker>
             </div>
           </div>
           {error && (
@@ -166,18 +189,22 @@ export default function Reports() {
               body={currency(loss)}
             />
           </div>
-          <div className="grid gap-3 lg:grid-cols-2">
-            <div className="rounded-2xl bg-white p-5 shadow-md">
-              <Typography color="default" weight="semibold">
-                Sold Products per Category
-              </Typography>
-              <Typography color="muted" type="body-sm">
-                Units sold grouped by product category.
-              </Typography>
-              <div className="h-72 w-full">
-                {loading ? (
-                  <ChartSkeleton />
-                ) : (
+          {loading ? (
+            <div className="grid gap-3 lg:grid-cols-2">
+              <ChartSkeleton />
+              <ChartSkeleton />
+            </div>
+          ) : report &&
+            (report.productCategories?.length || report.trend?.length) ? (
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div className="rounded-2xl bg-white p-5 shadow-md">
+                <Typography color="default" weight="semibold">
+                  Sold Products per Category
+                </Typography>
+                <Typography color="muted" type="body-sm">
+                  Units sold grouped by product category.
+                </Typography>
+                <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -207,74 +234,91 @@ export default function Reports() {
                       <Legend verticalAlign="bottom" />
                     </PieChart>
                   </ResponsiveContainer>
-                )}
+                </div>
+              </div>
+              <div className="rounded-lg bg-white p-5 shadow-md">
+                <h2 className="text-lg font-semibold text-zinc-800">
+                  Revenue vs Expenses
+                </h2>
+                <p className="mb-5 text-sm text-zinc-500">
+                  Monthly performance for the selected period.
+                </p>
+                <div className="h-72 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={report?.trend ?? []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="report_month" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => currency(value)} />
+                      <Legend />
+                      <Bar
+                        dataKey="total_sales"
+                        name="Revenue"
+                        fill="#168bf0"
+                      />
+                      <Bar
+                        dataKey="total_expenses"
+                        name="Expenses"
+                        fill="#ff7043"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
-            <div className="rounded-lg bg-white p-5 shadow-md">
-              <h2 className="text-lg font-semibold text-zinc-800">
-                Revenue vs Expenses
-              </h2>
-              <p className="mb-5 text-sm text-zinc-500">
-                Monthly performance for the selected period.
-              </p>
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={report?.trend ?? []}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="report_month" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => currency(value)} />
-                    <Legend />
-                    <Bar dataKey="total_sales" name="Revenue" fill="#168bf0" />
-                    <Bar
-                      dataKey="total_expenses"
-                      name="Expenses"
-                      fill="#ff7043"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+          ) : (
+            <div className="rounded-2xl bg-white p-5 text-sm text-zinc-500 shadow-md">
+              No data available for the selected date range.
             </div>
-          </div>
+          )}
           <div className="rounded-2xl p-5 shadow-md">
             <Typography color="default" weight="semibold">
               Top Selling Products
             </Typography>
             <Typography color="muted" type="body-sm">
-              Ranked by total revenue in the selected period.
+              Ranked by total units sold in the selected period.
             </Typography>
-            <Table className="mt-3">
-              <Table.ScrollContainer>
-                <Table.Content aria-label="Top selling products">
-                  <Table.Header>
-                    <Table.Column>#</Table.Column>
-                    <Table.Column id="product_name" isRowHeader>
-                      Product Name
-                    </Table.Column>
-                    <Table.Column id="total_qty">Units Sold</Table.Column>
-                    <Table.Column id="total_sales">Revenue</Table.Column>
-                  </Table.Header>
-                  <Table.Body emptyContent={"No rows to display."}>
-                    {products.map((product, index) => (
-                      <Table.Row key={product.product_id}>
-                        <Table.Cell>{index + 1}</Table.Cell>
-                        <Table.Cell>{product.product_name}</Table.Cell>
-                        <Table.Cell>{product.total_qty}</Table.Cell>
-                        <Table.Cell>
-                          <Typography
-                            type="body-sm"
-                            weight="semibold"
-                            className="text-blue-500"
-                          >
-                            {currency(product.total_sales)}
-                          </Typography>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
+
+            {loading ? (
+              <TableSkeleton columns={4} />
+            ) : products.length > 0 ? (
+              <Table className="mt-3">
+                <Table.ScrollContainer>
+                  <Table.Content aria-label="Top selling products">
+                    <Table.Header>
+                      <Table.Column>#</Table.Column>
+                      <Table.Column id="product_name" isRowHeader>
+                        Product Name
+                      </Table.Column>
+                      <Table.Column id="total_qty">Units Sold</Table.Column>
+                      <Table.Column id="total_sales">Revenue</Table.Column>
+                    </Table.Header>
+                    <Table.Body emptyContent={"No rows to display."}>
+                      {products.map((product, index) => (
+                        <Table.Row key={product.product_id}>
+                          <Table.Cell>{index + 1}</Table.Cell>
+                          <Table.Cell>{product.product_name}</Table.Cell>
+                          <Table.Cell>{product.total_qty}</Table.Cell>
+                          <Table.Cell>
+                            <Typography
+                              type="body-sm"
+                              weight="semibold"
+                              className="text-blue-500"
+                            >
+                              {currency(product.total_sales)}
+                            </Typography>
+                          </Table.Cell>
+                        </Table.Row>
+                      ))}
+                    </Table.Body>
+                  </Table.Content>
+                </Table.ScrollContainer>
+              </Table>
+            ) : (
+              <div className="mt-3 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-500">
+                No data available.
+              </div>
+            )}
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-md">
             <Typography color="default" weight="semibold">
@@ -286,7 +330,7 @@ export default function Reports() {
             <div className="h-72 w-full">
               {loading ? (
                 <TableSkeleton columns={5} />
-              ) : (
+              ) : report?.expenses?.length ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -303,12 +347,15 @@ export default function Reports() {
                           fill={expenseColors[index % expenseColors.length]}
                         />
                       ))}
-                      {/* Gemini lang sakalam LOL */}
                     </Pie>
                     <Tooltip formatter={(value) => currency(value)} />
                     <Legend verticalAlign="bottom" />
                   </PieChart>
                 </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+                  No data available.
+                </div>
               )}
             </div>
           </div>

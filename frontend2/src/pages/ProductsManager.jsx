@@ -280,6 +280,7 @@ export default function ProductsManager() {
             {cartItems.map((item) => (
               <POSBillItem
                 key={item.id}
+                imagePath={item.image}
                 name={item.name}
                 price={item.price}
                 quantity={item.quantity}

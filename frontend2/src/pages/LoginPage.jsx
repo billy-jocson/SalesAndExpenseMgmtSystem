@@ -50,11 +50,7 @@ export default function LoginPage() {
     } else if (data.user?.username) {
       setSession(data);
       sessionStorage.setItem("dashboardWelcomeToast", "1");
-      const normalizedRole = (data.user?.role ?? "").trim().toLowerCase();
-      const targetRoute =
-        normalizedRole === "supplier"
-          ? NavRoutes.PRODMANAGER
-          : NavRoutes.DASHBOARD;
+      const targetRoute = NavRoutes.DASHBOARD;
       navigate(targetRoute);
     } else {
       openErrorModal(data.status, data.message);

@@ -135,11 +135,10 @@ class Dashboard
                     WHERE supplier_id = ?
                 ) AS totalProducts,
                 (
-                    SELECT COALESCE(SUM(si.quantity * si.unit_price), 0.00)
-                    FROM sales_items si
-                    JOIN store_products sp ON si.store_product_id = sp.store_product_id
-                    JOIN supplier_products sup_p ON sp.supplier_product_id = sup_p.supplier_product_id
-                    WHERE sup_p.supplier_id = ?
+                    SELECT COALESCE(SUM(e.amount), 0.00)
+                    FROM expenses e
+                    JOIN expense_categories ec ON e.category_id = ec.category_id
+                    WHERE e.supplier_id = ? AND ec.category_name = 'Inventory'
                 ) AS totalRevenue;");
         $stmt->bind_param('ii', $CurrentSupplierId, $CurrentSupplierId);
         $stmt->execute();

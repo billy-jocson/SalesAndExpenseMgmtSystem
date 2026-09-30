@@ -15,11 +15,11 @@ export default function OrderProductModalCard(data) {
   return (
     <Card className="relative flex h-full min-h-90 w-full overflow-hidden rounded-2xl bg-white shadow-md">
       <Card.Header className="p-3.5 pb-0">
-        <div className="flex h-48 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-50 p-2">
+        <div className="flex h-48 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-2">
           <img
             src={buildProductImageUrl(image_path)}
             alt={name}
-            className="h-full w-full rounded-lg object-cover"
+            className="h-full w-full rounded-lg object-contain"
             onError={(event) => {
               event.currentTarget.src = buildProductImageUrl();
             }}

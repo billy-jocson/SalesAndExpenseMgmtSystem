@@ -1,15 +1,27 @@
 import { queryString, request } from "./client";
 
 export const buildProductImageUrl = (imagePath) => {
+  const fallbackImage =
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTULlOeY6XTrnI_PT7ypqVrR-dHQghz7qnQxEV5IwZzrw&s";
+
   if (!imagePath) {
-    return "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTULlOeY6XTrnI_PT7ypqVrR-dHQghz7qnQxEV5IwZzrw&s";
+    return fallbackImage;
   }
 
-  if (imagePath.startsWith("http")) {
-    return imagePath;
+  const normalizedPath = String(imagePath)
+    .replace(/^https?:\/\/[^\s/]+\/SalesAndExpenseSystem\/backend\/public/i, "")
+    .replace(/^\/backend\/public/i, "")
+    .replace(/^\/+/, "/");
+
+  if (!normalizedPath) {
+    return fallbackImage;
   }
 
-  return `http://localhost/SalesAndExpenseSystem/backend/public${imagePath}`;
+  if (normalizedPath.startsWith("http")) {
+    return normalizedPath;
+  }
+
+  return `http://localhost/SalesAndExpenseSystem/backend/public${normalizedPath}`;
 };
 
 const buildProductFormData = ({
