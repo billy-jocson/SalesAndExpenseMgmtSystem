@@ -18,6 +18,10 @@ class Report
         $resultSets = $this->callReportProcedure($startDate, $endDate);
         $topProducts = $resultSets[0] ?? [];
         $expenses = $resultSets[1] ?? [];
+        $expenses = array_map(static function ($expense) {
+            $expense['total_amount'] = (float) $expense['total_amount'];
+            return $expense;
+        }, $expenses);
         $totals = $resultSets[2][0] ?? [];
         $productCategories = $this->getProductCategorySales($startDate, $endDate);
         $trend = $this->getMonthlyRevenueAndExpenses($startDate, $endDate);

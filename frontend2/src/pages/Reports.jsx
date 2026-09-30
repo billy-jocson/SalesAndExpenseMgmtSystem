@@ -52,10 +52,6 @@ const currency = (value) =>
 export default function Reports() {
   const [period, setPeriod] = useState("Today");
   const [report, setReport] = useState(null);
-  const [sortDescriptor, setSortDescriptor] = useState({
-    column: "total_sales",
-    direction: "descending",
-  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const { toPDF, targetRef } = usePDF({
@@ -93,17 +89,10 @@ export default function Reports() {
 
   const products = useMemo(() => {
     const rows = [...(report?.topProducts ?? [])];
-    const multiplier = sortDescriptor.direction === "ascending" ? 1 : -1;
-    return rows.sort((first, second) => {
-      const firstValue = first[sortDescriptor.column];
-      const secondValue = second[sortDescriptor.column];
-      const comparison =
-        typeof firstValue === "string"
-          ? firstValue.localeCompare(secondValue)
-          : Number(firstValue) - Number(secondValue);
-      return comparison * multiplier;
-    });
-  }, [report, sortDescriptor]);
+    return rows.sort(
+      (first, second) => Number(second.total_sales) - Number(first.total_sales),
+    );
+  }, [report]);
 
   const totals = report?.totals ?? { sales: 0, expenses: 0, profitLoss: 0 };
   const profit = Math.max(Number(totals.profitLoss), 0);
@@ -256,26 +245,18 @@ export default function Reports() {
             </Typography>
             <Table className="mt-3">
               <Table.ScrollContainer>
-                <Table.Content
-                  aria-label="Top selling products"
-                  sortDescriptor={sortDescriptor}
-                  onSortChange={setSortDescriptor}
-                >
+                <Table.Content aria-label="Top selling products">
                   <Table.Header>
                     <Table.Column>#</Table.Column>
-                    <Table.Column id="product_name" isRowHeader allowsSorting>
+                    <Table.Column id="product_name" isRowHeader>
                       Product Name
                     </Table.Column>
-                    <Table.Column id="total_qty" allowsSorting>
-                      Units Sold
-                    </Table.Column>
-                    <Table.Column id="total_sales" allowsSorting>
-                      Revenue
-                    </Table.Column>
+                    <Table.Column id="total_qty">Units Sold</Table.Column>
+                    <Table.Column id="total_sales">Revenue</Table.Column>
                   </Table.Header>
-                  <Table.Body>
+                  <Table.Body emptyContent={"No rows to display."}>
                     {products.map((product, index) => (
-                      <Table.Row key={product.product_name}>
+                      <Table.Row key={product.product_id}>
                         <Table.Cell>{index + 1}</Table.Cell>
                         <Table.Cell>{product.product_name}</Table.Cell>
                         <Table.Cell>{product.total_qty}</Table.Cell>

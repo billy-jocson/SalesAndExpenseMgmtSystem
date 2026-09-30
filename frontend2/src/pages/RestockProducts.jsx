@@ -140,7 +140,7 @@ export default function RestockProducts() {
                           <Table.Cell>{stock}</Table.Cell>
                           <Table.Cell>
                             <Chip
-                              variant="primary"
+                              variant="soft"
                               className="whitespace-nowrap"
                               color={color}
                             >

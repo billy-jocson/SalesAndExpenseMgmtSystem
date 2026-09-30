@@ -173,7 +173,7 @@ export default function ProductCard({
         <p className="text-sm font-semibold text-blue-600">₱{newSellPrice}</p>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-auto grid grid-cols-2 gap-2">
         {isSupplierRole ? (
           <Button
             variant="primary"

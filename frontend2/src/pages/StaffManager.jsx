@@ -62,8 +62,8 @@ function StaffCard({ staff, onDelete, onEdit }) {
     `${staff.first_name?.charAt(0) ?? ""}${staff.last_name?.charAt(0) ?? ""}`.toUpperCase();
 
   return (
-    <div className="p-4 rounded-2xl border border-zinc-200 bg-white shadow-sm hover:shadow-md transition-all flex flex-col gap-1">
-      <div className="flex gap-4 items-start">
+    <div className="h-fit p-4 rounded-2xl border border-zinc-200 bg-white shadow-sm hover:shadow-md transition-all flex flex-col gap-1">
+      <div className="flex gap-4 items-start mb-3">
         <div className="h-12 w-12 rounded-full bg-foreground text-white flex items-center justify-center font-bold text-sm shrink-0">
           {initials}
         </div>
@@ -286,7 +286,7 @@ export default function StaffManager() {
             {staffs.length} {staffs.length > 1 ? "staffs" : "staff"} found.
           </Typography>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 w-full">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 w-full h-full">
             {loading ? (
               <ListCardSkeleton />
             ) : staffs.length === 0 ? (
@@ -575,7 +575,7 @@ export default function StaffManager() {
                 </Modal.Icon>
                 <Modal.Heading>Delete Staff</Modal.Heading>
               </Modal.Header>
-              <Modal.Body className="py-2 text-sm text-zinc-600">
+              <Modal.Body className="text-sm text-zinc-600">
                 Delete {staffToDelete?.first_name} {staffToDelete?.last_name}?
                 This action cannot be undone.
               </Modal.Body>
