@@ -31,6 +31,12 @@ import { ChartSkeleton, TableSkeleton } from "../components/PageSkeleton.jsx";
 
 const expenseColors = ["#8884d8", "#82ca9d", "#ffb82e", "#ff7043", "#168bf0"];
 const categoryColors = ["#8884d8", "#82ca9d", "#ffb82e", "#ff7043", "#168bf0"];
+
+const formatReportDate = (date) =>
+  date
+    .toDate(getLocalTimeZone())
+    .toLocaleDateString("en-US", { dateStyle: "long" });
+
 const currency = (value) =>
   `₱${Number(value ?? 0).toLocaleString("en-PH", {
     minimumFractionDigits: 2,
@@ -40,23 +46,35 @@ const currency = (value) =>
 export default function Reports() {
   const [dateRange, setDateRange] = useState(() => {
     const currentDate = today(getLocalTimeZone());
-    const sevenDaysAgo = currentDate.subtract({ days: 6 });
-
-    return {
-      start: sevenDaysAgo,
-      end: currentDate,
-    };
+    return { start: currentDate, end: currentDate };
   });
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState("");
   const { toPDF, targetRef } = usePDF({
     filename: "calcula-financial-report.pdf",
     method: "save",
     resolution: 3,
     page: { margin: 10 },
     overrides: {
-      canvas: { useCORS: true },
+      canvas: {
+        useCORS: true,
+        onclone: (clonedDocument) => {
+          const exportElement =
+            clonedDocument.getElementById("report-pdf-export");
+          if (!exportElement) {
+            throw new Error("Report content is not ready.");
+          }
+          Object.assign(exportElement.style, {
+            position: "fixed",
+            left: "0px",
+            top: "0px",
+            zIndex: "1",
+          });
+        },
+      },
     },
   });
 
@@ -65,10 +83,6 @@ export default function Reports() {
   }, []);
 
   useEffect(() => {
-    if (!dateRange?.start || !dateRange?.end) {
-      return;
-    }
-
     let active = true;
     const loadReport = async () => {
       setLoading(true);
@@ -93,13 +107,31 @@ export default function Reports() {
   const products = useMemo(() => {
     const rows = [...(report?.topProducts ?? [])];
     return rows.sort(
-      (first, second) => Number(second.total_qty) - Number(first.total_qty),
+      (first, second) =>
+        Number(second.total_qty ?? 0) - Number(first.total_qty ?? 0),
     );
   }, [report]);
+  const productCategories = report?.productCategories ?? [];
+  const trend = report?.trend ?? [];
+  const expenses = report?.expenses ?? [];
 
   const totals = report?.totals ?? { sales: 0, expenses: 0, profitLoss: 0 };
   const profit = Math.max(Number(totals.profitLoss), 0);
   const loss = Math.max(Number(totals.profitLoss) * -1, 0);
+
+  const handleDownloadReport = async () => {
+    setPdfError("");
+    setIsGeneratingPdf(true);
+    try {
+      if (!targetRef.current) throw new Error("Report content is not ready.");
+      await toPDF();
+    } catch (downloadError) {
+      console.error("Unable to generate financial report PDF:", downloadError);
+      setPdfError("Could not create the report PDF. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   return (
     <div className="flex gap-3 print:m-0 print:block [&>nav]:print:hidden">
@@ -123,12 +155,17 @@ export default function Reports() {
               <Button
                 variant="secondary"
                 className="rounded-lg"
-                onClick={() => toPDF()}
+                onClick={handleDownloadReport}
+                isDisabled={loading || !report || isGeneratingPdf}
               >
-                Download Report
+                {isGeneratingPdf ? "Preparing PDF..." : "Download Report"}
               </Button>
-              <DateRangePicker value={dateRange} onChange={setDateRange}>
-                <DateField.Group>
+              <DateRangePicker
+                value={dateRange}
+                onChange={(range) => range && setDateRange(range)}
+                aria-label="Report date range"
+              >
+                <DateField.Group className="rounded-lg bg-surface">
                   <DateField.InputContainer>
                     <DateField.Input slot="start">
                       {(segment) => <DateField.Segment segment={segment} />}
@@ -145,7 +182,7 @@ export default function Reports() {
                   </DateField.Suffix>
                 </DateField.Group>
                 <DateRangePicker.Popover>
-                  <RangeCalendar aria-label="Choose report date range">
+                  <RangeCalendar aria-label="Choose report dates">
                     <RangeCalendar.Header>
                       <RangeCalendar.YearPickerTrigger>
                         <RangeCalendar.YearPickerTriggerHeading />
@@ -171,6 +208,14 @@ export default function Reports() {
               </DateRangePicker>
             </div>
           </div>
+          {pdfError && (
+            <p
+              role="alert"
+              className="rounded-lg bg-red-50 p-3 text-sm text-red-600"
+            >
+              {pdfError}
+            </p>
+          )}
           {error && (
             <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
               {error}
@@ -189,42 +234,41 @@ export default function Reports() {
               body={currency(loss)}
             />
           </div>
-          {loading ? (
-            <div className="grid gap-3 lg:grid-cols-2">
-              <ChartSkeleton />
-              <ChartSkeleton />
-            </div>
-          ) : report &&
-            (report.productCategories?.length || report.trend?.length) ? (
-            <div className="grid gap-3 lg:grid-cols-2">
-              <div className="rounded-2xl bg-white p-5 shadow-md">
-                <Typography color="default" weight="semibold">
-                  Sold Products per Category
-                </Typography>
-                <Typography color="muted" type="body-sm">
-                  Units sold grouped by product category.
-                </Typography>
-                <div className="h-72 w-full">
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="rounded-2xl bg-white p-5 shadow-md">
+              <Typography color="default" weight="semibold">
+                Sold Products per Category
+              </Typography>
+              <Typography color="muted" type="body-sm">
+                Units sold grouped by product category.
+              </Typography>
+              <div className="h-72 w-full">
+                {loading ? (
+                  <ChartSkeleton />
+                ) : productCategories.length === 0 ? (
+                  <div
+                    role="status"
+                    className="flex h-full items-center justify-center text-sm text-zinc-500"
+                  >
+                    No data available.
+                  </div>
+                ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={report?.productCategories ?? []}
+                        data={productCategories}
                         dataKey="total_qty"
                         nameKey="category_name"
                         cx="50%"
                         cy="45%"
                         outerRadius="62%"
                       >
-                        {(report?.productCategories ?? []).map(
-                          (entry, index) => (
-                            <Cell
-                              key={entry.category_name}
-                              fill={
-                                categoryColors[index % categoryColors.length]
-                              }
-                            />
-                          ),
-                        )}
+                        {productCategories.map((entry, index) => (
+                          <Cell
+                            key={entry.category_name}
+                            fill={categoryColors[index % categoryColors.length]}
+                          />
+                        ))}
                       </Pie>
                       <Tooltip
                         formatter={(value) =>
@@ -234,18 +278,29 @@ export default function Reports() {
                       <Legend verticalAlign="bottom" />
                     </PieChart>
                   </ResponsiveContainer>
-                </div>
+                )}
               </div>
-              <div className="rounded-lg bg-white p-5 shadow-md">
-                <h2 className="text-lg font-semibold text-zinc-800">
-                  Revenue vs Expenses
-                </h2>
-                <p className="mb-5 text-sm text-zinc-500">
-                  Monthly performance for the selected period.
-                </p>
-                <div className="h-72 w-full">
+            </div>
+            <div className="rounded-lg bg-white p-5 shadow-md">
+              <h2 className="text-lg font-semibold text-zinc-800">
+                Revenue vs Expenses
+              </h2>
+              <p className="mb-5 text-sm text-zinc-500">
+                Monthly performance for the selected period.
+              </p>
+              <div className="h-72 w-full">
+                {loading ? (
+                  <ChartSkeleton />
+                ) : trend.length === 0 ? (
+                  <div
+                    role="status"
+                    className="flex h-full items-center justify-center text-sm text-zinc-500"
+                  >
+                    No data available.
+                  </div>
+                ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={report?.trend ?? []}>
+                    <BarChart data={trend}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="report_month" />
                       <YAxis />
@@ -263,62 +318,60 @@ export default function Reports() {
                       />
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="rounded-2xl bg-white p-5 text-sm text-zinc-500 shadow-md">
-              No data available for the selected date range.
-            </div>
-          )}
+          </div>
           <div className="rounded-2xl p-5 shadow-md">
             <Typography color="default" weight="semibold">
               Top Selling Products
             </Typography>
             <Typography color="muted" type="body-sm">
-              Ranked by total units sold in the selected period.
+              Ranked by units sold in the selected period.
             </Typography>
-
-            {loading ? (
-              <TableSkeleton columns={4} />
-            ) : products.length > 0 ? (
-              <Table className="mt-3">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Top selling products">
-                    <Table.Header>
-                      <Table.Column>#</Table.Column>
-                      <Table.Column id="product_name" isRowHeader>
-                        Product Name
-                      </Table.Column>
-                      <Table.Column id="total_qty">Units Sold</Table.Column>
-                      <Table.Column id="total_sales">Revenue</Table.Column>
-                    </Table.Header>
-                    <Table.Body emptyContent={"No rows to display."}>
-                      {products.map((product, index) => (
-                        <Table.Row key={product.product_id}>
-                          <Table.Cell>{index + 1}</Table.Cell>
-                          <Table.Cell>{product.product_name}</Table.Cell>
-                          <Table.Cell>{product.total_qty}</Table.Cell>
-                          <Table.Cell>
-                            <Typography
-                              type="body-sm"
-                              weight="semibold"
-                              className="text-blue-500"
-                            >
-                              {currency(product.total_sales)}
-                            </Typography>
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
-            ) : (
-              <div className="mt-3 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-500">
-                No data available.
-              </div>
-            )}
+            <div className="mt-3">
+              {loading ? (
+                <TableSkeleton columns={4} />
+              ) : products.length === 0 ? (
+                <div
+                  role="status"
+                  className="rounded-lg bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500"
+                >
+                  No data available.
+                </div>
+              ) : (
+                <Table>
+                  <Table.ScrollContainer>
+                    <Table.Content aria-label="Top selling products">
+                      <Table.Header>
+                        <Table.Column>#</Table.Column>
+                        <Table.Column>Product Name</Table.Column>
+                        <Table.Column>Units Sold</Table.Column>
+                        <Table.Column>Revenue</Table.Column>
+                      </Table.Header>
+                      <Table.Body>
+                        {products.map((product, index) => (
+                          <Table.Row key={product.product_name}>
+                            <Table.Cell>{index + 1}</Table.Cell>
+                            <Table.Cell>{product.product_name}</Table.Cell>
+                            <Table.Cell>{product.total_qty}</Table.Cell>
+                            <Table.Cell>
+                              <Typography
+                                type="body-sm"
+                                weight="semibold"
+                                className="text-blue-500"
+                              >
+                                {currency(product.total_sales)}
+                              </Typography>
+                            </Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table.Content>
+                  </Table.ScrollContainer>
+                </Table>
+              )}
+            </div>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-md">
             <Typography color="default" weight="semibold">
@@ -330,32 +383,36 @@ export default function Reports() {
             <div className="h-72 w-full">
               {loading ? (
                 <TableSkeleton columns={5} />
-              ) : report?.expenses?.length ? (
+              ) : expenses.length === 0 ? (
+                <div
+                  role="status"
+                  className="flex h-full items-center justify-center text-sm text-zinc-500"
+                >
+                  No data available.
+                </div>
+              ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={report?.expenses ?? []}
+                      data={expenses}
                       dataKey="total_amount"
                       nameKey="category_name"
                       cx="50%"
                       cy="45%"
                       outerRadius="70%"
                     >
-                      {(report?.expenses ?? []).map((entry, index) => (
+                      {expenses.map((entry, index) => (
                         <Cell
                           key={entry.category_name}
                           fill={expenseColors[index % expenseColors.length]}
                         />
                       ))}
+                      {/* Gemini lang sakalam LOL */}
                     </Pie>
                     <Tooltip formatter={(value) => currency(value)} />
                     <Legend verticalAlign="bottom" />
                   </PieChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-                  No data available.
-                </div>
               )}
             </div>
           </div>
@@ -363,8 +420,8 @@ export default function Reports() {
       </div>
       <div
         ref={targetRef}
-        className="fixed left-[-10000px] top-0 block w-[8.5in] font-[Arial,sans-serif] text-[9px] text-[#172033] print:static print:w-auto"
-        style={{ backgroundColor: "#ffffff" }}
+        id="report-pdf-export"
+        className="fixed left-[-10000px] top-0 block w-[8.5in] bg-white font-[Arial,sans-serif] text-[9px] text-[#172033] print:static print:w-auto"
         aria-hidden="true"
       >
         <header className="flex items-start justify-between border-b-2 border-[#172033] py-2 pb-3">
@@ -375,7 +432,14 @@ export default function Reports() {
             <h1 className="m-0 text-[15px]">FINANCIAL AUDIT REPORT</h1>
             <p className="m-0 text-[8px] text-[#718096]">
               Generated:{" "}
-              {new Date().toLocaleDateString("en-US", { dateStyle: "long" })}
+              {new Date().toLocaleString("en-US", {
+                dateStyle: "long",
+                timeStyle: "short",
+              })}
+            </p>
+            <p className="m-0 text-[8px] text-[#718096]">
+              Report Period: {formatReportDate(dateRange.start)} -{" "}
+              {formatReportDate(dateRange.end)}
             </p>
             <p className="m-0 text-[8px] text-[#718096]">
               Document Ref: #CC-2026-0901
@@ -422,38 +486,49 @@ export default function Reports() {
           <section className="rounded-[7px] border border-[#dbe2ea] bg-[#f8fafc] p-2.5">
             <h2 className="m-0 text-[10px]">Products sold by category</h2>
             <div className="h-[170px] w-full">
-              <PieChart width={300} height={160}>
-                <Pie
-                  data={report?.productCategories ?? []}
-                  dataKey="total_qty"
-                  nameKey="category_name"
-                  cx="50%"
-                  cy="43%"
-                  outerRadius="68%"
-                >
-                  {/* Halos wala ako na tulong dito ah ndi ko magamay ung react with heroui */}
-                  {(report?.productCategories ?? []).map((entry, index) => (
-                    <Cell
-                      key={entry.category_name}
-                      fill={categoryColors[index % categoryColors.length]}
-                    />
-                  ))}
-                </Pie>
-                <Legend verticalAlign="bottom" />
-              </PieChart>
+              {productCategories.length === 0 ? (
+                <p className="m-0 pt-16 text-center text-[#718096]">
+                  No data available.
+                </p>
+              ) : (
+                <PieChart width={300} height={160}>
+                  <Pie
+                    data={productCategories}
+                    dataKey="total_qty"
+                    nameKey="category_name"
+                    cx="50%"
+                    cy="43%"
+                    outerRadius="68%"
+                  >
+                    {productCategories.map((entry, index) => (
+                      <Cell
+                        key={entry.category_name}
+                        fill={categoryColors[index % categoryColors.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Legend verticalAlign="bottom" />
+                </PieChart>
+              )}
             </div>
           </section>
           <section className="rounded-[7px] border border-[#dbe2ea] bg-[#f8fafc] p-2.5">
             <h2 className="m-0 text-[10px]">Revenue vs Expenses (Monthly)</h2>
             <div className="h-[170px] w-full">
-              <BarChart width={300} height={160} data={report?.trend ?? []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="report_month" />
-                <YAxis />
-                <Legend verticalAlign="bottom" />
-                <Bar dataKey="total_sales" name="Revenue" fill="#168bf0" />
-                <Bar dataKey="total_expenses" name="Expenses" fill="#ff7043" />
-              </BarChart>
+              {trend.length === 0 ? (
+                <p className="m-0 pt-16 text-center text-[#718096]">
+                  No data available.
+                </p>
+              ) : (
+                <BarChart width={300} height={160} data={trend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="report_month" />
+                  <YAxis />
+                  <Legend verticalAlign="bottom" />
+                  <Bar dataKey="total_sales" name="Revenue" fill="#168bf0" />
+                  <Bar dataKey="total_expenses" name="Expenses" fill="#ff7043" />
+                </BarChart>
+              )}
             </div>
           </section>
         </div>
@@ -463,7 +538,7 @@ export default function Reports() {
               TOP SELLING PRODUCTS
             </h2>
             <p className="m-0 text-[8px] text-[#718096]">
-              Ranked list of products by total revenue generated this period
+              Ranked list of products by units sold this period
             </p>
           </div>
           <table className="w-full border-collapse [&_td]:border-b [&_td]:border-[#dbe2ea] [&_td]:px-[9px] [&_td]:py-[7px] [&_td]:text-left [&_th]:border-b [&_th]:border-[#dbe2ea] [&_th]:bg-[#f1f5f9] [&_th]:px-[9px] [&_th]:py-[7px] [&_th]:text-left [&_th]:text-[8px] [&_td:nth-child(3)]:text-right [&_th:nth-child(3)]:text-right [&_td:last-child]:text-right [&_th:last-child]:text-right">
@@ -476,15 +551,22 @@ export default function Reports() {
               </tr>
             </thead>
             <tbody>
-              {/* etong buong line 238 gang 241 lang ata nagalaw ko eh hhshshhshshs */}
-              {products.slice(0, 4).map((product, index) => (
-                <tr key={product.product_name}>
-                  <td>{index + 1}</td>
-                  <td>{product.product_name}</td>
-                  <td>{Number(product.total_qty).toLocaleString()}</td>
-                  <td>{currency(product.total_sales)}</td>
+              {products.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-center text-[#718096]">
+                    No data available.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                products.slice(0, 4).map((product, index) => (
+                  <tr key={product.product_name}>
+                    <td>{index + 1}</td>
+                    <td>{product.product_name}</td>
+                    <td>{Number(product.total_qty).toLocaleString()}</td>
+                    <td>{currency(product.total_sales)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </section>
@@ -495,26 +577,29 @@ export default function Reports() {
                 EXPENSE BREAKDOWN
               </h2>
             </div>
-            {(report?.expenses ?? []).map((expense, index) => (
-              <div
-                className="relative border-b border-[#edf1f5] py-1 pb-2"
-                key={expense.category_name}
-              >
-                <span>{expense.category_name}</span>
-                <strong className="float-right">
-                  {currency(expense.total_amount)}
-                </strong>
-                {/* Look at this woooooo */}
-                <i
-                  style={{
-                    width: `${Math.max(12, Math.min(100, (Number(expense.total_amount) / Math.max(Number(totals.expenses), 1)) * 100))}%`,
-                    backgroundColor:
-                      expenseColors[index % expenseColors.length],
-                  }}
-                  className="mt-1 block h-1"
-                />
-              </div>
-            ))}
+            {expenses.length === 0 ? (
+              <p className="m-0 text-[#718096]">No data available.</p>
+            ) : (
+              expenses.map((expense, index) => (
+                <div
+                  className="relative border-b border-[#edf1f5] py-1 pb-2"
+                  key={expense.category_name}
+                >
+                  <span>{expense.category_name}</span>
+                  <strong className="float-right">
+                    {currency(expense.total_amount)}
+                  </strong>
+                  <i
+                    style={{
+                      width: `${Math.max(12, Math.min(100, (Number(expense.total_amount) / Math.max(Number(totals.expenses), 1)) * 100))}%`,
+                      backgroundColor:
+                        expenseColors[index % expenseColors.length],
+                    }}
+                    className="mt-1 block h-1"
+                  />
+                </div>
+              ))
+            )}
           </section>
           <section className="rounded-[7px] border border-[#dbe2ea] bg-[#f8fafc] p-3.5">
             <h2 className="m-0 text-[9px]">AUDIT VERIFICATION</h2>
