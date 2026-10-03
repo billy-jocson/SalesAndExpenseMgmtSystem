@@ -14,24 +14,31 @@ import { Magnifier } from "@gravity-ui/icons";
 import { useDebounce } from "../hooks/useDebounce.js";
 import { getSales } from "../api/sales.js";
 import NoItemFound from "../components/NoItemFound.jsx";
+import { ListCardSkeleton } from "../components/PageSkeleton.jsx";
 
 export default function Sales() {
   const [searchItem, setSearchItem] = useState("");
   const debouncedSearchItem = useDebounce(searchItem);
   const [dateRange, setDateRange] = useState(null);
   const [sales, setSales] = useState([]);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     document.title = "Sales";
   }, []);
 
   useEffect(() => {
     const loadSales = async () => {
-      const data = await getSales(
-        debouncedSearchItem,
-        dateRange?.start?.toString() ?? "",
-        dateRange?.end?.toString() ?? "",
-      );
-      setSales(data);
+      setLoading(true);
+      try {
+        const data = await getSales(
+          debouncedSearchItem,
+          dateRange?.start?.toString() ?? "",
+          dateRange?.end?.toString() ?? "",
+        );
+        setSales(data);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadSales();
@@ -105,8 +112,10 @@ export default function Sales() {
               </DateRangePicker.Popover>
             </DateRangePicker>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 h-full">
-            {sales.length === 0 ? (
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {loading ? (
+              <ListCardSkeleton />
+            ) : sales.length === 0 ? (
               <NoItemFound
                 title="No sales found"
                 body="There is nothing to show here."

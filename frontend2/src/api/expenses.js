@@ -1,3 +1,5 @@
+import { queryString, request } from "./client";
+
 export const addExpense = async (
   amount,
   category_id,
@@ -6,58 +8,21 @@ export const addExpense = async (
   supplier_id,
   reference_code,
 ) => {
-  const response = await fetch("/backend/public/index.php/api/addExpense", {
+  return request("/expenses", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+    body: {
       amount,
       category_id,
       additional_description,
       payment_method_id,
       supplier_id,
       reference_code,
-    }),
+    },
   });
-
-  let data;
-
-  try {
-    data = await response.json();
-  } catch {
-    return {
-      status: "Error",
-      message: `Request failed with status ${response.status}.`,
-    };
-  }
-
-  return data;
 };
 
 export const fetchCategories = async () => {
-  const response = await fetch(
-    "/backend/public/index.php/api/getExpenseCategories",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    },
-  );
-
-  let data;
-
-  try {
-    data = await response.json();
-  } catch {
-    return {
-      status: "Error",
-      message: `Request failed with status ${response.status}.`,
-    };
-  }
-
-  return data;
+  return request("/expenses/categories", { method: "GET" });
 };
 
 export const fetchAllExpenses = async (
@@ -66,32 +31,10 @@ export const fetchAllExpenses = async (
   startDate = "",
   endDate = "",
 ) => {
-  const response = await fetch(
-    "/backend/public/index.php/api/fetchAllExpenses",
+  return request(
+    `/expenses${queryString({ search, category, startDate, endDate })}`,
     {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        search: search,
-        category: category,
-        startDate,
-        endDate,
-      }),
+      method: "GET",
     },
   );
-
-  let data;
-
-  try {
-    data = await response.json();
-  } catch {
-    return {
-      status: "Error",
-      message: `Request failed with status ${response.status}.`,
-    };
-  }
-
-  return data;
 };

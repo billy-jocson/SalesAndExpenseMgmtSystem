@@ -50,19 +50,15 @@ export default function SupplierCard({
       </Card.Content>
       <Separator />
 
-      <Card.Footer className="grid grid-cols-2 gap-2">
+      <Card.Footer className="flex justify-end gap-1">
         <Button
           variant="primary"
-          className="w-full rounded-full bg-amber-500"
+          className="rounded-full bg-amber-500"
           onPress={onEdit}
         >
           Edit
         </Button>
-        <Button
-          variant="danger"
-          className="w-full rounded-full"
-          onPress={onDelete}
-        >
+        <Button variant="danger" className="rounded-full" onPress={onDelete}>
           Delete
         </Button>
       </Card.Footer>

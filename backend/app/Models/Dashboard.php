@@ -66,11 +66,11 @@ class Dashboard
             GROUP BY ec.category_id, ec.category_name
             ORDER BY ec.category_name ASC");
         $stmt->bind_param('ss', $formattedStart, $formattedEnd);
-       
+
         $stmt->execute();
         $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-        return array_map(function($row) {
+        return array_map(function ($row) {
             return [
                 'category_name' => $row['category_name'],
                 'total_amount' => (float) $row['total_amount']
@@ -79,7 +79,7 @@ class Dashboard
     }
     public function getLineChartData($startDate, $endDate)
     {
-        
+
         $formattedStart = (new \DateTimeImmutable($startDate))->format('Y-m-d');
         $formattedEnd = (new \DateTimeImmutable($endDate))->format('Y-m-d');
 
@@ -112,7 +112,7 @@ class Dashboard
         $stmt->bind_param('ssss', $formattedStart, $formattedEnd, $formattedStart, $formattedEnd);
         $stmt->execute();
         $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        
+
 
         // Explicitly parse strings to floats for Recharts compatibility
         return array_map(function ($row) {
@@ -135,11 +135,10 @@ class Dashboard
                     WHERE supplier_id = ?
                 ) AS totalProducts,
                 (
-                    SELECT COALESCE(SUM(si.quantity * si.unit_price), 0.00)
-                    FROM sales_items si
-                    JOIN store_products sp ON si.store_product_id = sp.store_product_id
-                    JOIN supplier_products sup_p ON sp.supplier_product_id = sup_p.supplier_product_id
-                    WHERE sup_p.supplier_id = ?
+                    SELECT COALESCE(SUM(e.amount), 0.00)
+                    FROM expenses e
+                    JOIN expense_categories ec ON e.category_id = ec.category_id
+                    WHERE e.supplier_id = ? AND ec.category_name = 'Inventory'
                 ) AS totalRevenue;");
         $stmt->bind_param('ii', $CurrentSupplierId, $CurrentSupplierId);
         $stmt->execute();
@@ -152,5 +151,58 @@ class Dashboard
             'totalProducts' => $tempTotalProducts,
             'totalRevenue' => $tempTotalRevenue,
         ];
+    }
+
+    public function getSupplierChartData($startDate, $endDate, $supplierId)
+    {
+        $formattedStart = (new \DateTimeImmutable($startDate))->format('Y-m-d');
+        $formattedEnd = (new \DateTimeImmutable($endDate))->format('Y-m-d');
+
+        $stmt = $this->db->prepare("SELECT 
+                pc.category_name,
+                COUNT(sp.supplier_product_id) AS product_count
+            FROM supplier_products sp
+            INNER JOIN product_categories pc ON sp.category_id = pc.category_id
+            WHERE sp.supplier_id = ?
+            AND DATE(sp.created_at) BETWEEN ? AND ?
+            GROUP BY pc.category_id, pc.category_name
+            ORDER BY pc.category_name ASC");
+
+        $stmt->bind_param('iss', $supplierId, $formattedStart, $formattedEnd);
+        $stmt->execute();
+        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        return array_map(function ($row) {
+            return [
+                'category_name' => $row['category_name'],
+                'total_amount' => (int) $row['product_count'],
+            ];
+        }, $rows);
+    }
+    public function getSupplierLineChartData($startDate, $endDate, $supplierId = null)
+    {
+        $formattedStart = (new \DateTimeImmutable($startDate))->format('Y-m-d');
+        $formattedEnd = (new \DateTimeImmutable($endDate))->format('Y-m-d');
+
+        $stmt = $this->db->prepare("SELECT 
+                DATE(expense_date) AS _date, 
+                CAST(COALESCE(SUM(amount), 0.00) AS DECIMAL(10,2)) AS total_amount
+            FROM expenses
+            WHERE supplier_id = ?
+                AND DATE(expense_date) BETWEEN ? AND ?
+            GROUP BY DATE(expense_date)
+            ORDER BY _date ASC");
+
+        $stmt->bind_param('iss', $supplierId, $formattedStart, $formattedEnd);
+        $stmt->execute();
+        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        // Explicitly parse strings to floats for Recharts compatibility
+        return array_map(function ($row) {
+            return [
+                '_date' => $row['_date'],
+                'sales' => (float) $row['total_amount'],
+            ];
+        }, $rows);
     }
 }

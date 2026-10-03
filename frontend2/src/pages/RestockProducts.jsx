@@ -1,34 +1,50 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import restockIcon from "../assets/images/restockprod.png";
-import { Table, Chip, TextField, InputGroup, Pagination } from "@heroui/react";
+import {
+  Table,
+  Chip,
+  TextField,
+  InputGroup,
+  Pagination,
+  Typography,
+} from "@heroui/react";
 import { Magnifier } from "@gravity-ui/icons";
 import ProductCategoryDropdown from "../components/ProductCategoryDropdown.jsx";
 import { fetchProducts } from "../api/productmanager.js";
 import { useDebounce } from "../hooks/useDebounce.js";
 import RestockModal from "../components/RestockModal.jsx";
 import NoItemFound from "../components/NoItemFound.jsx";
+import { TableSkeleton } from "../components/PageSkeleton.jsx";
+import { userContext } from "../context/UserContext.js";
 
 export default function RestockProducts() {
+  const user = useContext(userContext);
   const [searchItem, setSearchItem] = useState("");
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [categorySelected, setCategorySelected] = useState("");
   const [productsRefreshKey, setProductsRefreshKey] = useState(0);
   const debouncedSearchItem = useDebounce(searchItem);
   useEffect(() => {
     document.title = "Restock Products";
     const loadProducts = async () => {
-      const data = await fetchProducts(
-        "",
-        null,
-        debouncedSearchItem,
-        categorySelected,
-      );
-      setProducts(data?.status === "Success" ? (data.products ?? []) : []);
+      setLoading(true);
+      try {
+        const data = await fetchProducts(
+          user?.role,
+          null,
+          debouncedSearchItem,
+          categorySelected,
+        );
+        setProducts(data?.status === "Success" ? (data.products ?? []) : []);
+      } finally {
+        setLoading(false);
+      }
     };
     loadProducts();
-  }, [debouncedSearchItem, categorySelected, productsRefreshKey]);
+  }, [debouncedSearchItem, categorySelected, productsRefreshKey, user?.role]);
 
   return (
     <div className="flex gap-3">
@@ -68,8 +84,14 @@ export default function RestockProducts() {
               />
             </div>
           </div>
+          <Typography type="body-sm" color="muted">
+            {products.length} {products.length > 1 ? "products" : "product"}{" "}
+            found.
+          </Typography>
 
-          {products.length === 0 ? (
+          {loading ? (
+            <TableSkeleton columns={7} />
+          ) : products.length === 0 ? (
             <NoItemFound
               title="No products found"
               body="There is nothing to show here."
@@ -102,19 +124,23 @@ export default function RestockProducts() {
                           : stock <= 10
                             ? "warning"
                             : "success";
+                      const imagePath = `/backend/public${product.image_path}`;
 
                       return (
                         <Table.Row key={product.id}>
+                          <Table.Cell>
+                            <img
+                              src={imagePath}
+                              className="w-16 h-16 object-cover rounded-lg"
+                            ></img>
+                          </Table.Cell>
                           <Table.Cell>{product.prodname}</Table.Cell>
                           <Table.Cell>{product.category}</Table.Cell>
-                          <Table.Cell>
-                            {product.supplier_name ?? "-"}
-                          </Table.Cell>
-                          <Table.Cell>{stock}</Table.Cell>
+                          <Table.Cell>{product.supplier_name}</Table.Cell>
                           <Table.Cell>{stock}</Table.Cell>
                           <Table.Cell>
                             <Chip
-                              variant="primary"
+                              variant="soft"
                               className="whitespace-nowrap"
                               color={color}
                             >

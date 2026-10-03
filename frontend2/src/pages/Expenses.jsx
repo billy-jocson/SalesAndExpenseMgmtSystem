@@ -14,11 +14,13 @@ import {
   RangeCalendar,
   Select,
   TextField,
+  Typography,
   // Typography,
 } from "@heroui/react";
 import AddExpenseModal from "../components/AddExpenseModal.jsx";
 import { fetchAllExpenses, fetchCategories } from "../api/expenses";
 import NoItemFound from "../components/NoItemFound.jsx";
+import { CardGridSkeleton } from "../components/PageSkeleton.jsx";
 
 export default function Expenses() {
   const [searchItem, setSearchItem] = useState("");
@@ -27,6 +29,7 @@ export default function Expenses() {
   const [categorySelected, setCategorySelected] = useState("");
   const [dateRange, setDateRange] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [expensesRefreshKey, setExpensesRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -48,13 +51,18 @@ export default function Expenses() {
 
   useEffect(() => {
     const loadExpenses = async () => {
-      const data = await fetchAllExpenses(
-        debouncedSearchItem,
-        categorySelected,
-        dateRange?.start?.toString() ?? "",
-        dateRange?.end?.toString() ?? "",
-      );
-      setExpenses(Array.isArray(data) ? data : []);
+      setLoading(true);
+      try {
+        const data = await fetchAllExpenses(
+          debouncedSearchItem,
+          categorySelected,
+          dateRange?.start?.toString() ?? "",
+          dateRange?.end?.toString() ?? "",
+        );
+        setExpenses(Array.isArray(data) ? data : []);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadExpenses();
@@ -184,17 +192,25 @@ export default function Expenses() {
             </div>
           </div>
 
-          {expenses.length === 0 ? (
+          {loading ? (
+            <CardGridSkeleton />
+          ) : expenses.length === 0 ? (
             <NoItemFound
               title="No expenses found"
               body="There is nothing to show here."
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {expenses.map((e, index) => (
-                <ExpenseCard key={index} data={e} />
-              ))}
-            </div>
+            <>
+              <Typography type="body-sm" color="muted">
+                {expenses.length} {expenses.length > 1 ? "expenses" : "expense"}{" "}
+                found.
+              </Typography>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {expenses.map((e, index) => (
+                  <ExpenseCard key={index} data={e} />
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -64,13 +64,13 @@ class DashboardController
                 'message' => 'Date range is required.'
             ];
         }
-        
+
         $responsedata = $this->dashboardModel->getChartData(
             $data['startDate'],
             $data['endDate']
         );
 
-    
+
 
         if (!empty($responsedata)) {
             return [
@@ -85,6 +85,7 @@ class DashboardController
             'message' => 'No expense data available for this range.'
         ];
     }
+    
     public function getLineChartData($data)
     {
         if (empty($data['startDate']) || empty($data['endDate'])) {
@@ -93,12 +94,12 @@ class DashboardController
                 'message' => 'Date range is required.'
             ];
         }
-        
+
         $responsedata = $this->dashboardModel->getLineChartData(
             $data['startDate'],
             $data['endDate']
         );
-        
+
 
         if (!empty($responsedata)) {
             return [
@@ -115,7 +116,7 @@ class DashboardController
 
     public function getTotalProductCardData($data)
     {
-        
+
         if (empty($data['supplierId'])) {
             return [
                 'status' => 'error',
@@ -141,6 +142,65 @@ class DashboardController
         return [
             'status' => 'error',
             'message' => 'Failed to fetch card data.'
+        ];
+    }
+
+    public function getSupplierChartData($data)
+    {
+        if (empty($data['startDate']) || empty($data['endDate'])) {
+            return [
+                'status' => 'error',
+                'message' => 'Date range is required.'
+            ];
+        }
+
+        $responsedata = $this->dashboardModel->getSupplierChartData(
+            $data['startDate'],
+            $data['endDate'],
+            $data['supplierId']
+        );
+
+
+
+        if (!empty($responsedata)) {
+            return [
+                'status' => 'success',
+                'message' => 'Chart data fetched successfully!',
+                'data' => $responsedata,
+            ];
+        }
+
+        return [
+            'status' => 'error',
+            'message' => 'No expense data available for this range.'
+        ];
+    }
+    public function getSupplierLineChartData($data)
+    {
+        if (empty($data['startDate']) || empty($data['endDate'])) {
+            return [
+                'status' => 'error',
+                'message' => 'Date range is required.'
+            ];
+        }
+
+        $responsedata = $this->dashboardModel->getSupplierLineChartData(
+            $data['startDate'],
+            $data['endDate'],
+            $data['supplierId']
+        );
+
+
+        if (!empty($responsedata)) {
+            return [
+                'status' => 'success',
+                'message' => 'Line chart data fetched successfully!',
+                'data' => $responsedata,
+            ];
+        }
+        return [
+            'status' => 'error',
+            'message' => 'No line chart data available.'
         ];
     }
 }

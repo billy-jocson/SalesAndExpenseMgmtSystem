@@ -1,4 +1,4 @@
-import { Calendar as CalendarIcon } from "@gravity-ui/icons";
+import { ChevronsUp } from "@gravity-ui/icons";
 import {
   Button,
   Calendar,
@@ -49,7 +49,7 @@ export default function RestockModal({ product, onSuccess }) {
             <Modal.CloseTrigger />
             <Modal.Header>
               <Modal.Icon className="bg-blue-600 text-white">
-                <CalendarIcon className="size-5" />
+                <ChevronsUp className="size-5" />
               </Modal.Icon>
               <Modal.Heading>Restock {product.name}</Modal.Heading>
             </Modal.Header>
