@@ -2,8 +2,8 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: Sep 24, 2026 at 03:43 PM
+-- Host: 127.0.0.1:3307
+-- Generation Time: Oct 04, 2026 at 08:44 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -20,37 +20,159 @@ SET time_zone = "+00:00";
 --
 -- Database: `inventory_system`
 --
-DROP DATABASE IF EXISTS inventory_system;
-CREATE DATABASE inventory_system;
-USE inventory_system;
-
--- Disable foreign key checks for clean drop and creation
-SET FOREIGN_KEY_CHECKS = 0;
 
 DELIMITER $$
 --
 -- Procedures
 --
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_add_expense` (IN `p_amount` DECIMAL(10,2), IN `p_category_id` INT, IN `p_additional_description` VARCHAR(255), IN `p_payment_method_id` INT, IN `p_supplier_id` INT, IN `p_reference_code` VARCHAR(50))   BEGIN
+CREATE  PROCEDURE `sp_add_expense` (IN `p_amount` DECIMAL(10,2), IN `p_category_id` INT, IN `p_additional_description` VARCHAR(255), IN `p_payment_method_id` INT, IN `p_supplier_id` INT, IN `p_reference_code` VARCHAR(50))   BEGIN
     INSERT INTO expenses (
-        category_id, 
-        supplier_id, 
-        payment_method_id, 
-        reference_code, 
-        amount, 
-        additional_description
+        amount,
+        category_id,
+        additional_description,
+        payment_method_id,
+        supplier_id,
+        reference_code,
+        expense_date
     )
     VALUES (
-        p_category_id, 
-        p_supplier_id, 
-        p_payment_method_id, 
-        p_reference_code, 
-        p_amount, 
-        p_additional_description
+        p_amount,
+        p_category_id,
+        p_additional_description,
+        p_payment_method_id,
+        p_supplier_id,
+        p_reference_code,
+        NOW()
     );
 END$$
 
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_generate_reports_summary` (IN `p_start` DATE, IN `p_end` DATE)   BEGIN
+CREATE  PROCEDURE `sp_dashboard_card_analytics` (IN `p_start_date` DATE, IN `p_end_date` DATE)   BEGIN
+    DECLARE v_days INT;
+    DECLARE v_prev_start DATE;
+    DECLARE v_prev_end DATE;
+    
+    SET v_days = DATEDIFF(p_end_date, p_start_date) + 1;
+    SET v_prev_end = DATE_SUB(p_start_date, INTERVAL 1 DAY);
+    SET v_prev_start = DATE_SUB(p_start_date, INTERVAL v_days DAY);
+    
+    SELECT
+        COALESCE(SUM(CASE WHEN DATE(sale_date) BETWEEN p_start_date AND p_end_date THEN total_amount ELSE 0 END), 0.00) AS current_sales,
+        COALESCE(SUM(CASE WHEN DATE(sale_date) BETWEEN v_prev_start AND v_prev_end THEN total_amount ELSE 0 END), 0.00) AS previous_sales,
+        (SELECT COALESCE(SUM(CASE WHEN DATE(expense_date) BETWEEN p_start_date AND p_end_date THEN amount ELSE 0 END), 0.00) FROM expenses) AS current_expenses,
+        (SELECT COALESCE(SUM(CASE WHEN DATE(expense_date) BETWEEN v_prev_start AND v_prev_end THEN amount ELSE 0 END), 0.00) FROM expenses) AS previous_expenses
+    FROM vw_sales_summary;
+END$$
+
+CREATE  PROCEDURE `sp_dashboard_chart_data` (IN `p_start_date` DATE, IN `p_end_date` DATE)   BEGIN
+    SELECT 
+        ec.category_name as category_name, 
+        CAST(COALESCE(SUM(e.amount), 0.00) AS DECIMAL(10,2)) AS total_amount
+    FROM expense_categories ec
+    LEFT JOIN expenses e ON ec.category_id = e.category_id 
+        AND DATE(e.expense_date) BETWEEN p_start_date AND p_end_date
+    GROUP BY ec.category_id, ec.category_name
+    ORDER BY ec.category_name ASC;
+END$$
+
+CREATE  PROCEDURE `sp_dashboard_line_chart_data` (IN `p_start_date` DATE, IN `p_end_date` DATE)   BEGIN
+    SELECT 
+        date_list.entry_date AS _date,
+        CAST(COALESCE(SUM(date_list.sales), 0.00) AS DECIMAL(10,2)) AS sales,
+        CAST(COALESCE(SUM(date_list.expense), 0.00) AS DECIMAL(10,2)) AS expense
+    FROM (
+        SELECT 
+            DATE(s.sale_date) AS entry_date, 
+            (SUM(si.quantity * si.unit_price) + s.tax_amount) AS sales, 
+            0.00 AS expense 
+        FROM sales s
+        LEFT JOIN sales_items si ON s.sale_id = si.sale_id
+        WHERE DATE(s.sale_date) BETWEEN p_start_date AND p_end_date
+        GROUP BY s.sale_id, DATE(s.sale_date), s.tax_amount
+        
+        UNION ALL
+        
+        SELECT 
+            DATE(e.expense_date) AS entry_date, 
+            0.00 AS sales, 
+            e.amount AS expense 
+        FROM expenses e
+        WHERE DATE(e.expense_date) BETWEEN p_start_date AND p_end_date
+    ) AS date_list
+    GROUP BY date_list.entry_date
+    ORDER BY date_list.entry_date ASC;
+END$$
+
+CREATE  PROCEDURE `sp_dashboard_supplier_card_analytics` (IN `p_supplier_id` INT)   BEGIN
+    SELECT 
+        (
+            SELECT COUNT(*) 
+            FROM supplier_products 
+            WHERE supplier_id = p_supplier_id
+        ) AS totalProducts,
+        (
+            SELECT COALESCE(SUM(e.amount), 0.00)
+            FROM expenses e
+            JOIN expense_categories ec ON e.category_id = ec.category_id
+            WHERE e.supplier_id = p_supplier_id AND ec.category_name = 'Inventory'
+        ) AS totalRevenue;
+END$$
+
+CREATE  PROCEDURE `sp_dashboard_supplier_chart_data` (IN `p_start_date` DATE, IN `p_end_date` DATE, IN `p_supplier_id` INT)   BEGIN
+    SELECT 
+        pc.category_name,
+        COUNT(sp.supplier_product_id) AS product_count
+    FROM supplier_products sp
+    INNER JOIN product_categories pc ON sp.category_id = pc.category_id
+    WHERE sp.supplier_id = p_supplier_id
+    AND DATE(sp.created_at) BETWEEN p_start_date AND p_end_date
+    GROUP BY pc.category_id, pc.category_name
+    ORDER BY pc.category_name ASC;
+END$$
+
+CREATE  PROCEDURE `sp_dashboard_supplier_line_chart_data` (IN `p_start_date` DATE, IN `p_end_date` DATE, IN `p_supplier_id` INT)   BEGIN
+    SELECT 
+        DATE(expense_date) AS _date, 
+        CAST(COALESCE(SUM(amount), 0.00) AS DECIMAL(10,2)) AS total_amount
+    FROM expenses
+    WHERE supplier_id = p_supplier_id
+        AND DATE(expense_date) BETWEEN p_start_date AND p_end_date
+    GROUP BY DATE(expense_date)
+    ORDER BY _date ASC;
+END$$
+
+CREATE  PROCEDURE `sp_expenses_fetch_all` (IN `p_search` VARCHAR(255), IN `p_category_id` INT, IN `p_start_date` VARCHAR(20), IN `p_end_date` VARCHAR(20))   BEGIN
+    SELECT 
+        e.expense_id,
+        ec.category_name, 
+        e.additional_description, 
+        COALESCE(e.amount, 0.00) AS amount, 
+        pm.method_name, 
+        COALESCE(e.reference_code, 'N/A') AS refcode,
+        e.expense_date
+    FROM expenses e 
+    LEFT JOIN expense_categories ec ON e.category_id = ec.category_id
+    LEFT JOIN payment_methods pm ON e.payment_method_id = pm.payment_method_id
+    WHERE 
+        (p_search IS NULL OR p_search = '' OR (e.additional_description LIKE CONCAT('%', p_search, '%') OR ec.category_name LIKE CONCAT('%', p_search, '%')))
+        AND (p_category_id IS NULL OR p_category_id = 0 OR e.category_id = p_category_id)
+        AND (
+            (p_start_date IS NULL OR p_start_date = '' OR p_end_date IS NULL OR p_end_date = '')
+            OR (DATE(e.expense_date) BETWEEN p_start_date AND p_end_date)
+        )
+    ORDER BY e.expense_date DESC;
+END$$
+
+CREATE  PROCEDURE `sp_expense_categories_get` ()   BEGIN
+    SELECT 
+        category_id,
+        category_name,
+        description
+    FROM expense_categories
+    ORDER BY category_name ASC;
+END$$
+
+CREATE  PROCEDURE `sp_generate_reports_summary` (IN `p_start` DATE, IN `p_end` DATE)   BEGIN
+    -- 1. Top 10 Selling Products
     SELECT
         sp.product_name AS product_name,
         COALESCE(SUM(si.quantity), 0) AS total_qty,
@@ -74,6 +196,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_generate_reports_summary` (IN `p
     ORDER BY total_sales DESC
     LIMIT 10;
 
+    -- 2. Breakdown ng Expenses
     SELECT
         ec.category_name AS category_name,
         COALESCE(SUM(e.amount), 0.00) AS total_amount
@@ -82,14 +205,55 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_generate_reports_summary` (IN `p
     WHERE DATE(e.expense_date) BETWEEN p_start AND p_end
     GROUP BY ec.category_id, ec.category_name;
 
+    -- 3. Overall Totals
     SELECT
         COALESCE((SELECT SUM(v.total_amount) FROM vw_sales_summary v WHERE DATE(v.sale_date) BETWEEN p_start AND p_end), 0.00) AS total_sales,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE DATE(e.expense_date) BETWEEN p_start AND p_end), 0.00) AS total_expenses,
         COALESCE((SELECT SUM(v.total_amount) FROM vw_sales_summary v WHERE DATE(v.sale_date) BETWEEN p_start AND p_end), 0.00) - 
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE DATE(e.expense_date) BETWEEN p_start AND p_end), 0.00) AS profit_loss;
+
+    -- 4. Category Sales Volume
+    SELECT
+        pc.category_name AS category_name,
+        COALESCE(SUM(si.quantity), 0) AS total_qty
+    FROM sales_items si
+    JOIN sales s ON s.sale_id = si.sale_id
+    JOIN store_products stp ON stp.store_product_id = si.store_product_id
+    JOIN supplier_products sp ON sp.supplier_product_id = stp.supplier_product_id
+    JOIN product_categories pc ON pc.category_id = sp.category_id
+    WHERE DATE(s.sale_date) BETWEEN p_start AND p_end
+    GROUP BY pc.category_id, pc.category_name
+    ORDER BY total_qty DESC;
+
+    -- 5. Monthly Trend
+    SELECT
+        report_month,
+        CAST(SUM(total_sales) AS DECIMAL(10,2)) AS total_sales,
+        CAST(SUM(total_expenses) AS DECIMAL(10,2)) AS total_expenses
+    FROM (
+        SELECT
+            DATE_FORMAT(sale_date, '%Y-%m') AS report_month,
+            SUM(total_amount) AS total_sales,
+            0.00 AS total_expenses
+        FROM vw_sales_summary
+        WHERE DATE(sale_date) BETWEEN p_start AND p_end
+        GROUP BY DATE_FORMAT(sale_date, '%Y-%m')
+
+        UNION ALL
+
+        SELECT
+            DATE_FORMAT(expense_date, '%Y-%m') AS report_month,
+            0.00 AS total_sales,
+            SUM(amount) AS total_expenses
+        FROM expenses
+        WHERE DATE(expense_date) BETWEEN p_start AND p_end
+        GROUP BY DATE_FORMAT(expense_date, '%Y-%m')
+    ) monthly_data
+    GROUP BY report_month
+    ORDER BY report_month ASC;
 END$$
 
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_get_dashboard_analytics` (IN `p_period` VARCHAR(20))   BEGIN
+CREATE  PROCEDURE `sp_get_dashboard_analytics` (IN `p_period` VARCHAR(20))   BEGIN
     DECLARE v_start_date DATE;
     
     SET v_start_date = CASE
@@ -130,6 +294,783 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_get_dashboard_analytics` (IN `p_
     LEFT JOIN expenses e ON ec.category_id = e.category_id AND DATE(e.expense_date) >= v_start_date
     GROUP BY ec.category_id, ec.category_name
     HAVING category_total > 0;
+END$$
+
+CREATE  PROCEDURE `sp_payment_methods_get` ()   BEGIN
+    SELECT 
+        payment_method_id,
+        method_name
+    FROM payment_methods
+    ORDER BY payment_method_id ASC;
+END$$
+
+CREATE  PROCEDURE `sp_postal_codes_add` (IN `p_postal_code` VARCHAR(20), IN `p_city` VARCHAR(100), IN `p_state` VARCHAR(100), IN `p_country` VARCHAR(100))   BEGIN
+    DECLARE v_exists INT DEFAULT 0;
+    
+    SELECT COUNT(*) INTO v_exists FROM postal_codes WHERE postal_code = p_postal_code;
+    
+    IF v_exists > 0 THEN
+        SELECT 'exists' AS status, 'Postal code already exists.' AS message;
+    ELSE
+        INSERT INTO postal_codes (postal_code, city, state, country) 
+        VALUES (p_postal_code, p_city, p_state, p_country);
+        SELECT 'success' AS status, 'Postal code added successfully.' AS message;
+    END IF;
+END$$
+
+CREATE  PROCEDURE `sp_postal_codes_fetch` (IN `p_search` VARCHAR(255))   BEGIN
+    IF p_search IS NULL OR p_search = '' THEN
+        SELECT postal_code, city, state, country 
+        FROM postal_codes 
+        ORDER BY postal_code ASC 
+        LIMIT 100;
+    ELSE
+        SET @search_term = CONCAT('%', p_search, '%');
+        SELECT postal_code, city, state, country 
+        FROM postal_codes
+        WHERE postal_code LIKE @search_term 
+           OR city LIKE @search_term 
+           OR state LIKE @search_term 
+           OR country LIKE @search_term
+        ORDER BY postal_code ASC 
+        LIMIT 100;
+    END IF;
+END$$
+
+CREATE  PROCEDURE `sp_products_ensure_store_product` (IN `p_supplier_product_id` INT, IN `p_selling_price` DECIMAL(10,2))   BEGIN
+    DECLARE v_store_id INT;
+    SELECT store_product_id INTO v_store_id FROM store_products WHERE supplier_product_id = p_supplier_product_id LIMIT 1;
+    IF v_store_id IS NULL THEN
+        INSERT INTO store_products (supplier_product_id, selling_price) VALUES (p_supplier_product_id, IFNULL(p_selling_price, 0));
+        SET v_store_id = LAST_INSERT_ID();
+    ELSE
+        IF p_selling_price IS NOT NULL THEN
+            UPDATE store_products SET selling_price = p_selling_price WHERE store_product_id = v_store_id;
+        END IF;
+    END IF;
+    SELECT v_store_id AS store_product_id;
+END$$
+
+CREATE  PROCEDURE `sp_products_get` (IN `p_role` VARCHAR(20), IN `p_supplier_id` INT, IN `p_search` VARCHAR(255), IN `p_category_id` INT, IN `p_is_all` INT)   BEGIN
+    -- KUNG SUPPLIER ANG NAKA-LOGIN O KAYA ORDER PRODUCTS MODAL ANG BUKAS (p_is_all = 1)
+    IF LOWER(TRIM(p_role)) = 'supplier' OR p_is_all = 1 THEN
+        SELECT 
+            sp.supplier_product_id AS id,
+            sp.supplier_product_id,
+            sp.supplier_id,
+            COALESCE(s.supplier_name, 'Unknown Supplier') AS supplier_name,
+            sp.category_id,
+            COALESCE(pc.category_name, 'General') AS category,
+            COALESCE(pc.category_name, 'General') AS category_name,
+            sp.product_name AS name,
+            sp.product_name AS prodname,
+            sp.product_name,
+            sp.description,
+            sp.image_path,
+            COALESCE(sp.wholesale_price, 0.00) AS price,
+            COALESCE(sp.wholesale_price, 0.00) AS wholesale_price,
+            COALESCE(sp.wholesale_price, 0.00) AS selling_price,
+            COALESCE(sp.wholesale_price, 0.00) AS sellprice
+        FROM supplier_products sp 
+        LEFT JOIN suppliers s ON sp.supplier_id = s.supplier_id
+        LEFT JOIN product_categories pc ON sp.category_id = pc.category_id
+        WHERE sp.is_active = 1
+        AND (p_is_all = 1 OR p_supplier_id = 0 OR sp.supplier_id = p_supplier_id)
+        AND (p_search = '' OR sp.product_name LIKE CONCAT('%', p_search, '%'))
+        AND (p_category_id = 0 OR sp.category_id = p_category_id)
+        ORDER BY sp.supplier_product_id DESC;
+    ELSE
+        -- REGULAR STORE VIEW PARA SA ADMIN / CASHIER / INVENTORY STAFF (store_products)
+        SELECT 
+            stp.store_product_id AS id,
+            stp.store_product_id,
+            sp.supplier_product_id,
+            sp.supplier_id,
+            COALESCE(s.supplier_name, 'Unknown Supplier') AS supplier_name,
+            sp.category_id,
+            COALESCE(pc.category_name, 'General') AS category,
+            COALESCE(pc.category_name, 'General') AS category_name,
+            sp.product_name AS name,
+            sp.product_name AS prodname,
+            sp.product_name,
+            sp.description,
+            sp.image_path,
+            COALESCE(stp.selling_price, sp.wholesale_price, 0.00) AS price,
+            COALESCE(sp.wholesale_price, 0.00) AS wholesale_price,
+            COALESCE(stp.selling_price, sp.wholesale_price, 0.00) AS selling_price,
+            COALESCE(stp.selling_price, sp.wholesale_price, 0.00) AS sellprice
+        FROM store_products stp 
+        JOIN supplier_products sp ON stp.supplier_product_id = sp.supplier_product_id 
+        LEFT JOIN suppliers s ON sp.supplier_id = s.supplier_id
+        LEFT JOIN product_categories pc ON sp.category_id = pc.category_id
+        WHERE stp.is_active = 1 AND sp.is_active = 1
+        AND (p_search = '' OR sp.product_name LIKE CONCAT('%', p_search, '%'))
+        AND (p_category_id = 0 OR sp.category_id = p_category_id)
+        ORDER BY stp.store_product_id DESC;
+    END IF;
+END$$
+
+CREATE  PROCEDURE `sp_products_get_image_path` (IN `p_product_id` INT, IN `p_role` VARCHAR(20))   BEGIN
+    IF LOWER(TRIM(p_role)) = 'supplier' THEN
+        SELECT image_path FROM supplier_products WHERE supplier_product_id = p_product_id;
+    ELSE
+        SELECT sp.image_path 
+        FROM supplier_products sp
+        JOIN store_products stp ON sp.supplier_product_id = stp.supplier_product_id
+        WHERE stp.store_product_id = p_product_id;
+    END IF;
+END$$
+
+CREATE  PROCEDURE `sp_products_restock` (IN `p_store_product_id` INT, IN `p_quantity` INT, IN `p_expiration_date` DATE, IN `p_payment_method` VARCHAR(20))   BEGIN
+    DECLARE v_unit_cost DECIMAL(10,2);
+    DECLARE v_amount DECIMAL(10,2);
+    DECLARE v_batch VARCHAR(50);
+    SELECT wholesale_price INTO v_unit_cost FROM supplier_products sp JOIN store_products stp ON sp.supplier_product_id = stp.supplier_product_id WHERE stp.store_product_id = p_store_product_id;
+    SET v_amount = v_unit_cost * p_quantity;
+    SET v_batch = CONCAT('BATCH-', UNIX_TIMESTAMP());
+    INSERT INTO inventory_batches (store_product_id, quantity, expiration_date, payment_method, unit_cost, amount, batch_number) VALUES (p_store_product_id, p_quantity, p_expiration_date, p_payment_method, v_unit_cost, v_amount, v_batch);
+    SELECT v_amount AS amount, v_batch AS batchNumber, v_unit_cost AS unitCost;
+END$$
+
+CREATE  PROCEDURE `sp_products_soft_delete` (IN `p_product_id` INT, IN `p_role` VARCHAR(20))   BEGIN
+    IF LOWER(TRIM(p_role)) = 'supplier' THEN
+        UPDATE supplier_products SET is_active = 0 WHERE supplier_product_id = p_product_id;
+    ELSE
+        UPDATE store_products SET is_active = 0 WHERE store_product_id = p_product_id;
+    END IF;
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
+
+CREATE  PROCEDURE `sp_products_update` (IN `p_product_id` INT, IN `p_category_id` INT, IN `p_product_name` VARCHAR(255), IN `p_description` TEXT, IN `p_image_path` VARCHAR(255), IN `p_wholesale_price` DECIMAL(10,2), IN `p_role` VARCHAR(20))   BEGIN
+    IF LOWER(TRIM(p_role)) = 'supplier' THEN
+        UPDATE supplier_products 
+        SET category_id = p_category_id, 
+            product_name = p_product_name, 
+            description = p_description, 
+            image_path = p_image_path, 
+            wholesale_price = p_wholesale_price 
+        WHERE supplier_product_id = p_product_id;
+    ELSE
+        UPDATE supplier_products sp
+        JOIN store_products stp ON stp.supplier_product_id = sp.supplier_product_id
+        SET sp.category_id = p_category_id, 
+            sp.product_name = p_product_name, 
+            sp.description = p_description, 
+            sp.image_path = p_image_path, 
+            sp.wholesale_price = p_wholesale_price 
+        WHERE stp.store_product_id = p_product_id;
+    END IF;
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
+
+CREATE  PROCEDURE `sp_products_update_selling_price` (IN `p_product_id` INT, IN `p_selling_price` DECIMAL(10,2), IN `p_role` VARCHAR(20))   BEGIN
+    IF LOWER(TRIM(p_role)) = 'supplier' THEN
+        UPDATE supplier_products SET wholesale_price = p_selling_price WHERE supplier_product_id = p_product_id;
+    ELSE
+        UPDATE store_products SET selling_price = p_selling_price WHERE store_product_id = p_product_id;
+    END IF;
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
+
+CREATE  PROCEDURE `sp_products_update_store_only` (IN `p_product_id` INT, IN `p_category_id` INT, IN `p_product_name` VARCHAR(255), IN `p_description` TEXT, IN `p_image_path` VARCHAR(255), IN `p_wholesale_price` DECIMAL(10,2))   BEGIN
+    -- For store_products, we need to update supplier_products via join
+    -- This version handles both tables for supplier role, and only wholesale for simplicity
+    UPDATE supplier_products 
+    SET category_id = p_category_id, product_name = p_product_name, 
+        description = p_description, image_path = p_image_path, 
+        wholesale_price = p_wholesale_price 
+    WHERE supplier_product_id = p_product_id;
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
+
+CREATE  PROCEDURE `sp_product_categories_get` ()   BEGIN
+    SELECT category_id, category_name FROM product_categories ORDER BY category_name;
+END$$
+
+CREATE  PROCEDURE `sp_roles_create` (IN `p_role_name` VARCHAR(50), IN `p_description` VARCHAR(255))   BEGIN
+    DECLARE v_exists INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_exists 
+    FROM roles 
+    WHERE LOWER(role_name) = LOWER(TRIM(p_role_name));
+
+    IF v_exists > 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'A role with this name already exists.';
+    END IF;
+
+    INSERT INTO roles (role_name, description) 
+    VALUES (TRIM(p_role_name), p_description);
+
+    SELECT LAST_INSERT_ID() AS role_id;
+END$$
+
+CREATE  PROCEDURE `sp_roles_delete` (IN `p_role_id` INT)   BEGIN
+    DECLARE v_role_name VARCHAR(50);
+    DECLARE v_count INT DEFAULT 0;
+
+    SELECT role_name INTO v_role_name 
+    FROM roles 
+    WHERE role_id = p_role_id 
+    LIMIT 1;
+
+    IF v_role_name IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Role not found.';
+    END IF;
+
+    -- Bawal burahin ang core system roles
+    IF LOWER(TRIM(v_role_name)) IN ('administrator', 'cashier staff', 'inventory staff', 'supplier') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'This role is used by the system and cannot be deleted.';
+    END IF;
+
+    -- Bawal burahin kapag may naka-assign pang active users
+    SELECT COUNT(*) INTO v_count 
+    FROM users 
+    WHERE role_id = p_role_id;
+
+    IF v_count > 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Cannot delete: user account(s) still use this role. Reassign or remove them first.';
+    END IF;
+
+    DELETE FROM roles WHERE role_id = p_role_id;
+
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
+
+CREATE  PROCEDURE `sp_roles_fetch_all` (IN `p_search` VARCHAR(255))   BEGIN
+    DECLARE v_search VARCHAR(255);
+    SET v_search = CONCAT('%', COALESCE(p_search, ''), '%');
+
+    SELECT r.role_id, r.role_name, r.description,
+           COUNT(u.user_id) AS user_count
+    FROM roles r
+    LEFT JOIN users u ON u.role_id = r.role_id
+    WHERE r.role_name LIKE v_search OR r.description LIKE v_search
+    GROUP BY r.role_id, r.role_name, r.description
+    ORDER BY r.role_name ASC;
+END$$
+
+CREATE  PROCEDURE `sp_roles_get_supplier_role_id` ()   BEGIN
+    SELECT role_id FROM roles WHERE LOWER(role_name) = 'supplier' LIMIT 1;
+END$$
+
+CREATE  PROCEDURE `sp_roles_is_admin` (IN `p_user_id` INT)   BEGIN
+    SELECT r.role_name 
+    FROM users u 
+    INNER JOIN roles r ON u.role_id = r.role_id 
+    WHERE u.user_id = p_user_id 
+    LIMIT 1;
+END$$
+
+CREATE  PROCEDURE `sp_roles_update` (IN `p_role_id` INT, IN `p_role_name` VARCHAR(50), IN `p_description` VARCHAR(255))   BEGIN
+    DECLARE v_current_name VARCHAR(50);
+    DECLARE v_current_name_lower VARCHAR(50);
+    DECLARE v_new_name_lower VARCHAR(50);
+    DECLARE v_duplicate INT DEFAULT 0;
+
+    SELECT role_name INTO v_current_name 
+    FROM roles 
+    WHERE role_id = p_role_id 
+    LIMIT 1;
+
+    IF v_current_name IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Role not found.';
+    END IF;
+
+    SET v_current_name_lower = LOWER(TRIM(v_current_name));
+    SET v_new_name_lower = LOWER(TRIM(p_role_name));
+
+    -- Hindi pwedeng palitan ang pangalan ng default roles
+    IF v_current_name_lower IN ('administrator', 'cashier staff', 'inventory staff', 'supplier') 
+       AND v_new_name_lower != v_current_name_lower THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'This role\'s name is protected and cannot be changed.';
+    END IF;
+
+    -- Siguraduhing walang kaparehong role name
+    IF v_new_name_lower != v_current_name_lower THEN
+        SELECT COUNT(*) INTO v_duplicate 
+        FROM roles 
+        WHERE LOWER(role_name) = v_new_name_lower AND role_id != p_role_id;
+
+        IF v_duplicate > 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A role with this name already exists.';
+        END IF;
+    END IF;
+
+    UPDATE roles 
+    SET role_name = TRIM(p_role_name),
+        description = p_description 
+    WHERE role_id = p_role_id;
+
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
+
+CREATE  PROCEDURE `sp_sales_add_item_with_fifo` (IN `p_sale_id` INT, IN `p_store_product_id` INT, IN `p_quantity` INT, IN `p_unit_price` DECIMAL(10,2))   BEGIN
+    DECLARE v_done INT DEFAULT FALSE;
+    DECLARE v_batch_id INT;
+    DECLARE v_batch_qty INT;
+    DECLARE v_remaining INT DEFAULT p_quantity;
+    DECLARE v_deduct INT DEFAULT 0;
+    DECLARE v_total_available INT DEFAULT 0;
+
+    -- FIFO Cursor: pinakalumang expiration date at received date muna
+    DECLARE cur_batches CURSOR FOR
+        SELECT batch_id, quantity_in_stock
+        FROM product_batches
+        WHERE store_product_id = p_store_product_id AND quantity_in_stock > 0
+        ORDER BY expiration_date ASC, received_date ASC, batch_id ASC;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = TRUE;
+
+    -- Siguraduhing may sapat na physical stock bago magbawas
+    SELECT COALESCE(SUM(quantity_in_stock), 0) INTO v_total_available
+    FROM product_batches
+    WHERE store_product_id = p_store_product_id AND quantity_in_stock > 0;
+
+    IF v_total_available < p_quantity THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Insufficient physical stock for this item.';
+    END IF;
+
+    -- I-insert ang item sa receipt (sales_items)
+    INSERT INTO sales_items (sale_id, store_product_id, quantity, unit_price)
+    VALUES (p_sale_id, p_store_product_id, p_quantity, p_unit_price);
+
+    -- Simulan ang FIFO deduction loop sa mga batches
+    OPEN cur_batches;
+    batch_loop: LOOP
+        FETCH cur_batches INTO v_batch_id, v_batch_qty;
+        IF v_done THEN
+            LEAVE batch_loop;
+        END IF;
+
+        IF v_remaining > 0 THEN
+            IF v_remaining >= v_batch_qty THEN
+                SET v_deduct = v_batch_qty;
+            ELSE
+                SET v_deduct = v_remaining;
+            END IF;
+
+            SET v_remaining = v_remaining - v_deduct;
+
+            UPDATE product_batches
+            SET quantity_in_stock = quantity_in_stock - v_deduct
+            WHERE batch_id = v_batch_id;
+        END IF;
+
+        IF v_remaining <= 0 THEN
+            LEAVE batch_loop;
+        END IF;
+    END LOOP;
+    CLOSE cur_batches;
+
+    IF v_remaining > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Batch allocation error: remaining quantity could not be satisfied.';
+    END IF;
+END$$
+
+CREATE  PROCEDURE `sp_sales_create` (IN `p_user_id` INT, IN `p_payment_method_id` INT, IN `p_reference_number` VARCHAR(50), IN `p_tax_amount` DECIMAL(10,2), IN `p_amount` DECIMAL(10,2))   BEGIN
+    DECLARE v_staff_id INT;
+    DECLARE v_next_id INT DEFAULT 1;
+    DECLARE v_txn_number VARCHAR(50);
+    DECLARE v_sale_id INT;
+
+    -- 1. Kunin ang staff_id base sa user_id
+    SELECT staff_id INTO v_staff_id 
+    FROM staffs 
+    WHERE user_id = p_user_id 
+    LIMIT 1;
+
+    IF v_staff_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Authorized staff record not found.';
+    END IF;
+
+    -- 2. I-compute ang susunod na transaction number
+    SELECT COALESCE(MAX(sale_id), 0) + 1 INTO v_next_id FROM sales;
+
+    IF p_payment_method_id = 2 AND p_reference_number IS NOT NULL AND TRIM(p_reference_number) != '' THEN
+        SET v_txn_number = CONCAT('GCASH-', TRIM(p_reference_number));
+    ELSE
+        SET v_txn_number = CONCAT('TXN-', v_next_id, '-', YEAR(CURDATE()));
+    END IF;
+
+    -- 3. I-save ang transaksyon sa sales table
+    INSERT INTO sales (
+        staff_id, 
+        payment_method_id, 
+        transaction_number, 
+        tax_amount, 
+        amount, 
+        sale_date
+    )
+    VALUES (
+        v_staff_id, 
+        p_payment_method_id, 
+        v_txn_number, 
+        p_tax_amount, 
+        p_amount, 
+        NOW()
+    );
+
+    SET v_sale_id = LAST_INSERT_ID();
+
+    -- Ibalik ang nabuong sale_id at transaction_number
+    SELECT v_sale_id AS sale_id, v_txn_number AS transaction_number;
+END$$
+
+CREATE  PROCEDURE `sp_sales_fetch_all` (IN `p_search` VARCHAR(255), IN `p_start_date` VARCHAR(20), IN `p_end_date` VARCHAR(20))   BEGIN
+    SET SESSION group_concat_max_len = 100000;
+
+    SELECT
+        s.sale_id,
+        s.transaction_number,
+        CONCAT(st.first_name, ' ', st.last_name) AS staff_name,
+        s.sale_date,
+        pm.method_name AS payment_method,
+        s.amount AS amount_received,
+        CASE
+            WHEN pm.method_name = 'GCash' AND s.transaction_number LIKE 'GCASH-%'
+            THEN SUBSTRING(s.transaction_number, 7)
+            ELSE NULL
+        END AS reference_number,
+        COALESCE(SUM(si.quantity * si.unit_price), 0.00) AS subtotal,
+        s.tax_amount,
+        COALESCE(SUM(si.quantity * si.unit_price), 0.00) + s.tax_amount AS total_amount,
+        GROUP_CONCAT(
+            CONCAT_WS('||', sp.product_name, si.unit_price, si.quantity, si.quantity * si.unit_price)
+            SEPARATOR ';;'
+        ) AS items
+    FROM sales s
+    LEFT JOIN staffs st ON st.staff_id = s.staff_id
+    LEFT JOIN payment_methods pm ON pm.payment_method_id = s.payment_method_id
+    LEFT JOIN sales_items si ON si.sale_id = s.sale_id
+    LEFT JOIN store_products stp ON stp.store_product_id = si.store_product_id
+    LEFT JOIN supplier_products sp ON sp.supplier_product_id = stp.supplier_product_id
+    WHERE
+        (p_search IS NULL OR p_search = '' OR (
+            s.transaction_number LIKE CONCAT('%', p_search, '%')
+            OR CONCAT(st.first_name, ' ', st.last_name) LIKE CONCAT('%', p_search, '%')
+            OR sp.product_name LIKE CONCAT('%', p_search, '%')
+            OR DATE_FORMAT(s.sale_date, '%Y-%m-%d') LIKE CONCAT('%', p_search, '%')
+        ))
+        AND (
+            (p_start_date IS NULL OR p_start_date = '' OR p_end_date IS NULL OR p_end_date = '')
+            OR (DATE(s.sale_date) BETWEEN p_start_date AND p_end_date)
+        )
+    GROUP BY s.sale_id, s.transaction_number, st.first_name, st.last_name, s.sale_date, pm.method_name, s.amount, s.tax_amount
+    ORDER BY s.sale_date DESC;
+END$$
+
+CREATE  PROCEDURE `sp_staff_create` (IN `p_first_name` VARCHAR(50), IN `p_middle_name` VARCHAR(50), IN `p_last_name` VARCHAR(50), IN `p_email` VARCHAR(100), IN `p_phone` VARCHAR(20), IN `p_hire_date` DATE, IN `p_username` VARCHAR(50), IN `p_password_hash` VARCHAR(255), IN `p_role_name` VARCHAR(50))   BEGIN
+    DECLARE v_role_id INT;
+    DECLARE v_user_id INT;
+    DECLARE v_staff_id INT;
+    DECLARE v_exists INT DEFAULT 0;
+
+    -- Check if username already exists
+    SELECT COUNT(*) INTO v_exists FROM users WHERE username = p_username;
+    IF v_exists > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Username already exists';
+    END IF;
+
+    -- Check if email already exists
+    IF p_email IS NOT NULL AND TRIM(p_email) != '' THEN
+        SELECT COUNT(*) INTO v_exists FROM staffs WHERE email = TRIM(p_email);
+        IF v_exists > 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Email already exists';
+        END IF;
+    END IF;
+
+    -- Hanapin ang role_id
+    SELECT role_id INTO v_role_id 
+    FROM roles 
+    WHERE LOWER(role_name) = LOWER(TRIM(p_role_name)) 
+    LIMIT 1;
+
+    IF v_role_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Role not found';
+    END IF;
+
+    START TRANSACTION;
+
+    INSERT INTO users (username, password_hash, role_id, is_active)
+    VALUES (p_username, p_password_hash, v_role_id, 1);
+
+    SET v_user_id = LAST_INSERT_ID();
+
+    INSERT INTO staffs (user_id, first_name, middle_name, last_name, email, phone, hire_date)
+    VALUES (
+        v_user_id, 
+        p_first_name, 
+        NULLIF(TRIM(p_middle_name), ''), 
+        p_last_name, 
+        NULLIF(TRIM(p_email), ''), 
+        NULLIF(TRIM(p_phone), ''), 
+        p_hire_date
+    );
+
+    SET v_staff_id = LAST_INSERT_ID();
+
+    COMMIT;
+
+    -- Ibalik ang record ng bagong gawang staff
+    SELECT s.staff_id, s.user_id, s.first_name, s.middle_name, s.last_name, 
+           s.email, s.phone, s.hire_date, s.created_at,
+           u.username, u.is_active, u.role_id, r.role_name
+    FROM staffs s
+    JOIN users u ON s.user_id = u.user_id
+    JOIN roles r ON u.role_id = r.role_id
+    WHERE s.staff_id = v_staff_id 
+    LIMIT 1;
+END$$
+
+CREATE  PROCEDURE `sp_staff_fetch_all` (IN `p_search` VARCHAR(255))   BEGIN
+    DECLARE v_search VARCHAR(255);
+    SET v_search = CONCAT('%', COALESCE(p_search, ''), '%');
+
+    SELECT s.staff_id, s.user_id, s.first_name, s.middle_name, s.last_name, 
+           s.email, s.phone, s.hire_date, s.created_at,
+           u.username, u.is_active, u.role_id, r.role_name
+    FROM staffs s
+    JOIN users u ON s.user_id = u.user_id
+    JOIN roles r ON u.role_id = r.role_id
+    WHERE u.is_active = 1
+    AND (
+        s.first_name LIKE v_search 
+        OR s.last_name LIKE v_search 
+        OR s.email LIKE v_search 
+        OR u.username LIKE v_search 
+        OR r.role_name LIKE v_search
+    )
+    ORDER BY s.staff_id DESC 
+    LIMIT 100;
+END$$
+
+CREATE  PROCEDURE `sp_staff_get_by_id` (IN `p_staff_id` INT)   BEGIN
+    SELECT s.staff_id, s.user_id, s.first_name, s.middle_name, s.last_name, 
+           s.email, s.phone, s.hire_date, s.created_at,
+           u.username, u.is_active, u.role_id, r.role_name
+    FROM staffs s
+    JOIN users u ON s.user_id = u.user_id
+    JOIN roles r ON u.role_id = r.role_id
+    WHERE s.staff_id = p_staff_id 
+    LIMIT 1;
+END$$
+
+CREATE  PROCEDURE `sp_staff_roles_get` ()   BEGIN
+    SELECT role_id, role_name 
+    FROM roles 
+    WHERE LOWER(role_name) != 'supplier' 
+    ORDER BY role_name ASC;
+END$$
+
+CREATE  PROCEDURE `sp_staff_soft_delete` (IN `p_staff_id` INT)   BEGIN
+    UPDATE users u
+    JOIN staffs s ON s.user_id = u.user_id
+    SET u.is_active = 0
+    WHERE s.staff_id = p_staff_id
+    AND u.is_active = 1;
+
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
+
+CREATE  PROCEDURE `sp_staff_update` (IN `p_staff_id` INT, IN `p_first_name` VARCHAR(50), IN `p_middle_name` VARCHAR(50), IN `p_last_name` VARCHAR(50), IN `p_email` VARCHAR(100), IN `p_phone` VARCHAR(20), IN `p_hire_date` DATE, IN `p_username` VARCHAR(50), IN `p_password_hash` VARCHAR(255), IN `p_role_name` VARCHAR(50))   BEGIN
+    DECLARE v_user_id INT;
+    DECLARE v_role_id INT;
+    DECLARE v_exists INT DEFAULT 0;
+
+    -- Siguraduhing existing ang staff at kunin ang user_id
+    SELECT user_id INTO v_user_id FROM staffs WHERE staff_id = p_staff_id LIMIT 1;
+    IF v_user_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Staff member not found';
+    END IF;
+
+    -- Check if username is taken by another user
+    SELECT COUNT(*) INTO v_exists FROM users WHERE username = p_username AND user_id != v_user_id;
+    IF v_exists > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Username already exists';
+    END IF;
+
+    -- Check if email is taken by another staff
+    IF p_email IS NOT NULL AND TRIM(p_email) != '' THEN
+        SELECT COUNT(*) INTO v_exists FROM staffs WHERE email = TRIM(p_email) AND staff_id != p_staff_id;
+        IF v_exists > 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Email already exists';
+        END IF;
+    END IF;
+
+    -- Hanapin ang role_id
+    SELECT role_id INTO v_role_id 
+    FROM roles 
+    WHERE LOWER(role_name) = LOWER(TRIM(p_role_name)) 
+    LIMIT 1;
+
+    IF v_role_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Role not found';
+    END IF;
+
+    START TRANSACTION;
+
+    UPDATE staffs
+    SET first_name = p_first_name,
+        middle_name = NULLIF(TRIM(p_middle_name), ''),
+        last_name = p_last_name,
+        email = NULLIF(TRIM(p_email), ''),
+        phone = NULLIF(TRIM(p_phone), ''),
+        hire_date = p_hire_date
+    WHERE staff_id = p_staff_id;
+
+    UPDATE users
+    SET username = p_username,
+        role_id = v_role_id
+    WHERE user_id = v_user_id;
+
+    IF p_password_hash IS NOT NULL AND TRIM(p_password_hash) != '' THEN
+        UPDATE users
+        SET password_hash = p_password_hash
+        WHERE user_id = v_user_id;
+    END IF;
+
+    COMMIT;
+
+    -- Ibalik ang updated details
+    SELECT s.staff_id, s.user_id, s.first_name, s.middle_name, s.last_name, 
+           s.email, s.phone, s.hire_date, s.created_at,
+           u.username, u.is_active, u.role_id, r.role_name
+    FROM staffs s
+    JOIN users u ON s.user_id = u.user_id
+    JOIN roles r ON u.role_id = r.role_id
+    WHERE s.staff_id = p_staff_id 
+    LIMIT 1;
+END$$
+
+CREATE  PROCEDURE `sp_suppliers_add` (IN `p_username` VARCHAR(100), IN `p_password_hash` VARCHAR(255), IN `p_supplier_name` VARCHAR(255), IN `p_contact_person` VARCHAR(255), IN `p_email` VARCHAR(255), IN `p_phone` VARCHAR(50), IN `p_street_address` TEXT, IN `p_postal_code` VARCHAR(20), IN `p_role_id` INT)   BEGIN
+    DECLARE v_user_id INT;
+    DECLARE v_exists INT DEFAULT 0;
+    
+    -- Check duplicate username
+    SELECT COUNT(*) INTO v_exists FROM users WHERE username = p_username;
+    IF v_exists > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Username already exists.';
+    END IF;
+    
+    START TRANSACTION;
+    
+    INSERT INTO users (role_id, username, password_hash, is_active) 
+    VALUES (p_role_id, p_username, p_password_hash, 1);
+    
+    SET v_user_id = LAST_INSERT_ID();
+    
+    INSERT INTO suppliers (user_id, supplier_name, contact_person, email, phone, street_address, postal_code, is_active)
+    VALUES (v_user_id, p_supplier_name, p_contact_person, p_email, p_phone, p_street_address, p_postal_code, 1);
+    
+    COMMIT;
+    
+    SELECT LAST_INSERT_ID() AS supplier_id, v_user_id AS user_id;
+END$$
+
+CREATE  PROCEDURE `sp_suppliers_fetch` (IN `p_search` VARCHAR(255))   BEGIN
+    IF p_search IS NULL OR p_search = '' THEN
+        SELECT * FROM suppliers WHERE is_active = 1 ORDER BY supplier_name ASC;
+    ELSE
+        SET @search_term = CONCAT('%', p_search, '%');
+        SELECT * FROM suppliers
+        WHERE is_active = 1 
+        AND (supplier_name LIKE @search_term 
+            OR contact_person LIKE @search_term 
+            OR email LIKE @search_term 
+            OR phone LIKE @search_term 
+            OR street_address LIKE @search_term)
+        ORDER BY supplier_name ASC;
+    END IF;
+END$$
+
+CREATE  PROCEDURE `sp_suppliers_get_user_id` (IN `p_supplier_id` INT)   BEGIN
+    SELECT user_id FROM suppliers WHERE supplier_id = p_supplier_id LIMIT 1;
+END$$
+
+CREATE  PROCEDURE `sp_suppliers_soft_delete` (IN `p_supplier_id` INT)   BEGIN
+    UPDATE suppliers SET is_active = 0 WHERE supplier_id = p_supplier_id AND is_active = 1;
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
+
+CREATE  PROCEDURE `sp_suppliers_update` (IN `p_supplier_id` INT, IN `p_user_id` INT, IN `p_username` VARCHAR(100), IN `p_password_hash` VARCHAR(255), IN `p_supplier_name` VARCHAR(255), IN `p_contact_person` VARCHAR(255), IN `p_email` VARCHAR(255), IN `p_phone` VARCHAR(50), IN `p_street_address` TEXT, IN `p_postal_code` VARCHAR(20))   BEGIN
+    DECLARE v_duplicate INT DEFAULT 0;
+    
+    IF p_username IS NOT NULL AND p_username != '' THEN
+        SELECT COUNT(*) INTO v_duplicate FROM users 
+        WHERE username = p_username AND user_id != p_user_id;
+        
+        IF v_duplicate > 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Username already exists.';
+        END IF;
+        
+        UPDATE users SET username = p_username WHERE user_id = p_user_id;
+    END IF;
+    
+    IF p_password_hash IS NOT NULL AND p_password_hash != '' THEN
+        UPDATE users SET password_hash = p_password_hash WHERE user_id = p_user_id;
+    END IF;
+    
+    UPDATE suppliers 
+    SET supplier_name = p_supplier_name, 
+        contact_person = p_contact_person, 
+        email = p_email, 
+        phone = p_phone, 
+        street_address = p_street_address, 
+        postal_code = p_postal_code 
+    WHERE supplier_id = p_supplier_id AND is_active = 1;
+    
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
+
+CREATE  PROCEDURE `sp_supplier_products_add` (IN `p_supplier_id` INT, IN `p_category_id` INT, IN `p_product_name` VARCHAR(255), IN `p_description` TEXT, IN `p_image_path` VARCHAR(255), IN `p_wholesale_price` DECIMAL(10,2))   BEGIN
+    INSERT INTO supplier_products (supplier_id, category_id, product_name, description, image_path, wholesale_price, is_active)
+    VALUES (p_supplier_id, p_category_id, p_product_name, p_description, p_image_path, p_wholesale_price, 1);
+    SELECT LAST_INSERT_ID() AS supplier_product_id;
+END$$
+
+CREATE  PROCEDURE `sp_users_find_by_username` (IN `p_username` VARCHAR(50))   BEGIN
+    DECLARE v_user_id INT;
+
+    -- 1. Hanapin ang active user gamit ang username (is_active = 1)
+    SELECT user_id INTO v_user_id 
+    FROM users 
+    WHERE username = p_username AND is_active = 1 
+    LIMIT 1;
+
+    -- 2. Kung nahanap, i-update agad ang last_login timestamp
+    IF v_user_id IS NOT NULL THEN
+        UPDATE users SET last_login = NOW() WHERE user_id = v_user_id;
+    END IF;
+
+    -- 3. Ibalik ang kumpletong detalye ng user, role, staff, at supplier
+    SELECT 
+        u.user_id,
+        u.role_id,
+        u.username,
+        u.password_hash,
+        u.is_active,
+        u.last_login,
+        u.created_at,
+        r.role_name,
+        st.first_name,
+        st.last_name,
+        sp.supplier_id,
+        sp.supplier_name,
+        sp.contact_person,
+        sp.email AS supplier_email,
+        sp.phone AS supplier_phone
+    FROM users u
+    LEFT JOIN roles r ON u.role_id = r.role_id
+    LEFT JOIN staffs st ON u.user_id = st.user_id
+    LEFT JOIN suppliers sp ON u.user_id = sp.user_id
+    WHERE u.user_id = v_user_id
+    LIMIT 1;
 END$$
 
 DELIMITER ;
@@ -427,7 +1368,7 @@ CREATE TABLE `staffs` (
 INSERT INTO `staffs` (`staff_id`, `user_id`, `first_name`, `middle_name`, `last_name`, `email`, `phone`, `hire_date`, `created_at`) VALUES
 (1, 1, 'Alex', NULL, 'Systema', 'admin@example.com', '09170000001', '2026-09-11', '2026-09-11 13:45:31'),
 (2, 2, 'Maria', NULL, 'Santos', 'cashier@example.com', '09170000002', '2026-09-11', '2026-09-11 13:45:31'),
-(3, 3, 'Juan', NULL, 'Cruz', 'inventory@example.com', '09170000003', '2026-09-11', '2026-09-11 13:45:31');
+(3, 3, 'Juans', NULL, 'Cruz', 'inventory@example.com', '09170000003', '2026-09-11', '2026-09-11 13:45:31');
 
 -- --------------------------------------------------------
 
@@ -509,7 +1450,7 @@ CREATE TABLE `suppliers` (
 --
 
 INSERT INTO `suppliers` (`supplier_id`, `user_id`, `supplier_name`, `contact_person`, `email`, `phone`, `street_address`, `postal_code`, `created_at`, `is_active`) VALUES
-(1, 4, 'Universal Robina Corporation', 'URC Sales', 'sales@urc.com.ph', '09170000001', 'URC Compound Pasig', '1000', '2026-09-13 02:56:12', 1),
+(1, 4, 'The Universal Robina Corporation', 'URC Sales', 'sales@urc.com.ph', '09170000001', 'URC Compound Pasig', '1000', '2026-09-13 02:56:12', 1),
 (2, 5, 'Liwayway Marketing Corp', 'Oishi Sales', 'sales@oishi.com.ph', '09170000002', 'Oishi Factory Laguna', '4027', '2026-09-13 02:56:12', 1),
 (3, 6, 'Coca-Cola Beverages Philippines', 'Coke Sales', 'sales@coca-cola.com.ph', '09170000003', 'Coke Plant Laguna', '4027', '2026-09-13 02:56:12', 1),
 (4, 7, 'Century Pacific Food Inc', 'Century Sales', 'sales@centurypacific.com.ph', '09170000004', 'Century Pasig', '1000', '2026-09-13 02:56:12', 1),
@@ -519,7 +1460,8 @@ INSERT INTO `suppliers` (`supplier_id`, `user_id`, `supplier_name`, `contact_per
 (8, 11, 'Nestle Philippines', 'Nestle Sales', 'sales@nestle.com.ph', '09170000008', 'Nestle Cabuyao', '4027', '2026-09-13 02:56:12', 1),
 (9, 12, 'Zest-O Corporation', 'Zest-O Sales', 'sales@zesto.com.ph', '09170000009', 'Zest-O Caloocan', '1000', '2026-09-13 02:56:12', 1),
 (10, 13, 'Colgate-Palmolive Philippines', 'Colgate Sales', 'sales@colgate.com.ph', '09170000010', 'Colgate Mkt', '1000', '2026-09-13 02:56:12', 1),
-(11, 14, 'Super 8 Grocery Warehouse', 'Corporate Customer Care', 'contact@super8.ph', '0995-0946590', '11th Floor, UnionBank Centre-Manila (formerly G.A. Cu-Unjieng Centre), 208 Dasmariñas Street corner Quintin Paredes Street', '1006', '2026-09-23 10:18:21', 1);
+(11, 14, 'Super 8 Grocery Warehouse', 'Corporate Customer Care', 'contact@super8.ph', '0995-0946590', '11th Floor, UnionBank Centre-Manila (formerly G.A. Cu-Unjieng Centre), 208 Dasmariñas Street corner Quintin Paredes Street', '1006', '2026-09-23 10:18:21', 1),
+(12, 15, 'Annabelle Chucky Dolled', 'Annabelle Rama', 'annabelle@gmail.com', '09223344556', 'URC Compound Pasig', '4027', '2026-10-03 11:54:47', 1);
 
 -- --------------------------------------------------------
 
@@ -580,7 +1522,10 @@ INSERT INTO `supplier_products` (`supplier_product_id`, `supplier_id`, `category
 (34, 8, 7, 'Kopiko Brown Coffee 27.5g', 'Brown coffee', '/uploads/products/kopiko_brown.jpg', 5.00, 1, '2026-09-13 02:56:12'),
 (35, 8, 7, 'Great Taste White Coffee 26g', 'White coffee', '/uploads/products/great_taste_white.jpg', 5.00, 1, '2026-09-13 02:56:12'),
 (36, 1, 5, '555 Sardines Tomato 155g', 'sddsadasd', '/uploads/products/product_1790141604_a95b69c4.png', 500.00, 1, '2026-09-23 05:33:24'),
-(37, 10, 1, 'sdddsdsd', 'Green tea apple', '/uploads/products/product_1790153273_d0c084ae.png', 321.00, 1, '2026-09-23 08:47:53');
+(37, 10, 1, 'sdddsdsd', 'Green tea apple', '/uploads/products/product_1790153273_d0c084ae.png', 321.00, 1, '2026-09-23 08:47:53'),
+(38, 12, 2, 'Annabelle Chuckiest', 'Chocolate Milk drink for kids', '/uploads/products/product_1791034621_bd59ef7d.jpg', 39.00, 0, '2026-10-03 12:05:53'),
+(39, 12, 2, 'Aljon Orange Beverage', 'brand new', '/uploads/products/product_1791037341_9a4256e7.jpg', 111.00, 1, '2026-10-03 14:22:21'),
+(40, 12, 3, 'Martin 123', 'On Demand', '/uploads/products/product_1791037605_d81b1077.jpg', 222.00, 1, '2026-10-03 14:26:45');
 
 -- --------------------------------------------------------
 
@@ -603,20 +1548,21 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `role_id`, `username`, `password_hash`, `is_active`, `last_login`, `created_at`) VALUES
-(1, 1, 'admin_user', '$2y$10$R45/Q5DHFgNMfeazP1HQa.UZ8T0zjcsHt5piLphwtUmhapNujcU9y', 1, NULL, '2026-09-11 13:45:31'),
+(1, 1, 'admin_user', '$2y$10$R45/Q5DHFgNMfeazP1HQa.UZ8T0zjcsHt5piLphwtUmhapNujcU9y', 1, '2026-10-04 06:07:01', '2026-09-11 13:45:31'),
 (2, 2, 'cashier_user', '$2y$10$rqgUmszPiT3xQWGntSnSHO4jj6UFw7QyMJC0L1fyi/OAqb4gv3QGS', 1, NULL, '2026-09-11 13:45:31'),
 (3, 3, 'inventory_user', '$2y$10$OMPOrqQLRkYwhH0SqnSq.eiRP8rMVX/areg3XJE0YH.oW6K2OSak2', 1, NULL, '2026-09-11 13:45:31'),
 (4, 4, 'urc_supplier', '$2y$10$po1WMuDgZU3KgkBXJ2190eRkEj6qJ.QCTUQok8v9kRPna9k75z/si', 1, NULL, '2026-09-13 06:42:24'),
 (5, 4, 'oishi_supplier', '$2y$10$M/uHAdCkWeYdIKmWlnJFnuFZj1/j1UY6BFuAUpBkeDVAQdCqTjwGu', 1, NULL, '2026-09-13 06:42:24'),
 (6, 4, 'coke_supplier', '$2y$10$ksUQPviznhUk3u9mPXRN4OmkySW2sIYxRLi2FTYYNX/07W2Jwul4O', 1, NULL, '2026-09-13 06:42:24'),
-(7, 4, 'century_supplier', '$2y$10$CRN0fPyK65o2QPIg0j8BvOFlTKDMkiWaid0U4SdPLW2ewETDBIhbm', 1, NULL, '2026-09-13 06:42:25'),
+(7, 4, 'century_supplier', '$2y$10$CRN0fPyK65o2QPIg0j8BvOFlTKDMkiWaid0U4SdPLW2ewETDBIhbm', 1, '2026-10-03 04:15:10', '2026-09-13 06:42:25'),
 (8, 4, 'nutriasia_supplier', '$2y$10$s2mSP31UXQ/2q78FPhh1WOWwzqFel7dT0W8ewyfvtFsk/gN7XiH.C', 1, NULL, '2026-09-13 06:42:25'),
 (9, 4, 'pg_supplier', '$2y$10$gFvSz7RitCPS8SgSvrp32u21.iiBKXv5ZFQA/dnnBCM3HORrFu/c2', 1, NULL, '2026-09-13 06:42:25'),
 (10, 4, 'unilever_supplier', '$2y$10$A/5.2.ayAbXV8e0pKIVEV.2iocwLFuzuCrq14JdUFGqsNbgj4r/Ye', 1, NULL, '2026-09-13 06:42:25'),
 (11, 4, 'nestle_supplier', '$2y$10$3FpFQy82CNz8Ta6Ji16xk.CQqEXckkjNlIb9/XiMPSiNTs6x3yhFW', 1, NULL, '2026-09-13 06:42:25'),
 (12, 4, 'zesto_supplier', '$2y$10$nbwIU05lzY73/5LgHBFTEOAZw5RgmLinmj5YgxFlr94vnEibPQGI6', 1, NULL, '2026-09-13 06:42:25'),
 (13, 4, 'colgate_supplier', '$2y$10$uOHy/nWPdtIL/LfT3bjtt..err7wDsLR31/1nvOfWGnWWfEKMs4uW', 1, NULL, '2026-09-13 06:42:25'),
-(14, 4, 'super8_user', '$2y$10$icAxUiqdOpWTe9lT8z5DF.ou4zMktdcQpH9V.MwUwhypykAkosCPW', 1, NULL, '2026-09-23 10:18:21');
+(14, 4, 'super8_user', '$2y$10$icAxUiqdOpWTe9lT8z5DF.ou4zMktdcQpH9V.MwUwhypykAkosCPW', 1, NULL, '2026-09-23 10:18:21'),
+(15, 4, 'annabelle_ph', '$2y$10$lr66Ke8wPzMm4vBgzn8xTenY59h.WUj2mhHyuMCtwfbJUWwxBlGyi', 1, '2026-10-04 06:32:02', '2026-10-03 11:54:47');
 
 -- --------------------------------------------------------
 
@@ -642,7 +1588,7 @@ CREATE TABLE `vw_sales_summary` (
 --
 DROP TABLE IF EXISTS `vw_sales_summary`;
 
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vw_sales_summary`  AS SELECT `s`.`sale_id` AS `sale_id`, `s`.`staff_id` AS `staff_id`, `s`.`payment_method_id` AS `payment_method_id`, `s`.`transaction_number` AS `transaction_number`, coalesce(sum(`si`.`quantity` * `si`.`unit_price`),0.00) AS `subtotal`, `s`.`tax_amount` AS `tax_amount`, coalesce(sum(`si`.`quantity` * `si`.`unit_price`),0.00) + `s`.`tax_amount` AS `total_amount`, `s`.`sale_date` AS `sale_date` FROM (`sales` `s` left join `sales_items` `si` on(`s`.`sale_id` = `si`.`sale_id`)) GROUP BY `s`.`sale_id`, `s`.`staff_id`, `s`.`payment_method_id`, `s`.`transaction_number`, `s`.`tax_amount`, `s`.`sale_date` ;
+CREATE ALGORITHM=UNDEFINED  SQL SECURITY DEFINER VIEW `vw_sales_summary`  AS SELECT `s`.`sale_id` AS `sale_id`, `s`.`staff_id` AS `staff_id`, `s`.`payment_method_id` AS `payment_method_id`, `s`.`transaction_number` AS `transaction_number`, coalesce(sum(`si`.`quantity` * `si`.`unit_price`),0.00) AS `subtotal`, `s`.`tax_amount` AS `tax_amount`, coalesce(sum(`si`.`quantity` * `si`.`unit_price`),0.00) + `s`.`tax_amount` AS `total_amount`, `s`.`sale_date` AS `sale_date` FROM (`sales` `s` left join `sales_items` `si` on(`s`.`sale_id` = `si`.`sale_id`)) GROUP BY `s`.`sale_id`, `s`.`staff_id`, `s`.`payment_method_id`, `s`.`transaction_number`, `s`.`tax_amount`, `s`.`sale_date` ;
 
 --
 -- Indexes for dumped tables
@@ -821,19 +1767,19 @@ ALTER TABLE `store_products`
 -- AUTO_INCREMENT for table `suppliers`
 --
 ALTER TABLE `suppliers`
-  MODIFY `supplier_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `supplier_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `supplier_products`
 --
 ALTER TABLE `supplier_products`
-  MODIFY `supplier_product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `supplier_product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- Constraints for dumped tables
@@ -899,77 +1845,6 @@ ALTER TABLE `supplier_products`
 ALTER TABLE `users`
   ADD CONSTRAINT `fk_users_roles` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
-
--- --------------------------------------------------------
-
---
--- Role-based access control (MySQL/MariaDB native ROLE objects)
---
--- No column was added to `roles` for this -- storing a permission matrix
--- as JSON/text in a relational column just re-implements privileges the
--- database already has a proper mechanism for, and breaks normalization
--- (a single cell holding a multi-valued Module -> [Actions] structure).
--- Instead, each application role in `roles` has a matching MySQL ROLE
--- object carrying REAL, enforced GRANT privileges -- this is what
--- Role.php (see backend/app/Models/Role.php) creates, edits, and drops
--- through CREATE ROLE / GRANT / REVOKE / DROP ROLE whenever an
--- administrator manages roles in the Role Manager page.
---
--- Naming convention: application role_id N <-> MySQL role `app_role_N`.
--- This block seeds the ROLE objects for the 4 roles already inserted
--- above (role_id 1-4), with the same access each already has in the app
--- today. Requires the account running this script (and the account
--- backend/app/Models/Database.php connects as) to have CREATE ROLE and
--- GRANT OPTION privileges -- the default XAMPP/Laragon `root` account has
--- this already.
---
-
--- app_role_1 - Administrator: unrestricted, matches ROLE_PERMISSIONS "*"
--- on the frontend. Role Manager treats this one as fully locked (name AND
--- privileges) since accidentally narrowing it could lock every admin out.
-CREATE ROLE IF NOT EXISTS 'app_role_1';
-GRANT ALL PRIVILEGES ON `inventory_system`.* TO 'app_role_1';
-
--- app_role_2 - Cashier Staff: POS checkout (Sales), views products
--- (Inventory), can Add Expense from the dashboard (Expenses), sees
--- supplier names on product listings (Suppliers). No Staff access.
-CREATE ROLE IF NOT EXISTS 'app_role_2';
-GRANT SELECT, INSERT ON `inventory_system`.`sales` TO 'app_role_2';
-GRANT SELECT, INSERT ON `inventory_system`.`sales_items` TO 'app_role_2';
-GRANT SELECT ON `inventory_system`.`store_products` TO 'app_role_2';
-GRANT SELECT ON `inventory_system`.`supplier_products` TO 'app_role_2';
-GRANT SELECT, UPDATE ON `inventory_system`.`product_batches` TO 'app_role_2';
-GRANT SELECT ON `inventory_system`.`product_categories` TO 'app_role_2';
-GRANT SELECT, INSERT ON `inventory_system`.`expenses` TO 'app_role_2';
-GRANT SELECT ON `inventory_system`.`expense_categories` TO 'app_role_2';
-GRANT EXECUTE ON PROCEDURE `inventory_system`.`sp_add_expense` TO 'app_role_2';
-GRANT SELECT ON `inventory_system`.`suppliers` TO 'app_role_2';
-
--- app_role_3 - Inventory Staff: manages products/batches/restocking
--- (Inventory), restock creates expense entries + can Add Expense
--- (Expenses), manages Supplier Manager (Suppliers), views sales on the
--- dashboard (Sales). No Staff access.
-CREATE ROLE IF NOT EXISTS 'app_role_3';
-GRANT SELECT ON `inventory_system`.`sales` TO 'app_role_3';
-GRANT SELECT ON `inventory_system`.`sales_items` TO 'app_role_3';
-GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`store_products` TO 'app_role_3';
-GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`supplier_products` TO 'app_role_3';
-GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`product_batches` TO 'app_role_3';
-GRANT SELECT ON `inventory_system`.`product_categories` TO 'app_role_3';
-GRANT SELECT, INSERT ON `inventory_system`.`expenses` TO 'app_role_3';
-GRANT SELECT ON `inventory_system`.`expense_categories` TO 'app_role_3';
-GRANT EXECUTE ON PROCEDURE `inventory_system`.`sp_add_expense` TO 'app_role_3';
-GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`suppliers` TO 'app_role_3';
-GRANT SELECT, INSERT ON `inventory_system`.`postal_codes` TO 'app_role_3';
-GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`users` TO 'app_role_3';
-GRANT SELECT ON `inventory_system`.`roles` TO 'app_role_3';
-
--- app_role_4 - Supplier: manages their own submitted products only
--- (Inventory, no Delete). No Sales, Expenses, Suppliers, or Staff access.
-CREATE ROLE IF NOT EXISTS 'app_role_4';
-GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`supplier_products` TO 'app_role_4';
-GRANT SELECT ON `inventory_system`.`product_categories` TO 'app_role_4';
-GRANT SELECT ON `inventory_system`.`store_products` TO 'app_role_4';
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

@@ -14,17 +14,25 @@ class Supplier
         $this->db = $db ?? (new Database())->getConnection();
     }
 
+    private function clearResults()
+    {
+        while ($this->db->more_results() && $this->db->next_result()) {
+            if ($result = $this->db->store_result()) {
+                $result->free();
+            }
+        }
+    }
+
     public function fetchSuppliers($search = '')
     {
-        $searchTerm = "%{$search}%";
-        $stmt = $this->db->prepare("SELECT * FROM suppliers
-            WHERE is_active = 1 AND (supplier_name LIKE ? OR contact_person LIKE ? OR email LIKE ?
-            OR phone LIKE ? OR street_address LIKE ?)");
-        $stmt->bind_param('sssss', $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm);
+        $stmt = $this->db->prepare("CALL sp_suppliers_fetch(?)");
+        $stmt->bind_param('s', $search);
         $stmt->execute();
-
         $result = $stmt->get_result();
-        return $result->fetch_all(MYSQLI_ASSOC);
+        $data = $result->fetch_all(MYSQLI_ASSOC);
+        $this->clearResults();
+        $stmt->close();
+        return $data;
     }
 
     public function addSupplier($data = [])
@@ -37,53 +45,45 @@ class Supplier
             throw new RuntimeException('Supplier name, username, and password are required.');
         }
 
-        $existingUser = $this->db->prepare("SELECT user_id FROM users WHERE username = ? LIMIT 1");
-        $existingUser->bind_param('s', $username);
-        $existingUser->execute();
-        $existingUserResult = $existingUser->get_result();
-
-        if ($existingUserResult->num_rows > 0) {
-            throw new RuntimeException('Username already exists.');
-        }
-
         $roleId = $this->getSupplierRoleId();
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
-        $this->db->begin_transaction();
+        $contactPerson = $data['contact_person'] ?? null;
+        $email = $data['email'] ?? null;
+        $phone = $data['phone'] ?? null;
+        $streetAddress = $data['street_address'] ?? null;
+        $postalCode = $data['postal_code'] ?? null;
+
+        $stmt = $this->db->prepare("CALL sp_suppliers_add(?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param('ssssssssi',
+            $username,
+            $passwordHash,
+            $supplierName,
+            $contactPerson,
+            $email,
+            $phone,
+            $streetAddress,
+            $postalCode,
+            $roleId
+        );
+        
         try {
-            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-            $userStmt = $this->db->prepare("INSERT INTO users (role_id, username, password_hash, is_active) VALUES (?, ?, ?, 1)");
-            $userStmt->bind_param('iss', $roleId, $username, $passwordHash);
-            $userStmt->execute();
-
-            $userId = $this->db->insert_id;
-            $contactPerson = $data['contact_person'] ?? null;
-            $email = $data['email'] ?? null;
-            $phone = $data['phone'] ?? null;
-            $streetAddress = $data['street_address'] ?? null;
-            $postalCode = $data['postal_code'] ?? null;
-
-            $supplierStmt = $this->db->prepare("INSERT INTO suppliers (user_id, supplier_name, contact_person, email, phone, street_address, postal_code, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
-            $supplierStmt->bind_param(
-                'issssss',
-                $userId,
-                $supplierName,
-                $contactPerson,
-                $email,
-                $phone,
-                $streetAddress,
-                $postalCode
-            );
-            $supplierStmt->execute();
-
-            $this->db->commit();
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            $this->clearResults();
+            $stmt->close();
+            
             return [
                 'status' => 'Success',
                 'message' => 'Supplier added successfully.',
-                'supplier_id' => $this->db->insert_id,
+                'supplier_id' => $result['supplier_id'] ?? $this->db->insert_id,
             ];
-        } catch (\Throwable $e) {
-            $this->db->rollback();
+        } catch (\mysqli_sql_exception $e) {
+            $this->clearResults();
+            $stmt->close();
+            if (strpos($e->getMessage(), 'Username already exists') !== false) {
+                throw new RuntimeException('Username already exists.');
+            }
             throw $e;
         }
     }
@@ -97,90 +97,64 @@ class Supplier
             throw new RuntimeException('A valid supplier and name are required.');
         }
 
-        $this->db->begin_transaction();
+        $supplierUserId = $this->getSupplierUserId($supplierId);
+        if ($supplierUserId <= 0) {
+            throw new RuntimeException('Supplier user not found.');
+        }
+
+        $newUsername = trim((string) ($data['username'] ?? ''));
+        $newPassword = (string) ($data['password'] ?? '');
+        $passwordHash = $newPassword !== '' ? password_hash($newPassword, PASSWORD_DEFAULT) : null;
+
+        $contactPerson = $data['contact_person'] ?? null;
+        $email = $data['email'] ?? null;
+        $phone = $data['phone'] ?? null;
+        $streetAddress = $data['street_address'] ?? null;
+        $postalCode = $data['postal_code'] ?? null;
+
+        $stmt = $this->db->prepare("CALL sp_suppliers_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param('iissssssss',
+            $supplierId,
+            $supplierUserId,
+            $newUsername,
+            $passwordHash,
+            $supplierName,
+            $contactPerson,
+            $email,
+            $phone,
+            $streetAddress,
+            $postalCode
+        );
+
         try {
-            $newUsername = trim((string) ($data['username'] ?? ''));
-            $newPassword = (string) ($data['password'] ?? '');
-
-            $supplierUserId = $this->getSupplierUserId($supplierId);
-
-            if ($newUsername !== '') {
-                $checkStmt = $this->db->prepare("SELECT user_id FROM users WHERE username = ? AND user_id != ? LIMIT 1");
-                $checkStmt->bind_param('si', $newUsername, $supplierUserId);
-                $checkStmt->execute();
-                $duplicate = $checkStmt->get_result();
-
-                if ($duplicate->num_rows > 0) {
-                    throw new RuntimeException('Username already exists.');
-                }
-
-                $userStmt = $this->db->prepare("UPDATE users SET username = ? WHERE user_id = ?");
-                $userStmt->bind_param('si', $newUsername, $supplierUserId);
-                $userStmt->execute();
-            }
-
-            if ($newPassword !== '') {
-                $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
-                $passwordStmt = $this->db->prepare("UPDATE users SET password_hash = ? WHERE user_id = ?");
-                $passwordStmt->bind_param('si', $passwordHash, $supplierUserId);
-                $passwordStmt->execute();
-            }
-
-            $contactPerson = $data['contact_person'] ?? null;
-            $email = $data['email'] ?? null;
-            $phone = $data['phone'] ?? null;
-            $streetAddress = $data['street_address'] ?? null;
-            $postalCode = $data['postal_code'] ?? null;
-
-            $updateStmt = $this->db->prepare("UPDATE suppliers SET supplier_name = ?, contact_person = ?, email = ?, phone = ?, street_address = ?, postal_code = ? WHERE supplier_id = ? AND is_active = 1");
-            $updateStmt->bind_param(
-                'ssssssi',
-                $supplierName,
-                $contactPerson,
-                $email,
-                $phone,
-                $streetAddress,
-                $postalCode,
-                $supplierId
-            );
-            $updateStmt->execute();
-
-            $this->db->commit();
+            $stmt->execute();
+            $this->clearResults();
+            $stmt->close();
+            
             return [
                 'status' => 'Success',
                 'message' => 'Supplier updated successfully.'
             ];
-        } catch (\Throwable $e) {
-            $this->db->rollback();
+        } catch (\mysqli_sql_exception $e) {
+            $this->clearResults();
+            $stmt->close();
+            if (strpos($e->getMessage(), 'Username already exists') !== false) {
+                throw new RuntimeException('Username already exists.');
+            }
             throw $e;
         }
     }
 
     public function fetchPostalCodes($search = '')
     {
-        $query = "SELECT postal_code, city, state, country FROM postal_codes";
-        $params = [];
-        $types = '';
-
-        if ($search !== '') {
-            $query .= " WHERE postal_code LIKE ? OR city LIKE ? OR state LIKE ? OR country LIKE ?";
-            $searchTerm = "%{$search}%";
-            $params = [$searchTerm, $searchTerm, $searchTerm, $searchTerm];
-            $types = 'ssss';
-        }
-
-        $query .= " ORDER BY postal_code ASC LIMIT 100";
-
-        $stmt = $this->db->prepare($query);
-
-        if ($params) {
-            $stmt->bind_param($types, ...$params);
-        }
-
+        $stmt = $this->db->prepare("CALL sp_postal_codes_fetch(?)");
+        $stmt->bind_param('s', $search);
         $stmt->execute();
         $result = $stmt->get_result();
-
-        return $result->fetch_all(MYSQLI_ASSOC);
+        $data = $result->fetch_all(MYSQLI_ASSOC);
+        $this->clearResults();
+        $stmt->close();
+        return $data;
     }
 
     public function addPostalCode($data = [])
@@ -194,35 +168,40 @@ class Supplier
             throw new RuntimeException('Postal code, city, state, and country are required.');
         }
 
-        $checkStmt = $this->db->prepare("SELECT postal_code FROM postal_codes WHERE postal_code = ? LIMIT 1");
-        $checkStmt->bind_param('s', $postalCode);
-        $checkStmt->execute();
+        $stmt = $this->db->prepare("CALL sp_postal_codes_add(?, ?, ?, ?)");
+        $stmt->bind_param('ssss', $postalCode, $city, $state, $country);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        $this->clearResults();
+        $stmt->close();
 
-        if ($checkStmt->get_result()->num_rows > 0) {
+        if (($result['status'] ?? '') === 'exists') {
             return ['status' => 'Success', 'message' => 'Postal code already exists.'];
         }
-
-        $insertStmt = $this->db->prepare("INSERT INTO postal_codes (postal_code, city, state, country) VALUES (?, ?, ?, ?)");
-        $insertStmt->bind_param('ssss', $postalCode, $city, $state, $country);
-        $insertStmt->execute();
 
         return ['status' => 'Success', 'message' => 'Postal code added successfully.'];
     }
 
     public function softDelete($supplierId)
     {
-        $stmt = $this->db->prepare("UPDATE suppliers SET is_active = 0 WHERE supplier_id = ? AND is_active = 1");
+        $stmt = $this->db->prepare("CALL sp_suppliers_soft_delete(?)");
         $stmt->bind_param('i', $supplierId);
-
-        return $stmt->execute() && $stmt->affected_rows > 0;
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        $this->clearResults();
+        $stmt->close();
+        
+        return ($result['affected_rows'] ?? 0) > 0;
     }
 
     private function getSupplierRoleId()
     {
-        $stmt = $this->db->prepare("SELECT role_id FROM roles WHERE LOWER(role_name) = 'supplier' LIMIT 1");
+        $stmt = $this->db->prepare("CALL sp_roles_get_supplier_role_id()");
         $stmt->execute();
         $result = $stmt->get_result();
         $role = $result->fetch_assoc();
+        $this->clearResults();
+        $stmt->close();
 
         if (!$role) {
             throw new RuntimeException('Supplier role is not available.');
@@ -233,11 +212,13 @@ class Supplier
 
     private function getSupplierUserId($supplierId)
     {
-        $stmt = $this->db->prepare("SELECT user_id FROM suppliers WHERE supplier_id = ? LIMIT 1");
+        $stmt = $this->db->prepare("CALL sp_suppliers_get_user_id(?)");
         $stmt->bind_param('i', $supplierId);
         $stmt->execute();
         $result = $stmt->get_result();
         $supplier = $result->fetch_assoc();
+        $this->clearResults();
+        $stmt->close();
 
         return $supplier ? (int) $supplier['user_id'] : 0;
     }
