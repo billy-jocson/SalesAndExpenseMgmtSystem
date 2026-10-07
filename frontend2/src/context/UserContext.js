@@ -7,6 +7,7 @@ export const userContext = createContext(null);
 // na base sa eksaktong kinlick mong checkboxes sa database.
 export const ROLE_PERMISSIONS = {
   administrator: "*",
+  supplier: ["/dashboard", "/productsmanager"],
 };
 
 // Ito ang mag-ta-translate ng database checkbox (hal. "Sales")

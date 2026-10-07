@@ -14,11 +14,14 @@ import {
   ListBox,
   Modal,
   Typography,
+  Table,
+  Chip,
 } from "@heroui/react";
 import { userContext } from "../context/UserContext";
 import {
   addProduct,
   buildProductImageUrl,
+  fetchProductExpiry,
   fetchCategories,
   fetchProducts,
   handleOrdering,
@@ -56,6 +59,8 @@ export default function ProductsManager() {
   const debouncedItemOrderSearch = useDebounce(itemOrderSearch);
   const [cartItems, setCartItems] = useState([]);
   const [orderExpirationDate, setOrderExpirationDate] = useState("");
+  const [expiryProducts, setExpiryProducts] = useState([]);
+  const [expiryLoading, setExpiryLoading] = useState(true);
 
   useEffect(() => {
     document.title = "Products Manager";
@@ -94,6 +99,42 @@ export default function ProductsManager() {
 
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    const loadExpiryProducts = async () => {
+      if (role === "supplier") {
+        setExpiryProducts([]);
+        setExpiryLoading(false);
+        return;
+      }
+
+      setExpiryLoading(true);
+      try {
+        const data = await fetchProductExpiry();
+        if (data?.status !== "Success") {
+          throw new Error(data?.message ?? "Unable to load product expiry.");
+        }
+        if (isCurrent) {
+          setExpiryProducts(data.products ?? []);
+        }
+      } catch (error) {
+        if (isCurrent) {
+          toast.danger(error.message || "Unable to load product expiry.");
+        }
+      } finally {
+        if (isCurrent) {
+          setExpiryLoading(false);
+        }
+      }
+    };
+
+    loadExpiryProducts();
+    return () => {
+      isCurrent = false;
+    };
+  }, [role, productsRefreshKey]);
 
   const handleAddProduct = async () => {
     if (
@@ -149,10 +190,10 @@ export default function ProductsManager() {
         ...currentItems,
         {
           id: data.id,
-          name: data.prodname,
-          price: Number(data.wholesaleprice) || 0,
+          name: data.name,
+          price: Number(data.wholesalePrice),
           quantity: 1,
-          image: buildProductImageUrl(data.image_path),
+          image: buildProductImageUrl(data.imagePath),
         },
       ];
     });
@@ -236,7 +277,9 @@ export default function ProductsManager() {
         cartItems,
         orderExpirationDate,
         paymentMethod,
+        paymentMethod === "GCash" ? paymentValue.trim() : "",
       );
+      setProductsRefreshKey((value) => value + 1);
       const orderSucceeded = responses.every(
         (response) => response?.status?.toLowerCase() === "success",
       );
@@ -661,10 +704,10 @@ export default function ProductsManager() {
                                     id={data.id}
                                     name={data.prodname}
                                     description={data.description}
-                                    image_path={data.image_path}
+                                    imagePath={data.image_path}
                                     category={data.category}
                                     supplier_name={data.supplier_name}
-                                    wholesaleprice={data.wholesaleprice}
+                                    wholesalePrice={data.wholesale_price}
                                     onOrder={handleOrder}
                                   />
                                 ))}
@@ -686,6 +729,92 @@ export default function ProductsManager() {
             )}
           </div>
         </div>
+
+        {role !== "supplier" && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <Typography type="h3">
+                  Near-expiry and expired products
+                </Typography>
+                <Typography type="body-sm" color="muted">
+                  Remaining stock expiring within 30 days or already expired.
+                </Typography>
+              </div>
+              {!expiryLoading && (
+                <Chip variant="soft" color="warning" size="sm">
+                  {expiryProducts.length} batches
+                </Chip>
+              )}
+            </div>
+
+            {expiryLoading ? (
+              <Typography type="body-sm" color="muted">
+                Loading expiry information...
+              </Typography>
+            ) : expiryProducts.length === 0 ? (
+              <Typography type="body-sm" color="muted">
+                No near-expiry or expired stock found.
+              </Typography>
+            ) : (
+              <Table>
+                <Table.ScrollContainer>
+                  <Table.Content aria-label="Near-expiry and expired products">
+                    <Table.Header>
+                      <Table.Column>Product</Table.Column>
+                      <Table.Column>Batch</Table.Column>
+                      <Table.Column>Remaining stock</Table.Column>
+                      <Table.Column>Expiration date</Table.Column>
+                      <Table.Column>Status</Table.Column>
+                    </Table.Header>
+                    <Table.Body>
+                      {expiryProducts.map((product) => {
+                        const daysUntilExpiry = Number(
+                          product.days_until_expiry,
+                        );
+                        const isExpired = product.expiry_status === "Expired";
+                        const dateLabel = isExpired
+                          ? `${Math.abs(daysUntilExpiry)} ${
+                              Math.abs(daysUntilExpiry) === 1 ? "day" : "days"
+                            } overdue`
+                          : daysUntilExpiry === 0
+                            ? "Expires today"
+                            : `${daysUntilExpiry} ${
+                                daysUntilExpiry === 1 ? "day" : "days"
+                              } left`;
+
+                        return (
+                          <Table.Row key={product.batch_id}>
+                            <Table.Cell>{product.product_name}</Table.Cell>
+                            <Table.Cell>{product.batch_number}</Table.Cell>
+                            <Table.Cell>{product.quantity_in_stock}</Table.Cell>
+                            <Table.Cell>
+                              <div>
+                                <div>{product.expiration_date}</div>
+                                <Typography type="body-xs" color="muted">
+                                  {dateLabel}
+                                </Typography>
+                              </div>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <Chip
+                                variant="soft"
+                                color={isExpired ? "danger" : "warning"}
+                                size="sm"
+                              >
+                                {product.expiry_status}
+                              </Chip>
+                            </Table.Cell>
+                          </Table.Row>
+                        );
+                      })}
+                    </Table.Body>
+                  </Table.Content>
+                </Table.ScrollContainer>
+              </Table>
+            )}
+          </section>
+        )}
 
         {products.length === 0 ? (
           <NoItemFound

@@ -85,7 +85,7 @@ class DashboardController
             'message' => 'No expense data available for this range.'
         ];
     }
-    
+
     public function getLineChartData($data)
     {
         if (empty($data['startDate']) || empty($data['endDate'])) {

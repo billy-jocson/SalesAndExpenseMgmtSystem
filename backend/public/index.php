@@ -89,6 +89,9 @@ try {
         case $requestMethod === 'GET' && $path === '/products':
             $response = (new ProductController())->getProducts($input);
             break;
+        case $requestMethod === 'GET' && $path === '/products/expiry':
+            $response = (new ProductController())->getExpiryProducts();
+            break;
         case $requestMethod === 'POST' && $path === '/products':
             $response = (new ProductController())->addProduct($input, $_FILES ?? []);
             break;
@@ -184,8 +187,6 @@ try {
             $status = ($response['status'] ?? '') === 'success' ? 200 : 422;
             break;
         case $requestMethod === 'GET' && $path === '/roles':
-            // $input carries user_id from the query string (?user_id=..),
-            // which RoleController uses to look up the caller's real role.
             $response = (new RoleController())->getRoles($input);
             break;
         case $requestMethod === 'POST' && $path === '/roles':

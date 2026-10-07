@@ -38,6 +38,7 @@ export default function RestockProducts() {
           debouncedSearchItem,
           categorySelected,
         );
+        console.log(data);
         setProducts(data?.status === "Success" ? (data.products ?? []) : []);
       } finally {
         setLoading(false);

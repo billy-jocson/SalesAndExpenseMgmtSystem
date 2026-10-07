@@ -3,12 +3,13 @@ import { buildProductImageUrl } from "../api/productmanager.js";
 
 export default function OrderProductModalCard(data) {
   const {
+    id,
     name,
     description,
-    image_path,
+    imagePath,
     category,
     supplier_name,
-    wholesaleprice,
+    wholesalePrice,
     onOrder,
   } = data;
 
@@ -17,7 +18,7 @@ export default function OrderProductModalCard(data) {
       <Card.Header className="p-3.5 pb-0">
         <div className="flex h-48 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-2">
           <img
-            src={buildProductImageUrl(image_path)}
+            src={buildProductImageUrl(imagePath)}
             alt={name}
             className="h-full w-full rounded-lg object-contain"
             onError={(event) => {
@@ -55,7 +56,7 @@ export default function OrderProductModalCard(data) {
             Wholesale price
           </p>
           <p className="text-sm font-semibold text-blue-600">
-            ₱{wholesaleprice}
+            ₱{Number(wholesalePrice).toFixed(2)}
           </p>
         </div>
       </Card.Content>
@@ -64,7 +65,7 @@ export default function OrderProductModalCard(data) {
         <Button
           variant="primary"
           className="w-full"
-          onClick={() => onOrder(data)}
+          onClick={() => onOrder({ id, name, wholesalePrice, imagePath })}
         >
           Order
         </Button>

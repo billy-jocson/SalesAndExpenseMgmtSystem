@@ -1,0 +1,1 @@
+when i order products, it doesnt add up to the expenses list, please make sure that every outflow from the business should add up to the expenses list and please check whenever a product batch is already expired so
