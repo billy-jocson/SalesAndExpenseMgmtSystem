@@ -364,11 +364,11 @@ export default function Navbar() {
           >
             <DrawerContent
               placement="left"
-              className="bg-transparent shadow-none"
+              className="w-[min(18rem,85vw)] max-w-none bg-white shadow-none"
             >
-              <DrawerDialog className="p-0 transition-transform duration-300 ease-in-out">
-                <DrawerBody className="p-0">
-                  <aside className="relative box-border flex h-dvh w-fit min-w-[15rem] max-w-[18rem] flex-col justify-between overflow-hidden rounded-r-[1.75rem] bg-white px-7 py-9 shadow-md">
+              <DrawerDialog className="w-full max-w-none p-0 transition-transform duration-300 ease-in-out">
+                <DrawerBody className="w-full p-0">
+                  <aside className="relative box-border flex h-dvh w-full min-w-0 flex-col justify-between overflow-hidden rounded-r-[1.75rem] bg-white px-7 py-9">
                     <DrawerCloseTrigger
                       aria-label="Close navigation"
                       className="absolute right-5 top-5 z-10 rounded-md p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"

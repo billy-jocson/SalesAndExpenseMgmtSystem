@@ -72,6 +72,13 @@ try {
             && ($path === '/dashboard/line-chart' || $path === '/dashboard/LineChartData'):
             $response = (new DashboardController())->getLineChartData($input);
             break;
+        case $requestMethod === 'GET' && $path === '/dashboard/supplier-chart':
+            $response = (new DashboardController())->getSupplierChartData($input);
+            break;
+        case $requestMethod === 'GET'
+            && ($path === '/dashboard/supplier-line-chart' || $path === '/dashboard/SupplierLineChartData'):
+            $response = (new DashboardController())->getSupplierLineChartData($input);
+            break;
         case $requestMethod === 'GET'
             && ($path === '/dashboard/total-products' || $path === '/supplierProductAnalytics'):
             $response = (new DashboardController())->getTotalProductCardData($input);
@@ -81,6 +88,9 @@ try {
             break;
         case $requestMethod === 'GET' && $path === '/products':
             $response = (new ProductController())->getProducts($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/products/expiry':
+            $response = (new ProductController())->getExpiryProducts();
             break;
         case $requestMethod === 'POST' && $path === '/products':
             $response = (new ProductController())->addProduct($input, $_FILES ?? []);
@@ -177,8 +187,6 @@ try {
             $status = ($response['status'] ?? '') === 'success' ? 200 : 422;
             break;
         case $requestMethod === 'GET' && $path === '/roles':
-            // $input carries user_id from the query string (?user_id=..),
-            // which RoleController uses to look up the caller's real role.
             $response = (new RoleController())->getRoles($input);
             break;
         case $requestMethod === 'POST' && $path === '/roles':

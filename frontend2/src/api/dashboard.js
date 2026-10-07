@@ -24,3 +24,22 @@ export const getSupplierProductAnalytics = async ({ supplierId }) => {
     method: "GET",
   });
 };
+
+export const getSupplierChartData = async (period) => {
+  return request(`/dashboard/supplier-chart${queryString(period)}`, {
+    method: "GET",
+  });
+};
+
+export const getSupplierLineChartData = async ({
+  startDate,
+  endDate,
+  supplierId,
+}) => {
+  return request(
+    `/dashboard/supplier-line-chart${queryString({ startDate, endDate, supplierId })}`,
+    {
+      method: "GET",
+    },
+  );
+};

@@ -17,6 +17,8 @@ import {
   getAnalytics,
   getChartData,
   getLineChartData,
+  getSupplierChartData,
+  getSupplierLineChartData,
   getSupplierProductAnalytics,
 } from "../api/dashboard.js";
 import dashboardIcon from "../assets/images/dashboard.png";
@@ -50,7 +52,7 @@ const expenseColors = [
 
 // Main dashboard page
 export default function Dashboard() {
-  // Used for the new sale button to navigat to pos page
+  // Used for the new sale button to navigate to pos page
   const navigate = useNavigate();
 
   // Contains current user information from the session
@@ -93,25 +95,38 @@ export default function Dashboard() {
       const dateParams = {
         startDate: dateRange.start.toString(),
         endDate: dateRange.end.toString(),
+        supplierId: user?.role === "Supplier" ? user?.supplier_id : undefined,
       };
+      let analyticsRes;
+      let chartRes;
+      let lineChartRes;
 
-      const [analyticsRes, chartRes, lineChartRes] = await Promise.allSettled([
-        getAnalytics(dateParams),
-        getChartData(dateParams),
-        getLineChartData(dateParams),
-      ]);
+      if (user?.role === "Supplier") {
+        [chartRes, lineChartRes] = await Promise.allSettled([
+          getSupplierChartData(dateParams),
+          getSupplierLineChartData(dateParams),
+        ]);
+      } else {
+        [analyticsRes, chartRes, lineChartRes] = await Promise.allSettled([
+          getAnalytics(dateParams),
+          getChartData(dateParams),
+          getLineChartData(dateParams),
+        ]);
+      }
 
       if (!isActive) {
         return;
       }
 
-      if (
-        analyticsRes.status === "fulfilled" &&
-        analyticsRes.value?.status === "success"
-      ) {
-        setBusinessData(analyticsRes.value.data);
-        if (analyticsRes.value.data?.productData) {
-          setProductData(analyticsRes.value.data.productData);
+      if (user?.role !== "Supplier") {
+        if (
+          analyticsRes.status === "fulfilled" &&
+          analyticsRes.value?.status === "success"
+        ) {
+          setBusinessData(analyticsRes.value.data);
+          if (analyticsRes.value.data?.productData) {
+            setProductData(analyticsRes.value.data.productData);
+          }
         }
       }
 
@@ -161,9 +176,13 @@ export default function Dashboard() {
 
     const fetchProductMetrics = async () => {
       try {
-        const response = await getSupplierProductAnalytics({
+        const dateParams = {
           supplierId: user?.supplier_id,
-        });
+          startDate: dateRange.start.toString(),
+          endDate: dateRange.end.toString(),
+        };
+
+        const response = await getSupplierProductAnalytics(dateParams);
 
         if (!isActive) {
           return;
@@ -206,6 +225,7 @@ export default function Dashboard() {
         };
       case "Supplier":
         fetchProductMetrics();
+        loadAnalytics();
         return () => {
           isActive = false;
         };
@@ -274,7 +294,7 @@ export default function Dashboard() {
           {user?.role !== "Supplier" ? (
             user?.role === "Inventory Staff" ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <DashboardCards
                     icon={Box}
                     status={100}
@@ -414,7 +434,7 @@ export default function Dashboard() {
                     <CirclePlusFill className="size-4" />
                     New Sale
                   </Button>
-                  <AddExpenseModal />
+                  {user?.role === "Administrator" && <AddExpenseModal />}
                   <DateRangePicker value={dateRange} onChange={setDateRange}>
                     <DateField.Group>
                       <DateField.InputContainer>
@@ -586,25 +606,168 @@ export default function Dashboard() {
               </>
             )
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 w-full gap-3">
-              <DashboardCards
-                icon={Box}
-                status={100}
-                title="Total Products"
-                body={(productData.totalProducts ?? 0).toLocaleString()}
-                highlighted
-                noChip
-              />
-              <DashboardCards
-                icon={Wallet}
-                status={100}
-                title="Total Revenue"
-                body={`₱${(productData.totalRevenue ?? 0).toLocaleString(
-                  undefined,
-                  { minimumFractionDigits: 2, maximumFractionDigits: 2 },
-                )}`}
-                noChip
-              />
+            <div className="flex flex-col gap-5">
+              <div className="flex md:ms-auto">
+                <DateRangePicker value={dateRange} onChange={setDateRange}>
+                  <DateField.Group>
+                    <DateField.InputContainer>
+                      <DateField.Input slot="start">
+                        {(segment) => <DateField.Segment segment={segment} />}
+                      </DateField.Input>
+                      <DateRangePicker.RangeSeparator />
+                      <DateField.Input slot="end">
+                        {(segment) => <DateField.Segment segment={segment} />}
+                      </DateField.Input>
+                    </DateField.InputContainer>
+                    <DateField.Suffix>
+                      <DateRangePicker.Trigger>
+                        <DateRangePicker.TriggerIndicator />
+                      </DateRangePicker.Trigger>
+                    </DateField.Suffix>
+                  </DateField.Group>
+                  <DateRangePicker.Popover>
+                    <RangeCalendar aria-label="Choose dashboard date range">
+                      <RangeCalendar.Header>
+                        <RangeCalendar.YearPickerTrigger>
+                          <RangeCalendar.YearPickerTriggerHeading />
+                          <RangeCalendar.YearPickerTriggerIndicator />
+                        </RangeCalendar.YearPickerTrigger>
+                        <RangeCalendar.NavButton slot="previous" />
+                        <RangeCalendar.NavButton slot="next" />
+                      </RangeCalendar.Header>
+                      <RangeCalendar.Grid>
+                        <RangeCalendar.GridHeader>
+                          {(day) => (
+                            <RangeCalendar.HeaderCell>
+                              {day}
+                            </RangeCalendar.HeaderCell>
+                          )}
+                        </RangeCalendar.GridHeader>
+                        <RangeCalendar.GridBody>
+                          {(date) => <RangeCalendar.Cell date={date} />}
+                        </RangeCalendar.GridBody>
+                      </RangeCalendar.Grid>
+                    </RangeCalendar>
+                  </DateRangePicker.Popover>
+                </DateRangePicker>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 w-full gap-3">
+                <DashboardCards
+                  icon={Box}
+                  status={100}
+                  title="Total Products"
+                  body={(productData.totalProducts ?? 0).toLocaleString()}
+                  highlighted
+                  noChip
+                />
+                <DashboardCards
+                  icon={Wallet}
+                  status={100}
+                  title="Total Revenue"
+                  body={`₱${(productData.totalRevenue ?? 0).toLocaleString(
+                    undefined,
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+                  )}`}
+                  noChip
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <div className="rounded-lg bg-white p-5 shadow-md">
+                  <h2 className="text-lg font-semibold text-zinc-800">
+                    Sales Trend
+                  </h2>
+                  <p className="mb-5 text-sm text-zinc-500">
+                    Track your sales here.
+                  </p>
+                  <div className="h-72 w-full">
+                    {data && data.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={data}
+                          margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                        >
+                          <CartesianGrid
+                            stroke="#e4e4e7"
+                            strokeDasharray="3 3"
+                          />
+                          <XAxis
+                            dataKey="_date"
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <YAxis tickLine={false} axisLine={false} />
+                          <Tooltip />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="sales"
+                            name="Sales"
+                            stroke="#8884d8"
+                            strokeWidth={1.5}
+                            dot={{ r: 2, fill: "#8884d8" }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500">
+                        No data exists yet in the database.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-white p-5 shadow-md">
+                  <h2 className="text-lg font-semibold text-zinc-800">
+                    Product Breakdown
+                  </h2>
+                  <p className="mb-5 text-sm text-zinc-500">
+                    See all your product counts.
+                  </p>
+                  <div className="h-72 w-full">
+                    {chartData && chartData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={chartData}
+                            dataKey="total_amount"
+                            nameKey="category_name"
+                            cx="50%"
+                            cy="45%"
+                            outerRadius="78%"
+                            paddingAngle={0}
+                            label={false}
+                          >
+                            {chartData.map((entry, index) => (
+                              <Cell
+                                key={entry.category_name}
+                                fill={
+                                  expenseColors[index % expenseColors.length]
+                                }
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(value) =>
+                              `${Number(value).toLocaleString("en-US", {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              })}`
+                            }
+                          />
+                          <Legend verticalAlign="bottom" />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500">
+                        No data exists yet in the database.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
