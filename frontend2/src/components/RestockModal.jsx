@@ -1,41 +1,47 @@
 import { ChevronsUp } from "@gravity-ui/icons";
 import {
   Button,
-  Calendar,
-  DateField,
-  DatePicker,
   InputGroup,
   Label,
   Modal,
   TextField,
   toast,
+  Typography,
 } from "@heroui/react";
-import { useState } from "react";
-import { parseDate } from "@internationalized/date";
-import { restockProduct } from "../api/productmanager.js";
+import { useState, useContext } from "react";
+import { requestRestock } from "../api/ordermanager.js";
+import { userContext } from "../context/UserContext.js";
 
 export default function RestockModal({ product, onSuccess }) {
+  const { user } = useContext(userContext);
   const [isOpen, setIsOpen] = useState(false);
   const [quantity, setQuantity] = useState("");
-  const [expirationDate, setExpirationDate] = useState("");
 
   const handleSubmit = async () => {
-    const response = await restockProduct({
-      productId: product.id,
+    if (!quantity || Number(quantity) <= 0) {
+      toast.danger("Please enter valid quantity.");
+      return;
+    }
+
+    // ADMIN FIX: No expiry date - supplier will set it!
+    // Create pending order instead of direct restock
+    const response = await requestRestock({
+      storeProductId: product.id,
+      supplierProductId: product.supplier_product_id || product.id,
+      supplierId: product.supplier_id,
       quantity: Number(quantity),
-      expirationDate,
+      requestedBy: user?.user_id || user?.id || 1,
     });
 
     if (response?.status?.toLowerCase() === "success") {
-      toast.success("Product restocked!");
+      toast.success("Restock request sent to supplier! Supplier will set expiry upon acceptance.");
       setIsOpen(false);
       setQuantity("");
-      setExpirationDate("");
       onSuccess?.();
       return;
     }
 
-    toast.danger(response?.message ?? "Unable to restock product.");
+    toast.danger(response?.message ?? "Unable to request restock.");
   };
 
   return (
@@ -67,58 +73,14 @@ export default function RestockModal({ product, onSuccess }) {
                 </InputGroup>
               </TextField>
 
-              <DatePicker
-                className="w-full"
-                name="date"
-                value={expirationDate ? parseDate(expirationDate) : null}
-                onChange={(date) => setExpirationDate(date?.toString() ?? "")}
-              >
-                <Label>Expiry Date</Label>
-                <DateField.Group fullWidth>
-                  <DateField.Input>
-                    {(segment) => <DateField.Segment segment={segment} />}
-                  </DateField.Input>
-                  <DateField.Suffix>
-                    <DatePicker.Trigger>
-                      <DatePicker.TriggerIndicator />
-                    </DatePicker.Trigger>
-                  </DateField.Suffix>
-                </DateField.Group>
-                <DatePicker.Popover>
-                  <Calendar aria-label="Expiration date">
-                    <Calendar.Header>
-                      <Calendar.YearPickerTrigger>
-                        <Calendar.YearPickerTriggerHeading />
-                        <Calendar.YearPickerTriggerIndicator />
-                      </Calendar.YearPickerTrigger>
-                      <Calendar.NavButton slot="previous" />
-                      <Calendar.NavButton slot="next" />
-                    </Calendar.Header>
-                    <Calendar.Grid>
-                      <Calendar.GridHeader>
-                        {(day) => (
-                          <Calendar.HeaderCell>{day}</Calendar.HeaderCell>
-                        )}
-                      </Calendar.GridHeader>
-                      <Calendar.GridBody>
-                        {(date) => <Calendar.Cell date={date} />}
-                      </Calendar.GridBody>
-                    </Calendar.Grid>
-                    <Calendar.YearPickerGrid>
-                      <Calendar.YearPickerGridBody>
-                        {({ year }) => <Calendar.YearPickerCell year={year} />}
-                      </Calendar.YearPickerGridBody>
-                    </Calendar.YearPickerGrid>
-                  </Calendar>
-                </DatePicker.Popover>
-              </DatePicker>
+              {/* ADMIN FIX: Removed Expiry Date! Supplier sets it! */}
             </Modal.Body>
             <Modal.Footer>
               <Button slot="close" variant="secondary">
                 Cancel
               </Button>
               <Button variant="primary" onPress={handleSubmit}>
-                Restock
+                Request Restock
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

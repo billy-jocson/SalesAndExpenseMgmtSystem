@@ -14,11 +14,14 @@ import {
   ListBox,
   Modal,
   Typography,
+  Table,
+  Chip,
 } from "@heroui/react";
 import { userContext } from "../context/UserContext";
 import {
   addProduct,
   buildProductImageUrl,
+  fetchProductExpiry,
   fetchCategories,
   fetchProducts,
   handleOrdering,
@@ -55,7 +58,9 @@ export default function ProductsManager() {
   const [isOrderOpen, setIsOrderOpen] = useState(false);
   const debouncedItemOrderSearch = useDebounce(itemOrderSearch);
   const [cartItems, setCartItems] = useState([]);
-  const [orderExpirationDate, setOrderExpirationDate] = useState("");
+  // ADMIN FIX: Removed expiry - supplier sets it! const [orderExpirationDate, setOrderExpirationDate] = useState("");
+  const [expiryProducts, setExpiryProducts] = useState([]);
+  const [expiryLoading, setExpiryLoading] = useState(true);
 
   useEffect(() => {
     document.title = "Products Manager";
@@ -94,6 +99,42 @@ export default function ProductsManager() {
 
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    const loadExpiryProducts = async () => {
+      if (role === "supplier") {
+        setExpiryProducts([]);
+        setExpiryLoading(false);
+        return;
+      }
+
+      setExpiryLoading(true);
+      try {
+        const data = await fetchProductExpiry();
+        if (data?.status !== "Success") {
+          throw new Error(data?.message ?? "Unable to load product expiry.");
+        }
+        if (isCurrent) {
+          setExpiryProducts(data.products ?? []);
+        }
+      } catch (error) {
+        if (isCurrent) {
+          toast.danger(error.message || "Unable to load product expiry.");
+        }
+      } finally {
+        if (isCurrent) {
+          setExpiryLoading(false);
+        }
+      }
+    };
+
+    loadExpiryProducts();
+    return () => {
+      isCurrent = false;
+    };
+  }, [role, productsRefreshKey]);
 
   const handleAddProduct = async () => {
     if (
@@ -149,10 +190,13 @@ export default function ProductsManager() {
         ...currentItems,
         {
           id: data.id,
-          name: data.prodname,
-          price: Number(data.wholesaleprice) || 0,
+          name: data.name,
+          price: Number(data.wholesalePrice),
           quantity: 1,
-          image: buildProductImageUrl(data.image_path),
+          image: buildProductImageUrl(data.imagePath),
+          supplier_id: data.supplier_id,
+          supplier_name: data.supplier_name,
+          supplier_product_id: data.supplier_product_id || data.id,
         },
       ];
     });
@@ -213,11 +257,7 @@ export default function ProductsManager() {
     );
 
     const orderFunction = async () => {
-      if (!orderExpirationDate) {
-        toast.danger("Select an expiration date for the ordered products.");
-        return;
-      }
-
+      // ADMIN FIX: No expiry needed - supplier sets it upon acceptance!
       if (!paymentValue?.trim()) {
         toast.danger(
           paymentMethod === "Cash"
@@ -232,19 +272,38 @@ export default function ProductsManager() {
         return;
       }
 
-      const responses = await handleOrdering(
-        cartItems,
-        orderExpirationDate,
-        paymentMethod,
+      // ADMIN FIX: Create pending orders without expiry - supplier will set expiry!
+      const { requestNewOrder } = await import("../api/ordermanager.js");
+      const responses = await Promise.all(
+        cartItems.map(async (product) => {
+          try {
+            console.log("Ordering FIXED supplier:", product.supplier_id, product.name);
+            if (!product.supplier_id) {
+              return { status: "Error", message: `No supplier_id for ${product.name}`, productName: product.name };
+            }
+            const res = await requestNewOrder({
+              supplierProductId: product.supplier_product_id || product.id,
+              supplierId: product.supplier_id,
+              quantity: product.quantity,
+              requestedBy: user?.user_id || user?.id || 1,
+              paymentMethod,
+              referenceCode: paymentMethod === "GCash" ? paymentValue.trim() : "",
+            });
+            return { ...res, productName: product.name };
+          } catch (error) {
+            return { status: "Error", message: error.message, productName: product.name };
+          }
+        })
       );
+      setProductsRefreshKey((value) => value + 1);
       const orderSucceeded = responses.every(
         (response) => response?.status?.toLowerCase() === "success",
       );
 
       if (orderSucceeded) {
-        toast.success("Products ordered and inventory updated.");
+        toast.success("Order requests sent to suppliers! Suppliers will set expiry upon acceptance.");
         setCartItems([]);
-        setOrderExpirationDate("");
+        // setOrderExpirationDate(""); // Removed - no expiry for admin
       } else {
         const failedProducts = responses
           .filter((response) => response?.status?.toLowerCase() !== "success")
@@ -303,17 +362,7 @@ export default function ProductsManager() {
               <span>₱{subtotal.toFixed(2)}</span>
             </div>
           </div>
-          <TextField className="w-full" name="order-expiration-date">
-            <Label>Expiration date</Label>
-            <InputGroup>
-              <InputGroup.Input
-                className="w-full"
-                type="date"
-                value={orderExpirationDate}
-                onChange={(event) => setOrderExpirationDate(event.target.value)}
-              />
-            </InputGroup>
-          </TextField>
+          {/* ADMIN FIX: Removed Expiry Date - Supplier sets it! */}
           <div className="flex gap-2">
             <Button
               variant={paymentMethod === "Cash" ? "primary" : "outline"}
@@ -661,10 +710,11 @@ export default function ProductsManager() {
                                     id={data.id}
                                     name={data.prodname}
                                     description={data.description}
-                                    image_path={data.image_path}
+                                    imagePath={data.image_path}
                                     category={data.category}
                                     supplier_name={data.supplier_name}
-                                    wholesaleprice={data.wholesaleprice}
+                                    supplier_id={data.supplier_id}
+                                    wholesalePrice={data.wholesale_price}
                                     onOrder={handleOrder}
                                   />
                                 ))}
@@ -686,8 +736,7 @@ export default function ProductsManager() {
             )}
           </div>
         </div>
-
-        {products.length === 0 ? (
+                {products.length === 0 ? (
           <NoItemFound
             title="No products found"
             body="There is nothing to show here."

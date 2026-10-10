@@ -14,6 +14,10 @@ import NotFound from "./pages/NotFound";
 import ContextProvider from "./context/ContextProvider";
 import ProtectedRoute from "./context/ProtectedRoute";
 import RoleManager from "./pages/RoleManager";
+import AwaitingOrders from "./pages/AwaitingOrders";
+import NotificationsPage from "./pages/NotificationsPage.jsx";
+
+
 
 export default function App() {
   return (
@@ -51,6 +55,10 @@ export default function App() {
           <Route element={<ProtectedRoute path={NavRoutes.ROLEMANAGER} />}>
             <Route path={NavRoutes.ROLEMANAGER} element={<RoleManager />} />
           </Route>
+          <Route element={<ProtectedRoute path={NavRoutes.AWAITINGORDERS} />}>
+            <Route path={NavRoutes.AWAITINGORDERS} element={<AwaitingOrders />} />
+          </Route>
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </ContextProvider>

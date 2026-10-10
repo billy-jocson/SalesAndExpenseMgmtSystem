@@ -1,4 +1,5 @@
 import { Typography } from "@heroui/react";
+import NotificationBell from "./NotificationBell.jsx";
 
 export default function TopBar({ title, body, emoji }) {
   const date = new Date();
@@ -8,7 +9,7 @@ export default function TopBar({ title, body, emoji }) {
   const formattedDate = date.toLocaleDateString("en-US", options);
 
   return (
-    <div className="flex flex-col xl:flex-row justify-between">
+    <div className="flex flex-col xl:flex-row justify-between gap-3">
       <div className="flex flex-col">
         <Typography type="h2" className="flex gap-2">
           {title}
@@ -18,9 +19,12 @@ export default function TopBar({ title, body, emoji }) {
           {body}
         </Typography>
       </div>
-      <Typography color="muted" type="body-sm">
-        {formattedDate}
-      </Typography>
+      <div className="flex items-center gap-3">
+        <NotificationBell />
+        <Typography color="muted" type="body-sm">
+          {formattedDate}
+        </Typography>
+      </div>
     </div>
   );
 }

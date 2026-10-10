@@ -7,13 +7,14 @@ export const userContext = createContext(null);
 // na base sa eksaktong kinlick mong checkboxes sa database.
 export const ROLE_PERMISSIONS = {
   administrator: "*",
+  supplier: ["/dashboard", "/productsmanager", "/awaiting-orders"],
 };
 
 // Ito ang mag-ta-translate ng database checkbox (hal. "Sales")
 // papunta sa mismong links ng system ("/pos", "/sales")
 const MODULE_ROUTES = {
   Sales: ["/pos", "/sales"],
-  Inventory: ["/productsmanager", "/restockproducts"],
+  Inventory: ["/productsmanager", "/restockproducts", "/awaiting-orders"],
   Expenses: ["/expenses"],
   Suppliers: ["/suppliermanager"],
   Staff: ["/staffmanager"],

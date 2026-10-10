@@ -9,10 +9,11 @@ import {
   InputGroup,
   Pagination,
   Typography,
+  toast,
 } from "@heroui/react";
 import { Magnifier } from "@gravity-ui/icons";
 import ProductCategoryDropdown from "../components/ProductCategoryDropdown.jsx";
-import { fetchProducts } from "../api/productmanager.js";
+import { fetchProducts, fetchProductExpiry } from "../api/productmanager.js";
 import { useDebounce } from "../hooks/useDebounce.js";
 import RestockModal from "../components/RestockModal.jsx";
 import NoItemFound from "../components/NoItemFound.jsx";
@@ -20,13 +21,18 @@ import { TableSkeleton } from "../components/PageSkeleton.jsx";
 import { userContext } from "../context/UserContext.js";
 
 export default function RestockProducts() {
-  const user = useContext(userContext);
+  const { role, user } = useContext(userContext);
   const [searchItem, setSearchItem] = useState("");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [categorySelected, setCategorySelected] = useState("");
   const [productsRefreshKey, setProductsRefreshKey] = useState(0);
   const debouncedSearchItem = useDebounce(searchItem);
+
+  // Near-expiry states - MOVED FROM ProductsManager!
+  const [expiryProducts, setExpiryProducts] = useState([]);
+  const [expiryLoading, setExpiryLoading] = useState(true);
+
   useEffect(() => {
     document.title = "Restock Products";
     const loadProducts = async () => {
@@ -46,6 +52,43 @@ export default function RestockProducts() {
     loadProducts();
   }, [debouncedSearchItem, categorySelected, productsRefreshKey, user?.role]);
 
+  // Near-expiry loader - DAPAT NASA RESTOCK TO!
+  useEffect(() => {
+    let isCurrent = true;
+
+    const loadExpiryProducts = async () => {
+      if (role === "supplier") {
+        setExpiryProducts([]);
+        setExpiryLoading(false);
+        return;
+      }
+
+      setExpiryLoading(true);
+      try {
+        const data = await fetchProductExpiry();
+        if (data?.status !== "Success") {
+          throw new Error(data?.message ?? "Unable to load product expiry.");
+        }
+        if (isCurrent) {
+          setExpiryProducts(data.products ?? []);
+        }
+      } catch (error) {
+        if (isCurrent) {
+          toast.danger(error.message || "Unable to load product expiry.");
+        }
+      } finally {
+        if (isCurrent) {
+          setExpiryLoading(false);
+        }
+      }
+    };
+
+    loadExpiryProducts();
+    return () => {
+      isCurrent = false;
+    };
+  }, [role, productsRefreshKey]);
+
   return (
     <div className="flex gap-3">
       <Navbar />
@@ -57,6 +100,93 @@ export default function RestockProducts() {
             body="Replenish your stocks before they run out."
             emoji={restockIcon}
           />
+
+          {/* Near-expiry and expired products - DAPAT NASA RESTOCK! */}
+          {role !== "supplier" && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <Typography type="h3">
+                    Near-expiry and expired products
+                  </Typography>
+                  <Typography type="body-sm" color="muted">
+                    Remaining stock expiring within 30 days or already expired.
+                  </Typography>
+                </div>
+                {!expiryLoading && (
+                  <Chip variant="soft" color="warning" size="sm">
+                    {expiryProducts.length} batches
+                  </Chip>
+                )}
+              </div>
+
+              {expiryLoading ? (
+                <Typography type="body-sm" color="muted">
+                  Loading expiry information...
+                </Typography>
+              ) : expiryProducts.length === 0 ? (
+                <Typography type="body-sm" color="muted">
+                  No near-expiry or expired stock found.
+                </Typography>
+              ) : (
+                <Table>
+                  <Table.ScrollContainer>
+                    <Table.Content aria-label="Near-expiry and expired products">
+                      <Table.Header>
+                        <Table.Column>Product</Table.Column>
+                        <Table.Column>Batch</Table.Column>
+                        <Table.Column>Remaining stock</Table.Column>
+                        <Table.Column>Expiration date</Table.Column>
+                        <Table.Column>Status</Table.Column>
+                      </Table.Header>
+                      <Table.Body>
+                        {expiryProducts.map((product) => {
+                          const daysUntilExpiry = Number(
+                            product.days_until_expiry,
+                          );
+                          const isExpired = product.expiry_status === "Expired";
+                          const dateLabel = isExpired
+                            ? `${Math.abs(daysUntilExpiry)} ${
+                                Math.abs(daysUntilExpiry) === 1 ? "day" : "days"
+                              } overdue`
+                            : daysUntilExpiry === 0
+                              ? "Expires today"
+                              : `${daysUntilExpiry} ${
+                                  daysUntilExpiry === 1 ? "day" : "days"
+                                } left`;
+
+                          return (
+                            <Table.Row key={product.batch_id}>
+                              <Table.Cell>{product.product_name}</Table.Cell>
+                              <Table.Cell>{product.batch_number}</Table.Cell>
+                              <Table.Cell>{product.quantity_in_stock}</Table.Cell>
+                              <Table.Cell>
+                                <div>
+                                  <div>{product.expiration_date}</div>
+                                  <Typography type="body-xs" color="muted">
+                                    {dateLabel}
+                                  </Typography>
+                                </div>
+                              </Table.Cell>
+                              <Table.Cell>
+                                <Chip
+                                  variant="soft"
+                                  color={isExpired ? "danger" : "warning"}
+                                  size="sm"
+                                >
+                                  {product.expiry_status}
+                                </Chip>
+                              </Table.Cell>
+                            </Table.Row>
+                          );
+                        })}
+                      </Table.Body>
+                    </Table.Content>
+                  </Table.ScrollContainer>
+                </Table>
+              )}
+            </section>
+          )}
 
           <div className="flex w-full flex-col gap-2 xl:flex-row xl:items-end">
             <TextField className="w-full min-w-0 flex-1" name="text">
@@ -152,6 +282,9 @@ export default function RestockProducts() {
                               product={{
                                 id: product.id,
                                 name: product.prodname,
+                                supplier_id: product.supplier_id,
+                                supplier_product_id: product.supplier_product_id || product.id,
+                                supplier_name: product.supplier_name,
                               }}
                               onSuccess={() =>
                                 setProductsRefreshKey((key) => key + 1)
