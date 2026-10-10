@@ -61,13 +61,13 @@ class Expense
 
     public function fetchAllExpenses($search = "", $category = "", $startDate = "", $endDate = "")
     {
-        $categoryId = !empty($category) ? (int)$category : 0;
+        $categoryIds = is_array($category) ? implode(',', $category) : (string) $category;
         $searchParam = $search ?? '';
         $startParam = $startDate ?? '';
         $endParam = $endDate ?? '';
 
         $stmt = $this->db->prepare("CALL sp_expenses_fetch_all(?, ?, ?, ?)");
-        $stmt->bind_param('siss', $searchParam, $categoryId, $startParam, $endParam);
+        $stmt->bind_param('ssss', $searchParam, $categoryIds, $startParam, $endParam);
         $stmt->execute();
         $result = $stmt->get_result();
         $data = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];

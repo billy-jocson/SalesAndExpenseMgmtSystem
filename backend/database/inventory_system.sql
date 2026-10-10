@@ -166,7 +166,7 @@ BEGIN
 END$$
 
 DROP PROCEDURE IF EXISTS `sp_expenses_fetch_all`$$
-CREATE PROCEDURE `sp_expenses_fetch_all` (IN `p_search` VARCHAR(255), IN `p_category_id` INT, IN `p_start_date` VARCHAR(20), IN `p_end_date` VARCHAR(20))
+CREATE PROCEDURE `sp_expenses_fetch_all` (IN `p_search` VARCHAR(255), IN `p_category_ids` VARCHAR(255), IN `p_start_date` VARCHAR(20), IN `p_end_date` VARCHAR(20))
 BEGIN
     SELECT 
         e.expense_id,
@@ -181,7 +181,7 @@ BEGIN
     LEFT JOIN payment_methods pm ON e.payment_method_id = pm.payment_method_id
     WHERE 
         (p_search IS NULL OR p_search = '' OR (e.additional_description LIKE CONCAT('%', p_search, '%') OR ec.category_name LIKE CONCAT('%', p_search, '%')))
-        AND (p_category_id IS NULL OR p_category_id = 0 OR e.category_id = p_category_id)
+        AND (p_category_ids IS NULL OR p_category_ids = '' OR FIND_IN_SET(e.category_id, p_category_ids) > 0)
         AND (
             (p_start_date IS NULL OR p_start_date = '' OR p_end_date IS NULL OR p_end_date = '')
             OR (DATE(e.expense_date) BETWEEN p_start_date AND p_end_date)
@@ -394,7 +394,7 @@ BEGIN
 END$$
 
 DROP PROCEDURE IF EXISTS `sp_products_get`$$
-CREATE PROCEDURE `sp_products_get` (IN `p_role` VARCHAR(20), IN `p_supplier_id` INT, IN `p_search` VARCHAR(255), IN `p_category_id` INT, IN `p_is_all` INT)
+CREATE PROCEDURE `sp_products_get` (IN `p_role` VARCHAR(20), IN `p_supplier_id` INT, IN `p_search` VARCHAR(255), IN `p_category_ids` VARCHAR(255), IN `p_is_all` INT)
 BEGIN
     IF LOWER(TRIM(p_role)) = 'supplier' OR p_is_all = 1 THEN
         SELECT 
@@ -403,8 +403,9 @@ BEGIN
             sp.supplier_id,
             COALESCE(s.supplier_name, 'Unknown Supplier') AS supplier_name,
             sp.category_id,
-            COALESCE(pc.category_name, 'General') AS category,
-            COALESCE(pc.category_name, 'General') AS category_name,
+            COALESCE((SELECT GROUP_CONCAT(DISTINCT pc2.category_name ORDER BY pc2.category_name SEPARATOR ', ') FROM supplier_product_categories spc JOIN product_categories pc2 ON pc2.category_id = spc.category_id WHERE spc.supplier_product_id = sp.supplier_product_id), pc.category_name, 'General') AS category,
+            COALESCE((SELECT GROUP_CONCAT(DISTINCT pc2.category_name ORDER BY pc2.category_name SEPARATOR ', ') FROM supplier_product_categories spc JOIN product_categories pc2 ON pc2.category_id = spc.category_id WHERE spc.supplier_product_id = sp.supplier_product_id), pc.category_name, 'General') AS category_name,
+            COALESCE((SELECT GROUP_CONCAT(spc.category_id ORDER BY spc.category_id SEPARATOR ',') FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id), CAST(sp.category_id AS CHAR)) AS category_ids,
             sp.product_name AS name,
             sp.product_name AS prodname,
             sp.product_name,
@@ -422,7 +423,7 @@ BEGIN
         AND s.is_active = 1
         AND (p_is_all = 1 OR p_supplier_id = 0 OR sp.supplier_id = p_supplier_id)
         AND (p_search = '' OR sp.product_name LIKE CONCAT('%', p_search, '%'))
-        AND (p_category_id = 0 OR sp.category_id = p_category_id)
+        AND (p_category_ids = '' OR (SELECT COUNT(DISTINCT spc.category_id) FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id AND FIND_IN_SET(spc.category_id, p_category_ids) > 0) = 1 + LENGTH(p_category_ids) - LENGTH(REPLACE(p_category_ids, ',', '')) OR (NOT EXISTS (SELECT 1 FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id) AND FIND_IN_SET(sp.category_id, p_category_ids) > 0 AND p_category_ids NOT LIKE '%,%'))
         ORDER BY sp.supplier_product_id DESC;
     ELSE
         SELECT 
@@ -432,8 +433,9 @@ BEGIN
             sp.supplier_id,
             COALESCE(s.supplier_name, 'Unknown Supplier') AS supplier_name,
             sp.category_id,
-            COALESCE(pc.category_name, 'General') AS category,
-            COALESCE(pc.category_name, 'General') AS category_name,
+            COALESCE((SELECT GROUP_CONCAT(DISTINCT pc2.category_name ORDER BY pc2.category_name SEPARATOR ', ') FROM supplier_product_categories spc JOIN product_categories pc2 ON pc2.category_id = spc.category_id WHERE spc.supplier_product_id = sp.supplier_product_id), pc.category_name, 'General') AS category,
+            COALESCE((SELECT GROUP_CONCAT(DISTINCT pc2.category_name ORDER BY pc2.category_name SEPARATOR ', ') FROM supplier_product_categories spc JOIN product_categories pc2 ON pc2.category_id = spc.category_id WHERE spc.supplier_product_id = sp.supplier_product_id), pc.category_name, 'General') AS category_name,
+            COALESCE((SELECT GROUP_CONCAT(spc.category_id ORDER BY spc.category_id SEPARATOR ',') FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id), CAST(sp.category_id AS CHAR)) AS category_ids,
             sp.product_name AS name,
             sp.product_name AS prodname,
             sp.product_name,
@@ -455,7 +457,7 @@ BEGIN
         LEFT JOIN product_categories pc ON sp.category_id = pc.category_id
         WHERE stp.is_active = 1 AND sp.is_active = 1
         AND (p_search = '' OR sp.product_name LIKE CONCAT('%', p_search, '%'))
-        AND (p_category_id = 0 OR sp.category_id = p_category_id)
+        AND (p_category_ids = '' OR (SELECT COUNT(DISTINCT spc.category_id) FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id AND FIND_IN_SET(spc.category_id, p_category_ids) > 0) = 1 + LENGTH(p_category_ids) - LENGTH(REPLACE(p_category_ids, ',', '')) OR (NOT EXISTS (SELECT 1 FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id) AND FIND_IN_SET(sp.category_id, p_category_ids) > 0 AND p_category_ids NOT LIKE '%,%'))
         ORDER BY stp.store_product_id DESC;
     END IF;
 END$$
@@ -1313,6 +1315,20 @@ INSERT INTO `product_categories` (`category_id`, `category_name`, `description`)
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `supplier_product_categories`
+--
+
+DROP TABLE IF EXISTS `supplier_product_categories`;
+CREATE TABLE `supplier_product_categories` (
+    `supplier_product_id` int(11) NOT NULL,
+    `category_id` int(11) NOT NULL,
+    PRIMARY KEY (`supplier_product_id`, `category_id`),
+    KEY `idx_spc_category` (`category_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `roles`
 --
 
@@ -1481,6 +1497,9 @@ INSERT INTO `supplier_products` (`supplier_product_id`, `supplier_id`, `category
 (38, 12, 2, 'Annabelle Chuckiest', 'Chocolate Milk drink for kids', '/uploads/products/product_1791034621_bd59ef7d.jpg', 39.00, 0, '2026-10-03 12:05:53'),
 (39, 12, 2, 'Aljon Orange Beverage', 'brand new', '/uploads/products/product_1791037341_9a4256e7.jpg', 111.00, 1, '2026-10-03 14:22:21'),
 (40, 12, 3, 'Martin 123', 'On Demand', '/uploads/products/product_1791037605_d81b1077.jpg', 222.00, 1, '2026-10-03 14:26:45');
+
+INSERT INTO `supplier_product_categories` (`supplier_product_id`, `category_id`)
+SELECT `supplier_product_id`, `category_id` FROM `supplier_products`;
 
 -- --------------------------------------------------------
 
@@ -1809,6 +1828,10 @@ ALTER TABLE `staffs`
 ALTER TABLE `store_products`
   ADD CONSTRAINT `fk_store_supplier_product` FOREIGN KEY (`supplier_product_id`) REFERENCES `supplier_products` (`supplier_product_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
+ALTER TABLE `supplier_product_categories`
+    ADD CONSTRAINT `fk_spc_supplier_product` FOREIGN KEY (`supplier_product_id`) REFERENCES `supplier_products` (`supplier_product_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_spc_category` FOREIGN KEY (`category_id`) REFERENCES `product_categories` (`category_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
 ALTER TABLE `suppliers`
   ADD CONSTRAINT `fk_suppliers_postal` FOREIGN KEY (`postal_code`) REFERENCES `postal_codes` (`postal_code`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_suppliers_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE;
@@ -1829,9 +1852,11 @@ COMMIT;
 -- Role-based access control (MySQL/MariaDB native ROLE objects)
 --
 
+-- Admin
 CREATE ROLE IF NOT EXISTS 'app_role_1';
 GRANT ALL PRIVILEGES ON `inventory_system`.* TO 'app_role_1';
 
+-- Cashier Staff
 CREATE ROLE IF NOT EXISTS 'app_role_2';
 GRANT SELECT, INSERT ON `inventory_system`.`sales` TO 'app_role_2';
 GRANT SELECT, INSERT ON `inventory_system`.`sales_items` TO 'app_role_2';
@@ -1844,6 +1869,7 @@ GRANT SELECT ON `inventory_system`.`expense_categories` TO 'app_role_2';
 GRANT EXECUTE ON `inventory_system`.* TO 'app_role_2';
 GRANT SELECT ON `inventory_system`.`suppliers` TO 'app_role_2';
 
+-- Inventory Staff
 CREATE ROLE IF NOT EXISTS 'app_role_3';
 GRANT SELECT ON `inventory_system`.`sales` TO 'app_role_3';
 GRANT SELECT ON `inventory_system`.`sales_items` TO 'app_role_3';
@@ -1859,6 +1885,7 @@ GRANT SELECT, INSERT ON `inventory_system`.`postal_codes` TO 'app_role_3';
 GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`users` TO 'app_role_3';
 GRANT SELECT ON `inventory_system`.`roles` TO 'app_role_3';
 
+-- Supplier Staff
 CREATE ROLE IF NOT EXISTS 'app_role_4';
 GRANT SELECT, INSERT, UPDATE ON `inventory_system`.`supplier_products` TO 'app_role_4';
 GRANT SELECT ON `inventory_system`.`product_categories` TO 'app_role_4';

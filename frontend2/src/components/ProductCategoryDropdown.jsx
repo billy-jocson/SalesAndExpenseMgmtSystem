@@ -1,29 +1,21 @@
-import { ListBox, Select } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { fetchCategories } from "../api/productmanager.js";
+import CategoryCheckboxDropdown from "./CategoryCheckboxDropdown.jsx";
 
 export default function ProductCategoryDropdown({
   className = "w-[256px]",
   placeholder = "Product Category",
-  selectedKey,
+  selectedIds = [],
   onSelectionChange,
 }) {
-  const [categories, setCategories] = useState([
-    { id: "all", name: "All Categories" },
-  ]);
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     const loadCategories = async () => {
       const data = await fetchCategories();
 
       if (data?.status === "Success") {
-        setCategories([
-          { id: "all", name: "All Categories" },
-          ...(data.categories ?? []).map((category) => ({
-            id: String(category.category_id),
-            name: category.category_name,
-          })),
-        ]);
+        setCategories(data.categories ?? []);
       }
     };
 
@@ -31,30 +23,14 @@ export default function ProductCategoryDropdown({
   }, []);
 
   return (
-    <Select
+    <CategoryCheckboxDropdown
+      categories={categories}
       className={className}
       placeholder={placeholder}
-      selectedKey={selectedKey}
+      selectedIds={selectedIds}
       onSelectionChange={onSelectionChange}
-    >
-      <Select.Trigger>
-        <Select.Value />
-        <Select.Indicator />
-      </Select.Trigger>
-      <Select.Popover>
-        <ListBox>
-          {categories.map((category) => (
-            <ListBox.Item
-              key={category.id}
-              id={category.id}
-              textValue={category.name}
-            >
-              {category.name}
-              <ListBox.ItemIndicator />
-            </ListBox.Item>
-          ))}
-        </ListBox>
-      </Select.Popover>
-    </Select>
+      clearLabel="All Categories"
+      onClear={() => onSelectionChange([])}
+    />
   );
 }

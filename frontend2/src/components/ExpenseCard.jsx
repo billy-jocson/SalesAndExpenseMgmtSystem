@@ -3,7 +3,7 @@ import { formatDateTime } from "../utils/dateTime.js";
 
 export default function ExpenseCard({ data }) {
   return (
-    <Card className="expense-card-in w-full h-auto transition-all hover:scale-101 hover:shadow-lg">
+    <Card className="expense-card-in w-full h-auto transition-all hover:scale-101 hover:shadow-lg hover:border hover:border-blue-300">
       <Card.Header className="gap-3 flex flex-row justify-between">
         <Typography type="body-lg" weight="semibold">
           {data.category_name}
