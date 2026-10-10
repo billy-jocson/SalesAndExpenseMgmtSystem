@@ -90,7 +90,7 @@ class Product
         }
 
         $isSupplier = strtolower(trim($role)) === 'supplier';
-        
+
         // Get current image path via procedure
         $currentStmt = $this->db->prepare("CALL sp_products_get_image_path(?, ?)");
         $currentStmt->bind_param('is', $productId, $role);
@@ -98,7 +98,7 @@ class Product
         $currentProduct = $currentStmt->get_result()->fetch_assoc();
         $this->clearResults();
         $currentStmt->close();
-        
+
         $imagePath = $currentProduct['image_path'] ?? '/uploads/products/default-product.png';
 
         if (!empty($files['image']['name'])) {
@@ -127,7 +127,7 @@ class Product
 
         $stmt = $this->db->prepare("CALL sp_products_update(?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param('iisssds', $productId, $categoryId, $productName, $description, $imagePath, $wholesalePrice, $role);
-        
+
         $result = $stmt->execute();
         $this->clearResults();
         $stmt->close();
@@ -163,10 +163,10 @@ class Product
         return (int) $result['store_product_id'];
     }
 
-    public function restock($storeProductId, $quantity, $expirationDate, $paymentMethod = 'Cash')
+    public function restock($storeProductId, $quantity, $expirationDate, $paymentMethod = 'Cash', $referenceCode = '')
     {
-        $stmt = $this->db->prepare("CALL sp_products_restock(?, ?, ?, ?)");
-        $stmt->bind_param('iiss', $storeProductId, $quantity, $expirationDate, $paymentMethod);
+        $stmt = $this->db->prepare("CALL sp_products_restock(?, ?, ?, ?, ?)");
+        $stmt->bind_param('iisss', $storeProductId, $quantity, $expirationDate, $paymentMethod, $referenceCode);
         $stmt->execute();
         $result = $stmt->get_result()->fetch_assoc();
         $this->clearResults();
@@ -177,6 +177,18 @@ class Product
         }
 
         return ['amount' => $result['amount'], 'batchNumber' => $result['batchNumber'], 'unitCost' => $result['unitCost']];
+    }
+
+    public function getExpiryProducts()
+    {
+        $stmt = $this->db->prepare("CALL sp_products_expiry_get()");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $data = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        $this->clearResults();
+        $stmt->close();
+
+        return $data;
     }
 
     public function getProducts($role = '', $supplierId = null, $search = '', $categoryId = '', $isAll = false)

@@ -55,6 +55,19 @@ class ProductController
         ];
     }
 
+    public function getExpiryProducts()
+    {
+        try {
+            return [
+                'status' => 'Success',
+                'message' => 'Product expiry information retrieved successfully.',
+                'products' => $this->productModel->getExpiryProducts()
+            ];
+        } catch (\Throwable $error) {
+            return ['status' => 'Error', 'message' => $error->getMessage()];
+        }
+    }
+
     public function updateSellingPrice($data = [])
     {
         $productId = (int) ($data['product_id'] ?? 0);
@@ -168,8 +181,9 @@ class ProductController
         $quantity = (int) ($data['quantity'] ?? 0);
         $expirationDate = $data['expiration_date'] ?? '';
         $paymentMethod = trim((string) ($data['payment_method'] ?? 'Cash'));
+        $referenceCode = trim((string) ($data['reference_code'] ?? ''));
 
-        if ($productId <= 0 || $quantity <= 0 || $expirationDate === '' || !in_array($paymentMethod, ['Cash', 'GCash'], true)) {
+        if ($productId <= 0 || $quantity <= 0 || $expirationDate === '' || !in_array($paymentMethod, ['Cash', 'GCash'], true) || strlen($referenceCode) > 50) {
             return ['status' => 'Error', 'message' => 'Complete all restock fields with valid values.'];
         }
 
@@ -178,7 +192,8 @@ class ProductController
                 $productId,
                 $quantity,
                 $expirationDate,
-                $paymentMethod
+                $paymentMethod,
+                $referenceCode
             );
             return [
                 'status' => 'Success',

@@ -16,7 +16,7 @@ export default defineConfig({
     },
     proxy: {
       "/backend": {
-        target: "http://localhost/SalesAndExpenseSystem",
+        target: "http://localhost/SalesAndExpenseMgmtSystem-Test",
         changeOrigin: true,
       },
     },

@@ -122,6 +122,7 @@ export const restockProduct = async ({
   quantity,
   expirationDate,
   paymentMethod = "Cash",
+  referenceCode = "",
 }) => {
   return request(`/products/${productId}/restock`, {
     method: "POST",
@@ -129,8 +130,13 @@ export const restockProduct = async ({
       quantity,
       expiration_date: expirationDate,
       payment_method: paymentMethod,
+      reference_code: referenceCode,
     },
   });
+};
+
+export const fetchProductExpiry = async () => {
+  return request("/products/expiry", { method: "GET" });
 };
 
 export const ensureStoreProduct = async ({
@@ -169,6 +175,7 @@ export const handleOrdering = async (
   products,
   expirationDate,
   paymentMethod = "Cash",
+  referenceCode = "",
 ) => {
   return Promise.all(
     products.map(async (product) => {
@@ -187,6 +194,7 @@ export const handleOrdering = async (
           quantity: product.quantity,
           expirationDate,
           paymentMethod,
+          referenceCode,
         });
 
         return { ...restockResponse, productName: product.name };
