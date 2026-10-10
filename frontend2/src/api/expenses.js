@@ -32,7 +32,12 @@ export const fetchAllExpenses = async (
   endDate = "",
 ) => {
   return request(
-    `/expenses${queryString({ search, category, startDate, endDate })}`,
+    `/expenses${queryString({
+      search,
+      category: Array.isArray(category) ? category.join(",") : category,
+      startDate,
+      endDate,
+    })}`,
     {
       method: "GET",
     },

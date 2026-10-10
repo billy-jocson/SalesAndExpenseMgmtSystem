@@ -55,6 +55,19 @@ class ProductController
         ];
     }
 
+    public function getExpiryProducts()
+    {
+        try {
+            return [
+                'status' => 'Success',
+                'message' => 'Product expiry information retrieved successfully.',
+                'products' => $this->productModel->getExpiryProducts()
+            ];
+        } catch (\Throwable $error) {
+            return ['status' => 'Error', 'message' => $error->getMessage()];
+        }
+    }
+
     public function updateSellingPrice($data = [])
     {
         $productId = (int) ($data['product_id'] ?? 0);
@@ -82,17 +95,24 @@ class ProductController
     public function addProduct($data = [], $files = [])
     {
         $supplierId = (int) ($data['supplier_id'] ?? 0);
-        $categoryId = (int) ($data['category_id'] ?? 0);
+        $categoryIds = $data['category_ids'] ?? [];
+        if (!is_array($categoryIds)) {
+            $categoryIds = explode(',', (string) $categoryIds);
+        }
+        if (empty($categoryIds) && !empty($data['category_id'])) {
+            $categoryIds = [$data['category_id']];
+        }
+        $categoryIds = array_values(array_unique(array_filter(array_map('intval', $categoryIds), fn($id) => $id > 0)));
         $productName = trim((string) ($data['product_name'] ?? ''));
         $description = trim((string) ($data['description'] ?? ''));
         $wholesalePrice = (float) ($data['wholesale_price'] ?? -1);
 
-        if ($supplierId <= 0 || $categoryId <= 0 || $productName === '' || $wholesalePrice < 0) {
+        if ($supplierId <= 0 || empty($categoryIds) || $productName === '' || $wholesalePrice < 0) {
             return ['status' => 'Error', 'message' => 'Product name, category, supplier, and price are required.'];
         }
 
         try {
-            $created = $this->productModel->addProduct($supplierId, $categoryId, $productName, $description, $wholesalePrice, $files);
+            $created = $this->productModel->addProduct($supplierId, $categoryIds, $productName, $description, $wholesalePrice, $files);
             return [
                 'status' => $created ? 'Success' : 'Error',
                 'message' => $created ? 'Product added successfully.' : 'Product could not be created.'
@@ -105,17 +125,24 @@ class ProductController
     public function updateProduct($data = [], $files = [])
     {
         $productId = (int) ($data['product_id'] ?? 0);
-        $categoryId = isset($data['category_id']) ? (int) $data['category_id'] : null;
+        $categoryIds = $data['category_ids'] ?? [];
+        if (!is_array($categoryIds)) {
+            $categoryIds = explode(',', (string) $categoryIds);
+        }
+        if (empty($categoryIds) && !empty($data['category_id'])) {
+            $categoryIds = [$data['category_id']];
+        }
+        $categoryIds = array_values(array_unique(array_filter(array_map('intval', $categoryIds), fn($id) => $id > 0)));
         $productName = trim((string) ($data['product_name'] ?? ''));
         $description = trim((string) ($data['description'] ?? ''));
         $wholesalePrice = isset($data['wholesale_price']) ? (float) $data['wholesale_price'] : null;
 
-        if ($productId <= 0 || $productName === '' || $categoryId === null || $categoryId <= 0 || $wholesalePrice === null || $wholesalePrice < 0) {
+        if ($productId <= 0 || $productName === '' || empty($categoryIds) || $wholesalePrice === null || $wholesalePrice < 0) {
             return ['status' => 'Error', 'message' => 'Product id, name, category, and price are required.'];
         }
 
         try {
-            $updated = $this->productModel->updateProduct($productId, $categoryId, $productName, $description, $wholesalePrice, $files, $data['role'] ?? '');
+            $updated = $this->productModel->updateProduct($productId, $categoryIds, $productName, $description, $wholesalePrice, $files, $data['role'] ?? '');
             return [
                 'status' => $updated ? 'Success' : 'Error',
                 'message' => $updated ? 'Product updated successfully.' : 'Product could not be updated.'
@@ -168,8 +195,9 @@ class ProductController
         $quantity = (int) ($data['quantity'] ?? 0);
         $expirationDate = $data['expiration_date'] ?? '';
         $paymentMethod = trim((string) ($data['payment_method'] ?? 'Cash'));
+        $referenceCode = trim((string) ($data['reference_code'] ?? ''));
 
-        if ($productId <= 0 || $quantity <= 0 || $expirationDate === '' || !in_array($paymentMethod, ['Cash', 'GCash'], true)) {
+        if ($productId <= 0 || $quantity <= 0 || $expirationDate === '' || !in_array($paymentMethod, ['Cash', 'GCash'], true) || strlen($referenceCode) > 50) {
             return ['status' => 'Error', 'message' => 'Complete all restock fields with valid values.'];
         }
 
@@ -178,7 +206,8 @@ class ProductController
                 $productId,
                 $quantity,
                 $expirationDate,
-                $paymentMethod
+                $paymentMethod,
+                $referenceCode
             );
             return [
                 'status' => 'Success',

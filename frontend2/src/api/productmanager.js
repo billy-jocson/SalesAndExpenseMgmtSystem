@@ -27,6 +27,7 @@ export const buildProductImageUrl = (imagePath) => {
 const buildProductFormData = ({
   supplierId,
   categoryId,
+  categoryIds,
   productName,
   description,
   wholesalePrice,
@@ -44,8 +45,18 @@ const buildProductFormData = ({
     formData.append("supplier_id", String(supplierId));
   }
 
-  if (categoryId !== undefined && categoryId !== null && categoryId !== "") {
-    formData.append("category_id", String(categoryId));
+  const selectedCategoryIds = Array.isArray(categoryIds)
+    ? categoryIds
+    : categoryId === undefined || categoryId === null || categoryId === ""
+      ? []
+      : [categoryId];
+
+  selectedCategoryIds.forEach((id) => {
+    formData.append("category_ids[]", String(id));
+  });
+
+  if (selectedCategoryIds.length > 0) {
+    formData.append("category_id", String(selectedCategoryIds[0]));
   }
 
   if (productName !== undefined)
@@ -122,6 +133,7 @@ export const restockProduct = async ({
   quantity,
   expirationDate,
   paymentMethod = "Cash",
+  referenceCode = "",
 }) => {
   return request(`/products/${productId}/restock`, {
     method: "POST",
@@ -129,8 +141,13 @@ export const restockProduct = async ({
       quantity,
       expiration_date: expirationDate,
       payment_method: paymentMethod,
+      reference_code: referenceCode,
     },
   });
+};
+
+export const fetchProductExpiry = async () => {
+  return request("/products/expiry", { method: "GET" });
 };
 
 export const ensureStoreProduct = async ({
@@ -158,7 +175,9 @@ export const fetchProducts = async (
       role,
       supplier_id: supplierId,
       search,
-      category_id: categoryId,
+      category_id: Array.isArray(categoryId)
+        ? categoryId.join(",")
+        : categoryId,
       isAll,
     })}`,
     { method: "GET" },
@@ -169,6 +188,7 @@ export const handleOrdering = async (
   products,
   expirationDate,
   paymentMethod = "Cash",
+  referenceCode = "",
 ) => {
   return Promise.all(
     products.map(async (product) => {
@@ -187,6 +207,7 @@ export const handleOrdering = async (
           quantity: product.quantity,
           expirationDate,
           paymentMethod,
+          referenceCode,
         });
 
         return { ...restockResponse, productName: product.name };

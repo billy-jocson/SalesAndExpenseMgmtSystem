@@ -1,5 +1,12 @@
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import calculaLogo from "../assets/Logo.svg";
+import {
+  Document,
+  Image,
+  Page,
+  StyleSheet,
+  Text,
+  View,
+} from "@react-pdf/renderer";
+import calculaLogo from "../assets/Logo_light.svg";
 
 // 2. Update your formatters to use the Peso symbol
 const formatMoney = (value) => `PHP ${Number(value ?? 0).toFixed(2)}`;

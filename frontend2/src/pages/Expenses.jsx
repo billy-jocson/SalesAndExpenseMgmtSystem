@@ -10,9 +10,7 @@ import {
   DateRangePicker,
   // Card,
   InputGroup,
-  ListBox,
   RangeCalendar,
-  Select,
   TextField,
   Typography,
   // Typography,
@@ -21,12 +19,13 @@ import AddExpenseModal from "../components/AddExpenseModal.jsx";
 import { fetchAllExpenses, fetchCategories } from "../api/expenses";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { CardGridSkeleton } from "../components/PageSkeleton.jsx";
+import CategoryCheckboxDropdown from "../components/CategoryCheckboxDropdown.jsx";
 
 export default function Expenses() {
   const [searchItem, setSearchItem] = useState("");
   const debouncedSearchItem = useDebounce(searchItem);
   const [categories, setCategories] = useState([]);
-  const [categorySelected, setCategorySelected] = useState("");
+  const [categorySelected, setCategorySelected] = useState([]);
   const [dateRange, setDateRange] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,52 +98,15 @@ export default function Expenses() {
                 <AddExpenseModal
                   onSuccess={() => setExpensesRefreshKey((key) => key + 1)}
                 />
-                <Select
-                  className="w-auto shrink-0"
+                <CategoryCheckboxDropdown
+                  className="w-auto min-w-56 shrink-0"
+                  categories={categories}
                   placeholder="Expense category"
-                  selectedKey={categorySelected || undefined}
-                  onSelectionChange={(key) => {
-                    setCategorySelected(key === "all" ? "" : String(key));
-                  }}
-                >
-                  <Select.Trigger className="whitespace-nowrap">
-                    <Select.Value />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
-                      <ListBox.Item
-                        id="all"
-                        key="all"
-                        textValue="All Categories"
-                      >
-                        All Categories
-                        {!categorySelected && <ListBox.ItemIndicator />}
-                      </ListBox.Item>
-                      {categories.length === 0 ? (
-                        <ListBox.Item
-                          isDisabled
-                          id="empty"
-                          key="empty"
-                          textValue="No categories yet"
-                        >
-                          No categories yet
-                        </ListBox.Item>
-                      ) : (
-                        categories.map((category) => (
-                          <ListBox.Item
-                            id={String(category.category_id)}
-                            key={category.category_id}
-                            textValue={String(category.category_name)}
-                          >
-                            {category.category_name}
-                            <ListBox.ItemIndicator />
-                          </ListBox.Item>
-                        ))
-                      )}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
+                  selectedIds={categorySelected}
+                  onSelectionChange={setCategorySelected}
+                  clearLabel="All Categories"
+                  onClear={() => setCategorySelected([])}
+                />
               </div>
 
               <DateRangePicker value={dateRange} onChange={setDateRange}>

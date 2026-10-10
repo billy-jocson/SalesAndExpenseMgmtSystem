@@ -24,7 +24,7 @@ export default function RestockProducts() {
   const [searchItem, setSearchItem] = useState("");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [categorySelected, setCategorySelected] = useState("");
+  const [categorySelected, setCategorySelected] = useState([]);
   const [productsRefreshKey, setProductsRefreshKey] = useState(0);
   const debouncedSearchItem = useDebounce(searchItem);
   useEffect(() => {
@@ -38,6 +38,7 @@ export default function RestockProducts() {
           debouncedSearchItem,
           categorySelected,
         );
+        console.log(data);
         setProducts(data?.status === "Success" ? (data.products ?? []) : []);
       } finally {
         setLoading(false);
@@ -77,10 +78,8 @@ export default function RestockProducts() {
               <ProductCategoryDropdown
                 className="w-fit max-w-full"
                 placeholder="Category"
-                selectedKey={categorySelected || undefined}
-                onSelectionChange={(key) =>
-                  setCategorySelected(key === "all" ? "" : String(key))
-                }
+                selectedIds={categorySelected}
+                onSelectionChange={setCategorySelected}
               />
             </div>
           </div>

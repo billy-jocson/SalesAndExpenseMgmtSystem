@@ -171,6 +171,8 @@ export default function Dashboard() {
             netIncome: totalSales - totalExpenses,
           }));
         }
+      } else if (lineChartRes.status === "fulfilled") {
+        setData([]);
       }
     };
 
@@ -294,7 +296,7 @@ export default function Dashboard() {
           {user?.role !== "Supplier" ? (
             user?.role === "Inventory Staff" ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <DashboardCards
                     icon={Box}
                     status={100}
@@ -434,7 +436,7 @@ export default function Dashboard() {
                     <CirclePlusFill className="size-4" />
                     New Sale
                   </Button>
-                  <AddExpenseModal />
+                  {user?.role === "Administrator" && <AddExpenseModal />}
                   <DateRangePicker value={dateRange} onChange={setDateRange}>
                     <DateField.Group>
                       <DateField.InputContainer>
@@ -548,7 +550,7 @@ export default function Dashboard() {
                         </ResponsiveContainer>
                       ) : (
                         <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500">
-                          No data exists yet in the database.
+                          No data available for this date range.
                         </div>
                       )}
                     </div>

@@ -7,9 +7,8 @@ import {
   TextField,
   InputGroup,
   toast,
-  Select,
-  ListBox,
 } from "@heroui/react";
+import CategoryCheckboxDropdown from "./CategoryCheckboxDropdown.jsx";
 import {
   buildProductImageUrl,
   deleteProduct,
@@ -24,6 +23,7 @@ export default function ProductCard({
   name,
   category,
   categoryId,
+  categoryIds,
   description,
   imagePath,
   sellprice,
@@ -40,8 +40,10 @@ export default function ProductCard({
   const [productDescription, setProductDescription] = useState(
     description ?? "",
   );
-  const [productCategory, setProductCategory] = useState(
-    String(categoryId ?? ""),
+  const [productCategories, setProductCategories] = useState(
+    String(categoryIds ?? categoryId ?? "")
+      .split(",")
+      .filter(Boolean),
   );
   const [categories, setCategories] = useState([]);
   const [imageFile, setImageFile] = useState(null);
@@ -64,7 +66,11 @@ export default function ProductCard({
     setNewSellPrice(sellprice ?? "");
     setProductName(name ?? "");
     setProductDescription(description ?? "");
-    setProductCategory(String(categoryId ?? ""));
+    setProductCategories(
+      String(categoryIds ?? categoryId ?? "")
+        .split(",")
+        .filter(Boolean),
+    );
     setImagePreview(buildProductImageUrl(imagePath));
     setImageFile(null);
     setIsOpen(true);
@@ -100,7 +106,7 @@ export default function ProductCard({
     if (
       (!id ||
         !productName.trim() ||
-        !productCategory ||
+        productCategories.length === 0 ||
         !Number.isFinite(numericPrice) ||
         numericPrice < 0) &&
       isSupplierRole
@@ -111,7 +117,7 @@ export default function ProductCard({
 
     const response = await updateProduct({
       productId: id,
-      categoryId: productCategory,
+      categoryIds: productCategories,
       productName: productName.trim(),
       description: productDescription.trim(),
       wholesalePrice: numericPrice,
@@ -319,31 +325,12 @@ export default function ProductCard({
                 <Label className="text-gray-700 font-medium mb-1.5 text-sm">
                   Category
                 </Label>
-                <Select
-                  className="w-full"
-                  selectedKey={productCategory || undefined}
-                  onSelectionChange={(key) => setProductCategory(String(key))}
-                  placeholder="Select category"
-                >
-                  <Select.Trigger className="bg-gray-50 border-none shadow-none">
-                    <Select.Value />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
-                      {categories.map((categoryOption) => (
-                        <ListBox.Item
-                          key={String(categoryOption.category_id)}
-                          id={String(categoryOption.category_id)}
-                          textValue={categoryOption.category_name}
-                        >
-                          {categoryOption.category_name}
-                          <ListBox.ItemIndicator />
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
+                <CategoryCheckboxDropdown
+                  categories={categories}
+                  selectedIds={productCategories}
+                  onSelectionChange={setProductCategories}
+                  placeholder="Select categories"
+                />
               </div>
 
               <TextField className="w-full" name="description">
