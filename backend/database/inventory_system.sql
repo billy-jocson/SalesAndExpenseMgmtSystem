@@ -21,6 +21,9 @@ SET time_zone = "+00:00";
 -- Database: `inventory_system`
 --
 
+Create Database IF NOT EXISTS `inventory_system`;
+Use `inventory_system`;
+
 DELIMITER $$
 --
 -- Procedures
