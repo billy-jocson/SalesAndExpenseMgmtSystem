@@ -21,7 +21,7 @@ export const buildProductImageUrl = (imagePath) => {
     return normalizedPath;
   }
 
-  return `http://localhost/SalesAndExpenseSystem/backend/public${normalizedPath}`;
+  return `http://localhost/SalesAndExpenseMgmtSystem/backend/public${normalizedPath}`;
 };
 
 const buildProductFormData = ({

@@ -7,6 +7,7 @@ export default function SupplierAcceptModal({ order, onSuccess }) {
   const { user } = useContext(userContext);
   const [isOpen, setIsOpen] = useState(false);
   const [expiryDate, setExpiryDate] = useState("");
+  const [noExpiry, setNoExpiry] = useState(false);
   const [batchNumber, setBatchNumber] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -16,27 +17,41 @@ export default function SupplierAcceptModal({ order, onSuccess }) {
     }
   }, [order?.order_id]);
 
+  const handleNoExpiryToggle = (checked) => {
+    setNoExpiry(checked);
+    if (checked) {
+      setExpiryDate("");
+    }
+  };
+
   const handleAccept = async () => {
-    if (!expiryDate) {
-      alert("Pakiusap, maglagay ng expiry date!");
+    if (!noExpiry && !expiryDate) {
+      alert("Pakiusap, maglagay ng expiry date o markahan ang 'No expiry date'!");
       return;
     }
 
-    if (new Date(expiryDate) < new Date(new Date().setHours(0, 0, 0, 0))) {
+    if (!noExpiry && new Date(expiryDate) < new Date(new Date().setHours(0, 0, 0, 0))) {
       alert("Hindi maaaring nakaraang petsa ang expiry date!");
       return;
     }
 
     setLoading(true);
     try {
+      const finalExpiry = noExpiry ? null : expiryDate;
+
       const response = await acceptOrder(order.order_id, {
-        expiration_date: expiryDate,
+        expiration_date: finalExpiry,
+        no_expiry: noExpiry,
         batch_number: batchNumber,
         supplier_user_id: user?.id || user?.user_id,
       });
 
       if (response?.status?.toLowerCase() === "success") {
-        alert(`Order #${order.order_id} tinanggap na! Expiry: ${expiryDate}`);
+        alert(
+          `Order #${order.order_id} tinanggap na! Expiry: ${
+            noExpiry ? "No expiry date" : expiryDate
+          }`
+        );
         setIsOpen(false);
         onSuccess?.();
       } else {
@@ -129,21 +144,40 @@ export default function SupplierAcceptModal({ order, onSuccess }) {
             </div>
 
             {/* Expiry Date Input Field */}
-            <div className="flex flex-col gap-1.5 text-left">
-              <label className="text-xs font-semibold text-gray-700">
-                Expiry Date (Required) *
-              </label>
+            <div className="flex flex-col gap-2 text-left">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-gray-700">
+                  Expiry Date {noExpiry ? "(Not Applicable)" : "(Required) *"}
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={noExpiry}
+                    onChange={(e) => handleNoExpiryToggle(e.target.checked)}
+                    className="rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+                  />
+                  <span>No expiry date</span>
+                </label>
+              </div>
+
               <div className="relative w-full">
                 <input
                   type="date"
                   min={today}
-                  value={expiryDate}
+                  disabled={noExpiry}
+                  value={noExpiry ? "" : expiryDate}
                   onChange={(e) => setExpiryDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-gray-50/50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-800"
+                  className={`w-full px-3.5 py-2.5 text-sm border rounded-xl focus:outline-none transition-all ${
+                    noExpiry
+                      ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                      : "bg-gray-50/50 border-gray-200 focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 text-gray-800"
+                  }`}
                 />
               </div>
               <span className="text-[11px] text-gray-400">
-                Naka-disable ang mga lumang petsa. Magtakda ng petsa sa hinaharap.
+                {noExpiry
+                  ? "Markado bilang produktong hindi napapanis (hal. asin, asukal)."
+                  : "Naka-disable ang mga lumang petsa. Magtakda ng petsa sa hinaharap."}
               </span>
             </div>
 

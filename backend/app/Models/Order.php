@@ -61,8 +61,12 @@ class Order
 
     public function acceptOrder($orderId, $expiryDate, $batchNumber)
     {
-        if (strtotime($expiryDate) < strtotime(date('Y-m-d'))) {
-            throw new \Exception('Expiry date cannot be in the past - past dates are grayed out');
+        if (!empty($expiryDate)) {
+            if (strtotime($expiryDate) < strtotime(date('Y-m-d'))) {
+                throw new \Exception('Expiry date cannot be in the past - past dates are grayed out');
+            }
+        } else {
+            $expiryDate = null;
         }
 
         $stmt = $this->db->prepare("CALL sp_pending_orders_accept(?, ?, ?)");
@@ -77,15 +81,14 @@ class Order
 
     public function rejectOrder($orderId)
     {
-        $stmt = $this->db->prepare("UPDATE pending_orders SET status = 'REJECTED', accepted_at = NOW() WHERE order_id = ?");
-        if (!$stmt) {
-            return false;
-        }
+        $stmt = $this->db->prepare("CALL sp_pending_orders_reject(?)");
         $stmt->bind_param('i', $orderId);
-        $success = $stmt->execute();
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $data = $result ? $result->fetch_assoc() : null;
+        $this->clearResults();
         $stmt->close();
         
-        // Ibabalik nito ang true kapag naging successful ang pag-execute (kahit zero rows affected)
-        return $success; 
+        return true;
     }
 }

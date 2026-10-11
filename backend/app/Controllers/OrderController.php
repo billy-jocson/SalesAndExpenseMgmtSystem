@@ -1,5 +1,5 @@
 <?php
-// backend/app/Controllers/OrderController.php - FIXED WITH NOTIFICATIONS BOTH ENDS
+// backend/app/Controllers/OrderController.php - FIXED WITH NO EXPIRY SUPPORT & NOTIFICATIONS
 // Pattern same as ProductController / ExpenseController (working)
 
 namespace App\Controllers;
@@ -122,13 +122,22 @@ class OrderController
     public function acceptOrder($data = [])
     {
         $orderId = (int) ($data['order_id'] ?? $data['id'] ?? 0);
-        $expiryDate = $data['expiration_date'] ?? $data['expiry_date'] ?? '';
+        $expiryDate = $data['expiration_date'] ?? $data['expiry_date'] ?? null;
+        $noExpiry = !empty($data['no_expiry']) || $expiryDate === '0' || $expiryDate === null || $expiryDate === '';
         $batchNumber = trim((string) ($data['batch_number'] ?? ''));
         $supplierUserId = $data['supplier_user_id'] ?? null;
 
-        if ($orderId <= 0 || $expiryDate === '') {
-            return ['status' => 'Error', 'message' => 'Order ID and expiry date are required.'];
+        // Kung walang order ID, o kung may expiry pero walang inilagay na date string
+        if ($orderId <= 0) {
+            return ['status' => 'Error', 'message' => 'Order ID is required.'];
         }
+
+        if (!$noExpiry && empty($expiryDate)) {
+            return ['status' => 'Error', 'message' => 'Expiry date is required when item has expiration.'];
+        }
+
+        // Kung minarkahang no expiry, ituring itong null sa model/DB
+        $normalizedExpiry = $noExpiry ? null : $expiryDate;
 
         try {
             $orderInfo = null;
@@ -136,7 +145,7 @@ class OrderController
                 $orderInfo = $this->notificationModel->getOrderInfo($orderId);
             } catch (\Throwable $e) {}
 
-            $result = $this->orderModel->acceptOrder($orderId, $expiryDate, $batchNumber ?: null);
+            $result = $this->orderModel->acceptOrder($orderId, $normalizedExpiry, $batchNumber ?: null);
 
             // GUMAWA NG NOTIFICATION KAY ADMIN NANG WALANG ERROR
             if ($orderInfo && !empty($orderInfo['requested_by'])) {
@@ -151,10 +160,11 @@ class OrderController
                     if (!$supplierUserId && method_exists($this->notificationModel, 'getSupplierUserId')) {
                         $supplierUserId = $this->notificationModel->getSupplierUserId($orderInfo['supplier_id']);
                     }
-                    $supplierUserId = $supplierUserId ?: $adminUserId; // Fallback para hindi mag-null sa database
+                    $supplierUserId = $supplierUserId ?: $adminUserId;
 
+                    $displayExpiry = $noExpiry ? 'No expiry date' : $expiryDate;
                     $notifTitle = "Order Accepted - {$productName}";
-                    $notifMessage = "Supplier accepted your order #{$orderId}: {$productName}. Expiry: {$expiryDate}. Stock added!";
+                    $notifMessage = "Supplier accepted your order #{$orderId}: {$productName}. Expiry: {$displayExpiry}. Stock added!";
 
                     $this->notificationModel->create(
                         $adminUserId,
@@ -199,7 +209,6 @@ class OrderController
 
             $deleted = $this->orderModel->rejectOrder($orderId);
 
-            // GUMAWA NG NOTIFICATION KAY ADMIN NANG WALANG ERROR
             if ($deleted && $orderInfo && !empty($orderInfo['requested_by'])) {
                 try {
                     $adminUserId = $orderInfo['requested_by'];
@@ -212,7 +221,7 @@ class OrderController
                     if (!$supplierUserId && method_exists($this->notificationModel, 'getSupplierUserId')) {
                         $supplierUserId = $this->notificationModel->getSupplierUserId($orderInfo['supplier_id']);
                     }
-                    $supplierUserId = $supplierUserId ?: $adminUserId; // Fallback para hindi mag-null sa database
+                    $supplierUserId = $supplierUserId ?: $adminUserId;
 
                     $notifTitle = "Order Rejected - {$productName}";
                     $notifMessage = "Supplier rejected your order #{$orderId}: {$productName}. Reason: {$reason}";

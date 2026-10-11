@@ -9,7 +9,6 @@ import {
   InputGroup,
   Typography,
   Button,
-  Tabs,
 } from "@heroui/react";
 import { Magnifier } from "@gravity-ui/icons";
 import { fetchPendingOrders } from "../api/ordermanager.js";
@@ -116,7 +115,10 @@ export default function AwaitingOrders() {
             {loading ? (
               <TableSkeleton columns={6} />
             ) : orders.length === 0 ? (
-              <NoItemFound title="No orders found" body={`No pending orders for supplier #${user?.supplier_id}. Try ordering as Admin for this supplier!`} />
+              <NoItemFound
+                title="No orders found"
+                body={`No pending orders for supplier #${user?.supplier_id}. Try ordering as Admin for this supplier!`}
+              />
             ) : (
               <Table>
                 <Table.ScrollContainer>
@@ -127,7 +129,7 @@ export default function AwaitingOrders() {
                       <Table.Column>Type</Table.Column>
                       <Table.Column>Qty</Table.Column>
                       <Table.Column>Status</Table.Column>
-                      <Table.Column>Action</Table.Column>
+                      <Table.Column>Details</Table.Column>
                     </Table.Header>
                     <Table.Body>
                       {orders.map((order) => (
@@ -140,7 +142,11 @@ export default function AwaitingOrders() {
                             </div>
                           </Table.Cell>
                           <Table.Cell>
-                            <Chip size="sm" variant="soft" color={order.order_type === 'NEW_ORDER' ? 'accent' : 'warning'}>
+                            <Chip
+                              size="sm"
+                              variant="soft"
+                              color={order.order_type === "NEW_ORDER" ? "accent" : "warning"}
+                            >
                               {order.order_type}
                             </Chip>
                           </Table.Cell>
@@ -148,7 +154,13 @@ export default function AwaitingOrders() {
                           <Table.Cell>
                             <Chip
                               variant="soft"
-                              color={order.status === "PENDING" ? "warning" : order.status === "ACCEPTED" ? "success" : "danger"}
+                              color={
+                                order.status === "PENDING"
+                                  ? "warning"
+                                  : order.status === "ACCEPTED"
+                                  ? "success"
+                                  : "danger"
+                              }
                             >
                               {order.status}
                             </Chip>
@@ -157,12 +169,17 @@ export default function AwaitingOrders() {
                             {order.status === "PENDING" ? (
                               <SupplierAcceptModal
                                 order={order}
-                                onSuccess={() => setRefreshKey(k => k + 1)}
+                                onSuccess={() => setRefreshKey((k) => k + 1)}
                               />
                             ) : (
-                              <Typography type="body-xs" color="muted">
-                                Expiry: {order.expiry_date ?? order.expiration_date ?? "N/A"}
-                              </Typography>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[11px] font-mono bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md w-fit">
+                                  Batch: {order.batch_number ? order.batch_number : "N/A"}
+                                </span>
+                                <Typography type="body-xs" color="muted">
+                                  Expiry: {order.expiry_date ? order.expiry_date : "No expiry date"}
+                                </Typography>
+                              </div>
                             )}
                           </Table.Cell>
                         </Table.Row>

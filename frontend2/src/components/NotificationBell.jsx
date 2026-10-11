@@ -18,9 +18,18 @@ export default function NotificationBell() {
 
   const userId = user?.id || user?.user_id || user?.userId;
   
-  // BULLETPROOF CHECKER: Kapag may supplier_id, Supplier siya. Kapag wala, Admin/Staff siya.
+  // BULLETPROOF CHECKER: Kapag may supplier_id, Supplier siya. Kapag wala, check if Admin/Administrator
   const isSupplier = Boolean(user?.supplier_id);
-  const isAdmin = !isSupplier;
+  const isAdmin = !isSupplier && (
+    user?.role?.toLowerCase() === "admin" || 
+    user?.role?.toLowerCase() === "administrator"
+  );
+
+  // ❌ HIDE BELL for Cashier, Warehouse, Viewer, and other non-operational roles
+  // ✅ SHOW BELL ONLY for Admin and Supplier
+  if (!isAdmin && !isSupplier) {
+    return null;
+  }
 
   const loadNotifications = async () => {
     if (!userId) return;
