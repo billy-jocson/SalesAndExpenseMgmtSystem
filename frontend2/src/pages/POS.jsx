@@ -328,7 +328,7 @@ export default function POS() {
       </Modal>
 
       <Modal isOpen={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
-        <Modal.Backdrop className="bg-black/40 backdrop-blur-sm">
+        <Modal.Backdrop className="bg-black/40">
           <Modal.Container>
             <Modal.Dialog className="rounded-3xl bg-white shadow-xl sm:max-w-[400px]">
               <Modal.CloseTrigger />
@@ -345,7 +345,7 @@ export default function POS() {
                   completed successfully.
                 </p>
               </Modal.Body>
-              <Modal.Footer className="flex w-full pb-6">
+              <Modal.Footer className="flex w-full">
                 <Button
                   variant="primary"
                   className="w-full rounded-full bg-green-500 font-semibold text-white"

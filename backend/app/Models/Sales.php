@@ -56,9 +56,9 @@ class Sales
 
     public function processCheckout($userId, $paymentMethodId, $referenceNumber, $taxAmount, $amount, $items)
     {
-        $this->db->begin_transaction();
-
         try {
+            $this->db->begin_transaction();
+
             // 1. Gumawa ng Core Sale record gamit ang Stored Procedure
             $stmt = $this->db->prepare("CALL sp_sales_create(?, ?, ?, ?, ?)");
             $stmt->bind_param('iisdd', $userId, $paymentMethodId, $referenceNumber, $taxAmount, $amount);
@@ -83,11 +83,11 @@ class Sales
 
                 $stmtItem = $this->db->prepare("CALL sp_sales_add_item_with_fifo(?, ?, ?, ?)");
                 $stmtItem->bind_param('iiid', $saleId, $storeProductId, $qty, $price);
-                
+
                 if (!$stmtItem->execute()) {
                     throw new \Exception("Failed to deduct batch stock for product ID {$storeProductId}.");
                 }
-                
+
                 $this->clearResults();
                 $stmtItem->close();
             }

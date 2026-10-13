@@ -23,29 +23,61 @@ class Expense
     }
 
     public function addExpense(
+    $amount,
+    $category_id,
+    $additional_description,
+    $payment_method_id,
+    $supplier_id,
+    $reference_code
+) {
+    $reference_code = trim((string) $reference_code);
+
+    if (!is_numeric($amount) || (float) $amount <= 0) {
+        throw new \RuntimeException('Amount must be greater than 0.');
+    }
+    if ((int) $category_id <= 0) {
+        throw new \RuntimeException('Expense category is required.');
+    }
+    if ((int) $payment_method_id <= 0) {
+        throw new \RuntimeException('Payment method is required.');
+    }
+
+    foreach ($this->getPaymentMethods() as $method) {
+        if ((int) $method['payment_method_id'] === (int) $payment_method_id
+            && strtolower($method['method_name']) === 'gcash'
+            && $reference_code === '') {
+            throw new \RuntimeException('GCash reference code is required.');
+        }
+    }
+
+    $amount = (float) $amount;
+    $category_id = (int) $category_id;
+    $payment_method_id = (int) $payment_method_id;
+    $supplier_id = !empty($supplier_id) ? (int) $supplier_id : null;
+
+    $stmt = $this->db->prepare("CALL sp_add_expense(?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param(
+        'disiis',
         $amount,
         $category_id,
         $additional_description,
         $payment_method_id,
         $supplier_id,
         $reference_code
-    ) {
-        $stmt = $this->db->prepare("CALL sp_add_expense(?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param(
-            'disiis',
-            $amount,
-            $category_id,
-            $additional_description,
-            $payment_method_id,
-            $supplier_id,
-            $reference_code
-        );
-        $result = $stmt->execute();
-        $this->clearResults();
-        $stmt->close();
+    );
+    $result = $stmt->execute();
+    $this->clearResults();
+    $stmt->close();
 
-        return $result;
+    if (!$result) {
+        throw new \RuntimeException('Unable to add expense.');
     }
+
+    return [
+        'status' => 'Success',
+        'message' => 'Expense added successfully.'
+    ];
+}
 
     public function getExpenseCategories()
     {

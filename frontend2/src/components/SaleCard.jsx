@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button, Card, Separator, Typography } from "@heroui/react";
 import { pdf } from "@react-pdf/renderer";
 import { ReceiptPDF } from "./Receipt";
+import { formatDateTime } from "../utils/dateTime.js";
 
 function SaleItemRow({ name, unitPrice, quantity, subtotal }) {
   return (
@@ -103,7 +104,7 @@ export default function SaleCard({ data }) {
           </div>
         </Card.Content>
         <Separator />
-        <Card.Footer className="flex justify-between">
+        <Card.Footer className="flex flex-wrap items-center justify-between gap-2">
           <Button
             size="sm"
             onClick={handleDownloadReceipt}
@@ -112,7 +113,7 @@ export default function SaleCard({ data }) {
             {isGenerating ? "Preparing PDF..." : "Download Receipt"}
           </Button>
           <Typography type="body-sm" color="muted" className="flex gap-1">
-            {data.sale_date}
+            {formatDateTime(data.sale_date)}
           </Typography>
         </Card.Footer>
         {downloadError && (
