@@ -36,7 +36,7 @@ export default function POS() {
   const [transactionDetails, setTransactionDetails] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [categorySelected, setCategorySelected] = useState("");
+  const [categorySelected, setCategorySelected] = useState([]);
   const debouncedSearchItem = useDebounce(searchItem);
   const [cartItems, setCartItems] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
@@ -282,6 +282,7 @@ export default function POS() {
       try {
         const data = await fetchProducts(
           user?.role,
+          null,
           debouncedSearchItem,
           categorySelected,
         );
@@ -392,10 +393,8 @@ export default function POS() {
               <ProductCategoryDropdown
                 className="w-full lg:w-[256px]"
                 placeholder="Select a category"
-                selectedKey={categorySelected || undefined}
-                onSelectionChange={(key) =>
-                  setCategorySelected(key === "all" ? "" : String(key))
-                }
+                selectedIds={categorySelected}
+                onSelectionChange={setCategorySelected}
               />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 w-full">

@@ -10,8 +10,6 @@ import {
   Button,
   Label,
   toast,
-  Select,
-  ListBox,
   Modal,
   Typography,
   Table,
@@ -24,9 +22,9 @@ import {
   fetchProductExpiry,
   fetchCategories,
   fetchProducts,
-  handleOrdering,
 } from "../api/productmanager.js";
 import ProductCategoryDropdown from "../components/ProductCategoryDropdown.jsx";
+import CategoryCheckboxDropdown from "../components/CategoryCheckboxDropdown.jsx";
 import { useDebounce } from "../hooks/useDebounce.js";
 import NoItemFound from "../components/NoItemFound.jsx";
 import OrderProductModalCard from "../components/OrderProductModalCard.jsx";
@@ -35,7 +33,7 @@ import POSBillItem from "../components/POSBillItem.jsx";
 export default function ProductsManager() {
   const [searchItem, setSearchItem] = useState("");
   const [products, setProducts] = useState([]);
-  const [categorySelected, setCategorySelected] = useState("");
+  const [categorySelected, setCategorySelected] = useState([]);
   const [productsRefreshKey, setProductsRefreshKey] = useState(0);
 
   // Drawer State
@@ -44,7 +42,7 @@ export default function ProductsManager() {
   const [addForm, setAddForm] = useState({
     productName: "",
     description: "",
-    categoryId: "",
+    categoryIds: [],
     price: "",
     imageFile: null,
   });
@@ -54,7 +52,7 @@ export default function ProductsManager() {
   const canManageProducts = ["supplier", "Administrator"].includes(role);
   const [spProducts, setSpProducts] = useState([]);
   const [itemOrderSearch, setSearchItemOrder] = useState("");
-  const [orderCategorySelected, setOrderCategorySelected] = useState("");
+  const [orderCategorySelected, setOrderCategorySelected] = useState([]);
   const [isOrderOpen, setIsOrderOpen] = useState(false);
   const debouncedItemOrderSearch = useDebounce(itemOrderSearch);
   const [cartItems, setCartItems] = useState([]);
@@ -139,7 +137,7 @@ export default function ProductsManager() {
   const handleAddProduct = async () => {
     if (
       !addForm.productName.trim() ||
-      !addForm.categoryId ||
+      addForm.categoryIds.length === 0 ||
       !addForm.price ||
       Number(addForm.price) < 0
     ) {
@@ -151,7 +149,7 @@ export default function ProductsManager() {
 
     const response = await addProduct({
       supplierId: user?.supplier_id,
-      categoryId: addForm.categoryId,
+      categoryIds: addForm.categoryIds,
       productName: addForm.productName.trim(),
       description: addForm.description.trim(),
       wholesalePrice: Number(addForm.price),
@@ -165,7 +163,7 @@ export default function ProductsManager() {
       setAddForm({
         productName: "",
         description: "",
-        categoryId: "",
+        categoryIds: [],
         price: "",
         imageFile: null,
       });
@@ -442,10 +440,8 @@ export default function ProductsManager() {
 
           <div className="flex gap-2">
             <ProductCategoryDropdown
-              selectedKey={categorySelected || undefined}
-              onSelectionChange={(key) =>
-                setCategorySelected(key === "all" ? "" : String(key))
-              }
+              selectedIds={categorySelected}
+              onSelectionChange={setCategorySelected}
             />
             {canManageProducts ? (
               <>
@@ -555,36 +551,14 @@ export default function ProductsManager() {
                       <Label className="text-gray-700 font-medium mb-1.5 text-sm">
                         Category
                       </Label>
-                      <Select
-                        className="w-full"
-                        selectedKey={addForm.categoryId || undefined}
-                        onSelectionChange={(key) =>
-                          setAddForm((current) => ({
-                            ...current,
-                            categoryId: String(key),
-                          }))
+                      <CategoryCheckboxDropdown
+                        categories={addCategoryOptions}
+                        selectedIds={addForm.categoryIds}
+                        onSelectionChange={(categoryIds) =>
+                          setAddForm((current) => ({ ...current, categoryIds }))
                         }
-                        placeholder="Select supplier category"
-                      >
-                        <Select.Trigger className="bg-gray-50 border-none shadow-none">
-                          <Select.Value />
-                          <Select.Indicator />
-                        </Select.Trigger>
-                        <Select.Popover>
-                          <ListBox>
-                            {addCategoryOptions.map((categoryOption) => (
-                              <ListBox.Item
-                                key={String(categoryOption.category_id)}
-                                id={String(categoryOption.category_id)}
-                                textValue={categoryOption.category_name}
-                              >
-                                {categoryOption.category_name}
-                                <ListBox.ItemIndicator />
-                              </ListBox.Item>
-                            ))}
-                          </ListBox>
-                        </Select.Popover>
-                      </Select>
+                        placeholder="Select supplier categories"
+                      />
                     </div>
 
                     <TextField className="w-full" name="description">
@@ -684,12 +658,8 @@ export default function ProductsManager() {
 
                               <ProductCategoryDropdown
                                 className="w-full md:w-[400px]"
-                                selectedKey={orderCategorySelected || undefined}
-                                onSelectionChange={(key) =>
-                                  setOrderCategorySelected(
-                                    key === "all" ? "" : String(key),
-                                  )
-                                }
+                                selectedIds={orderCategorySelected}
+                                onSelectionChange={setOrderCategorySelected}
                               />
                             </div>
                           </Modal.Heading>
@@ -751,6 +721,7 @@ export default function ProductsManager() {
                 description={product.description}
                 category={product.category}
                 categoryId={product.category_id}
+                categoryIds={product.category_ids}
                 imagePath={product.image_path}
                 sellprice={product.sellprice}
                 role={role}

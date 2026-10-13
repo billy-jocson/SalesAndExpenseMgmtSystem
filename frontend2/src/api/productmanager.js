@@ -27,6 +27,7 @@ export const buildProductImageUrl = (imagePath) => {
 const buildProductFormData = ({
   supplierId,
   categoryId,
+  categoryIds,
   productName,
   description,
   wholesalePrice,
@@ -44,8 +45,18 @@ const buildProductFormData = ({
     formData.append("supplier_id", String(supplierId));
   }
 
-  if (categoryId !== undefined && categoryId !== null && categoryId !== "") {
-    formData.append("category_id", String(categoryId));
+  const selectedCategoryIds = Array.isArray(categoryIds)
+    ? categoryIds
+    : categoryId === undefined || categoryId === null || categoryId === ""
+      ? []
+      : [categoryId];
+
+  selectedCategoryIds.forEach((id) => {
+    formData.append("category_ids[]", String(id));
+  });
+
+  if (selectedCategoryIds.length > 0) {
+    formData.append("category_id", String(selectedCategoryIds[0]));
   }
 
   if (productName !== undefined)
@@ -164,7 +175,9 @@ export const fetchProducts = async (
       role,
       supplier_id: supplierId,
       search,
-      category_id: categoryId,
+      category_id: Array.isArray(categoryId)
+        ? categoryId.join(",")
+        : categoryId,
       isAll,
     })}`,
     { method: "GET" },
