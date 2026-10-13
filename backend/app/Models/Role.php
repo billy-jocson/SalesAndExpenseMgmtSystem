@@ -208,11 +208,28 @@ class Role
         return ['status' => 'Success', 'message' => 'Role updated successfully.'];
     }
 
-    public function deleteRole($roleId)
+    public function deleteRole($roleId, $currentUserId = 0)
     {
         $roleId = (int)$roleId;
         if ($roleId <= 0) {
             throw new RuntimeException('A valid role is required.');
+        }
+
+        $currentUserId = (int) $currentUserId;
+        if ($currentUserId > 0) {
+            $currentRoleStmt = $this->db->prepare(
+                'SELECT role_id FROM users WHERE user_id = ?'
+            );
+            $currentRoleStmt->bind_param('i', $currentUserId);
+            $currentRoleStmt->execute();
+            $currentRole = $currentRoleStmt->get_result()->fetch_assoc();
+            $currentRoleStmt->close();
+
+            if ((int) ($currentRole['role_id'] ?? 0) === $roleId) {
+                throw new RuntimeException(
+                    'You cannot delete the role assigned to your account.'
+                );
+            }
         }
 
         try {

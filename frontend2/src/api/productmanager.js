@@ -91,7 +91,7 @@ export const updateProduct = async ({ productId, ...productData }) => {
   const response = await fetch(
     `/backend/public/index.php/api/products/${productId}`,
     {
-      method: "PATCH",
+      method: "POST",
       body: buildProductFormData({ productId, ...productData }),
     },
   );

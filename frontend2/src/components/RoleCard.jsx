@@ -10,12 +10,18 @@ function summarizePermissions(permissions = {}) {
     .map(([module, actions]) => `${module}: ${actions.join(", ")}`);
 }
 
-export default function RoleCard({ role, onEdit, onDelete }) {
+export default function RoleCard({
+  role,
+  currentUserRole,
+  onEdit,
+  onDelete,
+}) {
   const summary = summarizePermissions(role.permissions);
-  // Delete is only safe when the role isn't one of the 4 system roles AND
-  // no user account currently uses it (the backend enforces both of these
-  // too -- this is just so the button reflects it before you even click).
-  const canDelete = !role.is_protected && (role.user_count ?? 0) === 0;
+  const isCurrentUserRole =
+    role.role_name?.trim().toLowerCase() ===
+    currentUserRole?.trim().toLowerCase();
+  const hasAssignedUsers = Number(role.user_count ?? 0) > 0;
+  const canDelete = !isCurrentUserRole && !hasAssignedUsers;
 
   return (
     <div className="p-5 rounded-2xl border border-zinc-200 bg-white shadow-sm hover:shadow-md transition-all flex flex-col gap-3 h-full">
@@ -61,24 +67,22 @@ export default function RoleCard({ role, onEdit, onDelete }) {
           )}
         </div>
       </div>
-      <div className="flex gap-2 justify-end mt-auto pt-2">
+      <div className="flex gap-1 justify-end mt-auto pt-2">
         <Button
-          size="sm"
           className="bg-amber-500 text-white font-medium"
           onPress={() => onEdit(role)}
         >
           Edit
         </Button>
         <Button
-          size="sm"
           variant="danger"
           className="font-medium"
           onPress={() => onDelete(role)}
           isDisabled={!canDelete}
           title={
             !canDelete
-              ? role.is_protected
-                ? "System roles can't be deleted"
+              ? isCurrentUserRole
+                ? "You cannot delete the role assigned to your account"
                 : "Reassign this role's users before deleting"
               : undefined
           }

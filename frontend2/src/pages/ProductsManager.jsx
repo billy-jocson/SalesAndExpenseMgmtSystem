@@ -283,7 +283,7 @@ export default function ProductsManager() {
         }`}
         aria-hidden={cartItems.length === 0}
       >
-        <div className="flex h-full overflow-y-scroll min-h-96 flex-col gap-3 rounded-3xl bg-slate-50 p-4">
+        <div className="flex h-full overflow-y-scroll min-h-96 flex-col gap-3 rounded-3xl bg-slate-50 p-4 scrollbar-thin">
           <div className="pb-1">
             <Typography type="h3">Order Cart</Typography>
             <Typography type="body-sm" color="muted">
@@ -291,7 +291,7 @@ export default function ProductsManager() {
             </Typography>
           </div>
 
-          <div className="min-h-[300px] max-h-[350px] flex-1 space-y-3 overflow-y-auto">
+          <div className="min-h-[300px] max-h-[350px] flex-1 space-y-3 overflow-y-auto scrollbar-thin">
             {cartItems.map((item) => (
               <POSBillItem
                 key={item.id}
@@ -374,7 +374,7 @@ export default function ProductsManager() {
     <div className="flex gap-3 relative overflow-hidden">
       <Navbar />
 
-      <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll">
+      <div className="bg-white flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll scrollbar-thin">
         <TopBar
           title="Products Manager"
           body="Manage your products here."
@@ -457,7 +457,7 @@ export default function ProductsManager() {
                   </div>
 
                   {/* Drawer Body (Scrollable) */}
-                  <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+                  <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-thin">
                     {/* Image Upload Area */}
                     <div>
                       <div className="relative flex flex-col items-center justify-center w-full h-48 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 hover:bg-gray-100 transition-colors overflow-hidden group cursor-pointer">
@@ -624,7 +624,7 @@ export default function ProductsManager() {
                         </Modal.Header>
                         <Modal.Body className="max-h-full overflow-hidden">
                           <div className="flex h-full min-h-96 gap-3">
-                            <div className="min-w-0 flex-1 overflow-y-auto">
+                            <div className="min-w-0 flex-1 overflow-y-auto scrollbar-thin">
                               <div
                                 className={
                                   cartItems.length > 0

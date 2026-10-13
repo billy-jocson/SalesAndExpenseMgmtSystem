@@ -48,7 +48,7 @@ function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
 
   return (
     <>
-      <div className="overflow-y-auto">
+      <div className="overflow-y-auto scrollbar-thin">
         <Link
           to={NavRoutes.DASHBOARD}
           onClick={onNavigate}
@@ -63,7 +63,7 @@ function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
             Menu
           </p>
           <nav
-            className="flex min-h-0 flex-col gap-2 overflow-y-auto"
+            className="flex min-h-0 flex-col gap-2 overflow-y-auto scrollbar-thin"
             aria-label="Main navigation"
           >
             {menuItems

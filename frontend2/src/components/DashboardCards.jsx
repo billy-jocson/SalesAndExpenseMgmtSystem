@@ -15,7 +15,7 @@ export default function DashboardCards({
       className={`flex grow min-h-40 w-full flex-col rounded-2xl p-6 shadow-md ${
         highlighted
           ? "bg-gradient-to-br from-[#2f82e8] to-[#1554b7]"
-          : "bg-white"
+          : "bg-white border-[1.5px] border-zinc-300"
       }`}
     >
       <div className="flex gap-3 w-full justify-between mb-auto">

@@ -2,6 +2,7 @@ import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
 import { useEffect, useMemo, useState } from "react";
 import reports from "../assets/images/reports.png";
+import calculaLogo from "../assets/Logo_light.svg";
 import DashboardCards from "../components/DashboardCards.jsx";
 import {
   Bar,
@@ -54,7 +55,7 @@ export default function Reports() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState("");
   const { toPDF, targetRef } = usePDF({
-    filename: "calcula-financial-report.pdf",
+    filename: "Calcula_Financial_Report.pdf",
     method: "save",
     resolution: 3,
     page: { margin: 10 },
@@ -137,7 +138,7 @@ export default function Reports() {
     <div className="flex gap-3 print:m-0 print:block [&>nav]:print:hidden">
       <Navbar />
       <div className="flex w-full gap-3 print:hidden">
-        <div className="flex max-h-[calc(100dvh-2rem)] w-full flex-col gap-3 overflow-y-scroll rounded-[1.75rem] p-7 shadow-md">
+        <div className="bg-white flex max-h-[calc(100dvh-2rem)] w-full flex-col gap-3 overflow-y-scroll rounded-[1.75rem] p-7 shadow-md scrollbar-thin">
           <TopBar
             title="Reports"
             body="Track the status of your business."
@@ -425,9 +426,11 @@ export default function Reports() {
         aria-hidden="true"
       >
         <header className="flex items-start justify-between border-b-2 border-[#172033] py-2 pb-3">
-          <strong className="text-2xl tracking-[-1.5px]">
-            Calcula<span>•</span>
-          </strong>
+          <img
+            src={calculaLogo}
+            alt="Calcula"
+            className="h-auto w-[140px] object-contain"
+          />
           <div className="text-right">
             <h1 className="m-0 text-[15px]">FINANCIAL AUDIT REPORT</h1>
             <p className="m-0 text-[8px] text-[#718096]">
@@ -511,6 +514,24 @@ export default function Reports() {
                 </PieChart>
               )}
             </div>
+            {productCategories.length > 0 && (
+              <table className="w-full border-collapse text-[7px] [&_td]:border-b [&_td]:border-[#dbe2ea] [&_td]:px-1.5 [&_td]:py-1 [&_th]:border-b [&_th]:border-[#dbe2ea] [&_th]:px-1.5 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold [&_td:last-child]:text-right [&_th:last-child]:text-right">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Units Sold</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productCategories.map((entry) => (
+                    <tr key={entry.category_name}>
+                      <td>{entry.category_name}</td>
+                      <td>{Number(entry.total_qty).toLocaleString("en-PH")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </section>
           <section className="rounded-[7px] border border-[#dbe2ea] bg-[#f8fafc] p-2.5">
             <h2 className="m-0 text-[10px]">Revenue vs Expenses (Monthly)</h2>
@@ -530,6 +551,26 @@ export default function Reports() {
                 </BarChart>
               )}
             </div>
+            {trend.length > 0 && (
+              <table className="w-full border-collapse text-[7px] [&_td]:border-b [&_td]:border-[#dbe2ea] [&_td]:px-1.5 [&_td]:py-1 [&_th]:border-b [&_th]:border-[#dbe2ea] [&_th]:px-1.5 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold [&_td:not(:first-child)]:text-right [&_th:not(:first-child)]:text-right">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Revenue</th>
+                    <th>Expenses</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trend.map((entry) => (
+                    <tr key={entry.report_month}>
+                      <td>{entry.report_month}</td>
+                      <td>{currency(entry.total_sales)}</td>
+                      <td>{currency(entry.total_expenses)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </section>
         </div>
         <section>

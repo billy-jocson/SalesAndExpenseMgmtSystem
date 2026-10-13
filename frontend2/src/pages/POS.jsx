@@ -163,7 +163,7 @@ export default function POS() {
         </Typography>
       </div>
 
-      <div className="space-y-3 max-h-80 overflow-y-scroll">
+      <div className="space-y-3 max-h-50 overflow-y-scroll scrollbar-thin">
         {cartItems.map((item) => (
           <POSBillItem
             key={item.id}
@@ -313,7 +313,7 @@ export default function POS() {
       <Modal isOpen={isCartOpen} onOpenChange={setIsCartOpen}>
         <Modal.Backdrop className="bg-black/40 backdrop-blur-sm">
           <Modal.Container>
-            <Modal.Dialog className="max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] overflow-y-auto rounded-3xl bg-slate-50 p-4 shadow-xl">
+            <Modal.Dialog className="max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] overflow-y-auto scrollbar-thin rounded-3xl bg-slate-50 p-4 shadow-xl">
               <Modal.CloseTrigger
                 aria-label="Close customer cart"
                 className="absolute right-4 top-4 rounded-full p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800"
@@ -367,7 +367,7 @@ export default function POS() {
       </Modal>
 
       <div className="flex w-full gap-3">
-        <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll">
+        <div className="bg-white flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll scrollbar-thin">
           <TopBar
             title="Point of Sale"
             body="Create a transaction here."
@@ -376,13 +376,13 @@ export default function POS() {
 
           <div className="flex flex-wrap gap-3">
             <div className="flex flex-col lg:flex-row gap-2 w-full">
-              <TextField className="w-full" name="text">
-                <InputGroup className="w-full">
+              <TextField className="w-full h-full" name="text">
+                <InputGroup className="w-full h-full">
                   <InputGroup.Prefix>
                     <Magnifier className="size-4 text-muted" />
                   </InputGroup.Prefix>
                   <InputGroup.Input
-                    className="w-full"
+                    className="w-full h-full"
                     placeholder="Search product"
                     value={searchItem}
                     onChange={(e) => setSearchItem(e.target.value)}

@@ -694,7 +694,7 @@ BEGIN
         AND s.is_active = 1
         AND (p_is_all = 1 OR p_supplier_id = 0 OR sp.supplier_id = p_supplier_id)
         AND (p_search = '' OR sp.product_name LIKE CONCAT('%', p_search, '%'))
-        AND (p_category_ids = '' OR (SELECT COUNT(DISTINCT spc.category_id) FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id AND FIND_IN_SET(spc.category_id, p_category_ids) > 0) = 1 + LENGTH(p_category_ids) - LENGTH(REPLACE(p_category_ids, ',', '')) OR (NOT EXISTS (SELECT 1 FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id) AND FIND_IN_SET(sp.category_id, p_category_ids) > 0 AND p_category_ids NOT LIKE '%,%'))
+        AND (p_category_ids = '' OR EXISTS (SELECT 1 FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id AND FIND_IN_SET(spc.category_id, p_category_ids) > 0) OR (NOT EXISTS (SELECT 1 FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id) AND FIND_IN_SET(sp.category_id, p_category_ids) > 0))
         ORDER BY sp.supplier_product_id DESC;
     ELSE
         SELECT 
@@ -728,7 +728,7 @@ BEGIN
         LEFT JOIN product_categories pc ON sp.category_id = pc.category_id
         WHERE stp.is_active = 1 AND sp.is_active = 1
         AND (p_search = '' OR sp.product_name LIKE CONCAT('%', p_search, '%'))
-        AND (p_category_ids = '' OR (SELECT COUNT(DISTINCT spc.category_id) FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id AND FIND_IN_SET(spc.category_id, p_category_ids) > 0) = 1 + LENGTH(p_category_ids) - LENGTH(REPLACE(p_category_ids, ',', '')) OR (NOT EXISTS (SELECT 1 FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id) AND FIND_IN_SET(sp.category_id, p_category_ids) > 0 AND p_category_ids NOT LIKE '%,%'))
+        AND (p_category_ids = '' OR EXISTS (SELECT 1 FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id AND FIND_IN_SET(spc.category_id, p_category_ids) > 0) OR (NOT EXISTS (SELECT 1 FROM supplier_product_categories spc WHERE spc.supplier_product_id = sp.supplier_product_id) AND FIND_IN_SET(sp.category_id, p_category_ids) > 0))
         ORDER BY stp.store_product_id DESC;
     END IF;
 END$$
@@ -894,10 +894,6 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_roles_delete` (IN `p_role_id` IN
 
     IF v_role_name IS NULL THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Role not found.';
-    END IF;
-
-    IF LOWER(TRIM(v_role_name)) IN ('administrator', 'cashier staff', 'inventory staff', 'supplier') THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'This role is used by the system and cannot be deleted.';
     END IF;
 
     SELECT COUNT(*) INTO v_count 

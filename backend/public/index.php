@@ -1,6 +1,6 @@
 <?php
 
-header('Access-Control-Allow-Origin: http://localhost:3307');
+header('Access-Control-Allow-Origin: http://localhost:3306');
 header('Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Content-Type: application/json; charset=UTF-8');
@@ -97,6 +97,12 @@ try {
             break;
         case $requestMethod === 'POST' && $path === '/products':
             $response = (new ProductController())->addProduct($input, $_FILES ?? []);
+            break;
+        case $requestMethod === 'POST'
+            && count($segments) === 2
+            && $segments[0] === 'products':
+            $input['product_id'] = $segments[1];
+            $response = (new ProductController())->updateProduct($input, $_FILES ?? []);
             break;
         case $requestMethod === 'PATCH'
             && count($segments) === 2

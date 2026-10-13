@@ -44,7 +44,7 @@ export default function RestockProducts() {
           debouncedSearchItem,
           categorySelected,
         );
-        console.log(data);
+        
         setProducts(data?.status === "Success" ? (data.products ?? []) : []);
       } finally {
         setLoading(false);
@@ -95,7 +95,7 @@ export default function RestockProducts() {
       <Navbar />
 
       <div className="flex w-full gap-3">
-        <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll">
+        <div className="bg-white flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll scrollbar-thin">
           <TopBar
             title="Restock Products"
             body="Replenish your stocks before they run out."
@@ -134,7 +134,7 @@ export default function RestockProducts() {
                   <Table.ScrollContainer>
                     <Table.Content aria-label="Near-expiry and expired products">
                       <Table.Header>
-                        <Table.Column>Product</Table.Column>
+                        <Table.Column isRowHeader>Product</Table.Column>
                         <Table.Column>Batch</Table.Column>
                         <Table.Column>Remaining stock</Table.Column>
                         <Table.Column>Expiration date</Table.Column>
@@ -231,7 +231,7 @@ export default function RestockProducts() {
                 <Table.Content aria-label="Example table">
                   <Table.Header>
                     <Table.Column>Image</Table.Column>
-                    <Table.Column>Name</Table.Column>
+                    <Table.Column isRowHeader>Name</Table.Column>
                     <Table.Column>Category</Table.Column>
                     <Table.Column>Supplier</Table.Column>
                     <Table.Column>Stock</Table.Column>

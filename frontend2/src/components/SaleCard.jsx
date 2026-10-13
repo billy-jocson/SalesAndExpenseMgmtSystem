@@ -51,7 +51,7 @@ export default function SaleCard({ data }) {
         .replace(/[-:T.Z]/g, "")
         .slice(0, 14);
       link.href = url;
-      link.download = `receipt-${data.transaction_number || "sale"}-${downloadTimestamp}.pdf`;
+      link.download = `Receipt_${data.transaction_number || "sale"}_${downloadTimestamp}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -66,7 +66,7 @@ export default function SaleCard({ data }) {
 
   return (
     <>
-      <Card className="w-full hover:scale-101 hover:shadow-lg hover:border hover:border-blue-300 transition-all">
+      <Card className="w-full hover:scale-101 hover:shadow-lg hover:border hover:border-blue-300 transition-all border border-zinc-200">
         <Card.Header className="gap-3">
           <div className="flex gap-5 justify-between">
             <Typography type="body-sm" color="muted">
@@ -83,7 +83,7 @@ export default function SaleCard({ data }) {
           </div>
         </Card.Header>
         <Separator />
-        <Card.Content className="flex max-h-32 flex-col gap-2 overflow-y-auto">
+        <Card.Content className="flex max-h-32 flex-col gap-2 overflow-y-auto scrollbar-thin">
           {data.items.map((item, index) => (
             <SaleItemRow key={`${item.name}-${index}`} {...item} />
           ))}

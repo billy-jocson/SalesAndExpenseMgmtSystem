@@ -1,6 +1,16 @@
-import { useState, useContext, useEffect } from "react";
-import { ChevronsUp, Xmark } from "@gravity-ui/icons";
-import { acceptOrder, rejectOrder } from "../api/ordermanager.js";
+import { ChevronsUp } from "@gravity-ui/icons";
+import {
+  Button,
+  Checkbox,
+  InputGroup,
+  Label,
+  Modal,
+  TextField,
+  Typography,
+  toast,
+} from "@heroui/react";
+import { useContext, useState } from "react";
+import { acceptOrder } from "../api/ordermanager.js";
 import { userContext } from "../context/UserContext.js";
 
 export default function SupplierAcceptModal({ order, onSuccess }) {
@@ -8,14 +18,11 @@ export default function SupplierAcceptModal({ order, onSuccess }) {
   const [isOpen, setIsOpen] = useState(false);
   const [expiryDate, setExpiryDate] = useState("");
   const [noExpiry, setNoExpiry] = useState(false);
-  const [batchNumber, setBatchNumber] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (order?.order_id) {
-      setBatchNumber(`BATCH-${order.order_id}-${Date.now().toString().slice(-6)}`);
-    }
-  }, [order?.order_id]);
+  const [batchNumber, setBatchNumber] = useState(
+    () =>
+      `BATCH-${order?.order_id}-${Date.now().toString().slice(-6)}`,
+  );
+  const [isAccepting, setIsAccepting] = useState(false);
 
   const handleNoExpiryToggle = (checked) => {
     setNoExpiry(checked);
@@ -26,207 +33,133 @@ export default function SupplierAcceptModal({ order, onSuccess }) {
 
   const handleAccept = async () => {
     if (!noExpiry && !expiryDate) {
-      alert("Pakiusap, maglagay ng expiry date o markahan ang 'No expiry date'!");
+      toast.danger("Enter an expiry date or select No expiry date.");
       return;
     }
 
-    if (!noExpiry && new Date(expiryDate) < new Date(new Date().setHours(0, 0, 0, 0))) {
-      alert("Hindi maaaring nakaraang petsa ang expiry date!");
+    if (
+      !noExpiry &&
+      new Date(expiryDate) < new Date(new Date().setHours(0, 0, 0, 0))
+    ) {
+      toast.danger("Expiry date cannot be in the past.");
       return;
     }
 
-    setLoading(true);
+    setIsAccepting(true);
     try {
-      const finalExpiry = noExpiry ? null : expiryDate;
-
       const response = await acceptOrder(order.order_id, {
-        expiration_date: finalExpiry,
+        expiration_date: noExpiry ? null : expiryDate,
         no_expiry: noExpiry,
         batch_number: batchNumber,
         supplier_user_id: user?.id || user?.user_id,
       });
 
       if (response?.status?.toLowerCase() === "success") {
-        alert(
-          `Order #${order.order_id} tinanggap na! Expiry: ${
-            noExpiry ? "No expiry date" : expiryDate
-          }`
-        );
+        toast.success(`Order #${order.order_id} accepted.`);
         setIsOpen(false);
         onSuccess?.();
       } else {
-        alert(response?.message ?? "Bigo sa pag-accept ng order.");
+        toast.danger(response?.message ?? "Unable to accept the order.");
       }
-    } catch (err) {
-      alert(err.message ?? "Nagkaroon ng error sa pag-accept.");
+    } catch (error) {
+      toast.danger(error.message ?? "Unable to accept the order.");
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReject = async () => {
-    setLoading(true);
-    try {
-      const response = await rejectOrder(order.order_id, {
-        supplier_user_id: user?.id || user?.user_id,
-        reason: "Rejected by supplier",
-      });
-
-      if (response?.status?.toLowerCase() === "success") {
-        alert(`Order #${order.order_id} ay tinanggihan.`);
-        setIsOpen(false);
-        onSuccess?.();
-      } else {
-        alert(response?.message ?? "Bigo sa pag-reject ng order.");
-      }
-    } catch (err) {
-      alert(err.message ?? "Nagkaroon ng error sa pag-reject.");
-    } finally {
-      setLoading(false);
+      setIsAccepting(false);
     }
   };
 
   const today = new Date().toISOString().split("T")[0];
 
   return (
-    <>
-      {/* HeroUI-Styled Action Button */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 active:scale-95 transition-all rounded-xl shadow-sm cursor-pointer"
-      >
-        <span>✓</span> Accept & Set Expiry
-      </button>
-
-      {/* HeroUI Modal Backdrop & Container */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-white rounded-[1.75rem] shadow-2xl w-full max-w-md border border-gray-100 overflow-hidden flex flex-col gap-4 p-6 animate-in zoom-in-95 duration-150">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="size-10 bg-green-100 text-green-700 rounded-2xl flex items-center justify-center shadow-xs">
-                  <ChevronsUp className="size-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900 leading-tight">
-                    Accept Order #{order?.order_id}
-                  </h3>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Magtakda ng batch details at shelf life
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="size-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              >
-                <Xmark className="size-4" />
-              </button>
-            </div>
-
-            {/* Product Summary Box */}
-            <div className="p-4 bg-blue-50/70 border border-blue-200/60 rounded-2xl flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-blue-900">
+    <Modal isOpen={isOpen} onOpenChange={setIsOpen}>
+      <Button variant="primary" onPress={() => setIsOpen(true)}>
+        Accept
+      </Button>
+      <Modal.Backdrop>
+        <Modal.Container>
+          <Modal.Dialog className="sm:max-w-md">
+            <Modal.CloseTrigger />
+            <Modal.Header>
+                <Modal.Heading className="flex items-center gap-2">
+                    <div className="bg-success-soft text-success-soft-foreground p-3 rounded-full">
+                        <ChevronsUp className="size-5" />
+                    </div>
+                    <div className="flex flex-col">
+                        <Typography type="body" weight="semibold">
+                            Accept Order #{order?.order_id}
+                        </Typography>
+                        <Typography type="body-xs" color="muted">
+                            This will accept the order and notify the requester
+                        </Typography>
+                    </div>
+                </Modal.Heading>
+            </Modal.Header>
+            <Modal.Body className="flex flex-col gap-4">
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <p className="font-semibold text-blue-900">
                   {order?.product_name}
-                </span>
-                <span className="px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">
-                  Qty: {order?.requested_quantity}
-                </span>
+                </p>
+                <p className="mt-1 text-sm text-blue-800">
+                  Requested quantity: {order?.requested_quantity}
+                </p>
               </div>
-              <p className="text-xs text-blue-600/80">
-                Supplier flow: Ikaw ang magtatakda ng tunay na expiry date ng batch.
-              </p>
-            </div>
 
-            {/* Expiry Date Input Field */}
-            <div className="flex flex-col gap-2 text-left">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-gray-700">
-                  Expiry Date {noExpiry ? "(Not Applicable)" : "(Required) *"}
-                </label>
-                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={noExpiry}
-                    onChange={(e) => handleNoExpiryToggle(e.target.checked)}
-                    className="rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+              <TextField className="w-full" name="expiry-date">
+                <Label>Expiry Date</Label>
+                <InputGroup>
+                  <InputGroup.Input
+                    type="date"
+                    min={today}
+                    disabled={noExpiry}
+                    value={noExpiry ? "" : expiryDate}
+                    onChange={(event) => setExpiryDate(event.target.value)}
                   />
-                  <span>No expiry date</span>
-                </label>
-              </div>
+                </InputGroup>
+              </TextField>
 
-              <div className="relative w-full">
-                <input
-                  type="date"
-                  min={today}
-                  disabled={noExpiry}
-                  value={noExpiry ? "" : expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                  className={`w-full px-3.5 py-2.5 text-sm border rounded-xl focus:outline-none transition-all ${
-                    noExpiry
-                      ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                      : "bg-gray-50/50 border-gray-200 focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 text-gray-800"
-                  }`}
-                />
-              </div>
-              <span className="text-[11px] text-gray-400">
-                {noExpiry
-                  ? "Markado bilang produktong hindi napapanis (hal. asin, asukal)."
-                  : "Naka-disable ang mga lumang petsa. Magtakda ng petsa sa hinaharap."}
-              </span>
-            </div>
-
-            {/* Batch Number Input Field */}
-            <div className="flex flex-col gap-1.5 text-left">
-              <label className="text-xs font-semibold text-gray-700">
-                Batch Number
-              </label>
-              <div className="relative w-full">
-                <input
-                  type="text"
-                  placeholder="Auto-generated"
-                  value={batchNumber}
-                  onChange={(e) => setBatchNumber(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-gray-100/60 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-800 font-mono text-xs"
-                />
-              </div>
-            </div>
-
-            {/* Notice Box */}
-            <div className="p-3.5 bg-green-50/80 border border-green-200/60 rounded-2xl">
-              <p className="text-xs text-green-800 leading-relaxed font-medium">
-                ✅ Pagka-accept: Awtomatikong papasok sa inventory ang stock at makakatanggap ng notification si Admin.
-              </p>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handleReject}
-                className="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 active:scale-95 rounded-xl transition-all cursor-pointer"
+              <Checkbox
+                isSelected={noExpiry}
+                onChange={handleNoExpiryToggle}
               >
-                Reject
-              </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handleAccept}
-                className="px-4 py-2 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 active:scale-95 rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50"
-              >
-                {loading ? "Pinoproseso..." : "Accept & Notify Admin"}
-              </button>
-            </div>
+                <Checkbox.Content>
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  No Expiry Date
+                </Checkbox.Content>
+              </Checkbox>
 
-          </div>
-        </div>
-      )}
-    </>
+              <TextField className="w-full" name="batch-number">
+                <Label>Batch Number</Label>
+                <InputGroup>
+                  <InputGroup.Input
+                    type="text"
+                    placeholder="Batch number"
+                    value={batchNumber}
+                    onChange={(event) => setBatchNumber(event.target.value)}
+                  />
+                </InputGroup>
+              </TextField>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button
+                slot="close"
+                variant="secondary"
+                isDisabled={isAccepting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                isDisabled={isAccepting}
+                onPress={handleAccept}
+              >
+                {isAccepting ? "Accepting..." : "Accept Order"}
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
   );
 }

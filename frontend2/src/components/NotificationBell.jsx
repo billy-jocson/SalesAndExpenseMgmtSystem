@@ -7,6 +7,7 @@ import {
   markAsRead,
   markAllAsRead,
 } from "../api/notificationmanager.js";
+import { formatDateTime } from "../utils/dateTime.js";
 
 export default function NotificationBell() {
   const { user } = useContext(userContext);
@@ -25,8 +26,8 @@ export default function NotificationBell() {
     user?.role?.toLowerCase() === "administrator"
   );
 
-  // ❌ HIDE BELL for Cashier, Warehouse, Viewer, and other non-operational roles
-  // ✅ SHOW BELL ONLY for Admin and Supplier
+  // HIDE BELL for Cashier, Warehouse, Viewer, and other non-operational roles
+  // SHOW BELL ONLY for Admin and Supplier
   if (!isAdmin && !isSupplier) {
     return null;
   }
@@ -95,13 +96,13 @@ export default function NotificationBell() {
   const getTypeLabel = (type) => {
     switch (type) {
       case "ORDER_REQUEST":
-        return "NEW ORDER";
+        return "New Order";
       case "RESTOCK_REQUEST":
-        return "RESTOCK";
+        return "Restock";
       case "ORDER_ACCEPTED":
-        return "ACCEPTED";
+        return "Accepted";
       case "ORDER_REJECTED":
-        return "REJECTED";
+        return "Rejected";
       default:
         return type;
     }
@@ -126,14 +127,14 @@ export default function NotificationBell() {
       </Button>
 
       {isOpen && (
-        <div className="absolute right-0 top-12 w-[400px] max-h-[600px] bg-white shadow-2xl rounded-2xl border z-[100] flex flex-col">
+        <div className="absolute right-0 top-12 w-[400px] max-h-fit bg-white shadow-2xl rounded-2xl border z-[100] flex flex-col">
           <div className="p-4 border-b flex items-center justify-between">
             <div>
               <Typography type="body" weight="semibold">
                 Notifications
               </Typography>
               <Typography type="body-xs" color="muted">
-                {totalUnread} unread • Both ends (Admin ↔ Supplier)
+                {totalUnread} unread
               </Typography>
             </div>
             <div className="flex gap-2">
@@ -148,7 +149,7 @@ export default function NotificationBell() {
             </div>
           </div>
 
-          <div className="p-3 border-b flex gap-2 overflow-x-auto">
+          <div className="p-4 border-b flex gap-2 overflow-x-auto h-fit">
             <Button
               size="sm"
               variant={filter === "all" ? "primary" : "secondary"}
@@ -196,9 +197,9 @@ export default function NotificationBell() {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto scrollbar-thin max-h-[400px]">
             {notifications.length === 0 ? (
-              <div className="p-8 text-center">
+              <div className="p-8 flex flex-col items-center text-center">
                 <Bell className="size-8 mx-auto text-muted mb-2" />
                 <Typography type="body-sm" color="muted">
                   No notifications
@@ -232,7 +233,7 @@ export default function NotificationBell() {
                             <span className="size-2 bg-blue-500 rounded-full animate-pulse"></span>
                           )}
                           <span className="text-xs text-muted">
-                            {new Date(notif.created_at).toLocaleString()}
+                            {formatDateTime(notif.created_at)}
                           </span>
                         </div>
                         <Typography
