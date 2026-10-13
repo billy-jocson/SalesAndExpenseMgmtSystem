@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button, Card, Separator, Typography } from "@heroui/react";
 import { pdf } from "@react-pdf/renderer";
 import { ReceiptPDF } from "./Receipt";
+import { formatDateTime } from "../utils/dateTime.js";
 
 function SaleItemRow({ name, unitPrice, quantity, subtotal }) {
   return (
@@ -65,7 +66,7 @@ export default function SaleCard({ data }) {
 
   return (
     <>
-      <Card className="w-full hover:scale-101 hover:shadow-lg transition-all">
+      <Card className="w-full hover:scale-101 hover:shadow-lg hover:border hover:border-blue-300 transition-all">
         <Card.Header className="gap-3">
           <div className="flex gap-5 justify-between">
             <Typography type="body-sm" color="muted">
@@ -88,7 +89,7 @@ export default function SaleCard({ data }) {
           ))}
         </Card.Content>
         <Separator />
-        <Card.Content className="space-y-2 pt-3">
+        <Card.Content className="">
           <div className="flex items-center justify-between text-sm text-slate-600">
             <span>Subtotal</span>
             <span className="font-medium">PHP {subtotal.toFixed(2)}</span>
@@ -97,13 +98,13 @@ export default function SaleCard({ data }) {
             <span>Tax</span>
             <span className="font-medium">PHP {taxAmount.toFixed(2)}</span>
           </div>
-          <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-base font-semibold text-slate-800">
+          <div className="flex items-center justify-between text-base font-semibold text-slate-800">
             <span>Total</span>
             <span>PHP {totalAmount.toFixed(2)}</span>
           </div>
         </Card.Content>
         <Separator />
-        <Card.Footer className="flex justify-between">
+        <Card.Footer className="flex flex-wrap items-center justify-between gap-2">
           <Button
             size="sm"
             onClick={handleDownloadReceipt}
@@ -112,7 +113,7 @@ export default function SaleCard({ data }) {
             {isGenerating ? "Preparing PDF..." : "Download Receipt"}
           </Button>
           <Typography type="body-sm" color="muted" className="flex gap-1">
-            {data.sale_date}
+            {formatDateTime(data.sale_date)}
           </Typography>
         </Card.Footer>
         {downloadError && (

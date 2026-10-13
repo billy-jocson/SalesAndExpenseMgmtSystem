@@ -407,7 +407,7 @@ export default function Reports() {
                           fill={expenseColors[index % expenseColors.length]}
                         />
                       ))}
-                      {/* Gemini lang sakalam LOL */}
+                      
                     </Pie>
                     <Tooltip formatter={(value) => currency(value)} />
                     <Legend verticalAlign="bottom" />

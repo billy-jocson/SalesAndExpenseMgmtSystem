@@ -14,16 +14,20 @@ class ExpenseController
     }
 
     public function addExpense($data)
-    {
-        return $this->expenseModel->addExpense(
-            $data['amount'] ?? null,
-            $data['category_id'] ?? null,
-            $data['additional_description'] ?? '',
-            $data['payment_method_id'] ?? null,
-            $data['supplier_id'] ?? null,
-            $data['reference_code'] ?? ''
-        );
-    }
+      {
+            try {
+                return $this->expenseModel->addExpense(
+                    $data['amount'] ?? null,
+                    $data['category_id'] ?? null,
+                    $data['additional_description'] ?? '',
+                    $data['payment_method_id'] ?? null,
+                    $data['supplier_id'] ?? null,
+                    $data['reference_code'] ?? ''
+                );
+            } catch (\Throwable $e) {
+                return ['status' => 'Error', 'message' => $e->getMessage()];
+            }
+   }
 
     public function getExpenseCategories()
     {

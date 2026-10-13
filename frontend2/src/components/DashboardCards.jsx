@@ -37,17 +37,17 @@ export default function DashboardCards({
         </div>
         {noChip ? (
           <></>
-        ) : (
-          <Chip
-            color={status >= 0 ? "success" : "danger"}
-            variant="primary"
-            className="h-fit"
-          >
-            <Chip.Label>
-              {status === 0 ? "0%" : status > 0 ? `+${status}%` : `${status}%`}
-            </Chip.Label>
-          </Chip>
-        )}
+        ) : null
+        // <Chip
+        //   color={status >= 0 ? "success" : "danger"}
+        //   variant="primary"
+        //   className="h-fit"
+        // >
+        //   <Chip.Label>
+        //     {status === 0 ? "0%" : status > 0 ? `+${status}%` : `${status}%`}
+        //   </Chip.Label>
+        // </Chip>
+        }
       </div>
       <Typography type="h2" className={textColor}>
         {body}
