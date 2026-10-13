@@ -12,14 +12,11 @@ import {
   toast,
   Modal,
   Typography,
-  Table,
-  Chip,
 } from "@heroui/react";
 import { userContext } from "../context/UserContext";
 import {
   addProduct,
   buildProductImageUrl,
-  fetchProductExpiry,
   fetchCategories,
   fetchProducts,
 } from "../api/productmanager.js";
@@ -56,9 +53,6 @@ export default function ProductsManager() {
   const [isOrderOpen, setIsOrderOpen] = useState(false);
   const debouncedItemOrderSearch = useDebounce(itemOrderSearch);
   const [cartItems, setCartItems] = useState([]);
-  // ADMIN FIX: Removed expiry - supplier sets it! const [orderExpirationDate, setOrderExpirationDate] = useState("");
-  const [expiryProducts, setExpiryProducts] = useState([]);
-  const [expiryLoading, setExpiryLoading] = useState(true);
 
   useEffect(() => {
     document.title = "Products Manager";
@@ -97,42 +91,6 @@ export default function ProductsManager() {
 
     loadCategories();
   }, []);
-
-  useEffect(() => {
-    let isCurrent = true;
-
-    const loadExpiryProducts = async () => {
-      if (role === "supplier") {
-        setExpiryProducts([]);
-        setExpiryLoading(false);
-        return;
-      }
-
-      setExpiryLoading(true);
-      try {
-        const data = await fetchProductExpiry();
-        if (data?.status !== "Success") {
-          throw new Error(data?.message ?? "Unable to load product expiry.");
-        }
-        if (isCurrent) {
-          setExpiryProducts(data.products ?? []);
-        }
-      } catch (error) {
-        if (isCurrent) {
-          toast.danger(error.message || "Unable to load product expiry.");
-        }
-      } finally {
-        if (isCurrent) {
-          setExpiryLoading(false);
-        }
-      }
-    };
-
-    loadExpiryProducts();
-    return () => {
-      isCurrent = false;
-    };
-  }, [role, productsRefreshKey]);
 
   const handleAddProduct = async () => {
     if (

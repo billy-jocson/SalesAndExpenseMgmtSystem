@@ -6,7 +6,6 @@ import {
   Modal,
   TextField,
   toast,
-  Typography,
 } from "@heroui/react";
 import { useState, useContext } from "react";
 import { requestRestock } from "../api/ordermanager.js";

@@ -1,13 +1,11 @@
 import { Wallet } from "@gravity-ui/icons";
-import { Chip, Typography } from "@heroui/react";
+import { Typography } from "@heroui/react";
 
 export default function DashboardCards({
   icon,
-  status,
   title,
   body,
   highlighted = false,
-  noChip = false,
 }) {
   const Icon = icon ?? Wallet;
   const textColor = highlighted ? "text-white" : "text-zinc-800";
@@ -35,19 +33,6 @@ export default function DashboardCards({
             {title}
           </Typography>
         </div>
-        {noChip ? (
-          <></>
-        ) : null
-        // <Chip
-        //   color={status >= 0 ? "success" : "danger"}
-        //   variant="primary"
-        //   className="h-fit"
-        // >
-        //   <Chip.Label>
-        //     {status === 0 ? "0%" : status > 0 ? `+${status}%` : `${status}%`}
-        //   </Chip.Label>
-        // </Chip>
-        }
       </div>
       <Typography type="h2" className={textColor}>
         {body}
