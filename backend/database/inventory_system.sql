@@ -2401,6 +2401,10 @@ ALTER TABLE `supplier_products`
 --
 ALTER TABLE `users`
   ADD CONSTRAINT `fk_users_roles` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `notifications` 
+    ADD CONSTRAINT `fk_notifications_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
 COMMIT;
 
 -- --------------------------------------------------------
