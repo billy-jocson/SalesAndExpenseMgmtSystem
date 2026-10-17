@@ -295,7 +295,7 @@ export default function SupplierManager() {
     <div className="flex gap-3">
       <Navbar />
       <div className="flex w-full gap-3">
-        <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll">
+        <div className="bg-white flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll scrollbar-thin">
           <TopBar
             title="Supplier Manager"
             body="Manage your suppliers here."
@@ -361,13 +361,13 @@ export default function SupplierManager() {
       >
         <Modal.Backdrop>
           <Modal.Container>
-            <Modal.Dialog className="w-[min(32rem,calc(100vw-2rem))] rounded-2xl bg-white p-6 shadow-xl">
+            <Modal.Dialog className="flex max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100vw-2rem))] flex-col rounded-2xl bg-white p-6 shadow-xl">
               <Modal.CloseTrigger />
               <Modal.Header className="flex items-start gap-3">
-                <Modal.Icon className="bg-blue-500 text-white">
+                  <Modal.Icon className="shrink-0 bg-blue-500 text-white">
                   <Person className="size-5" />
                 </Modal.Icon>
-                <div className="flex flex-col gap-1">
+                  <div className="flex min-w-0 flex-col gap-1">
                   <Modal.Heading>
                     {supplierToEdit ? "Edit Supplier" : "Add New Supplier"}
                   </Modal.Heading>
@@ -378,8 +378,11 @@ export default function SupplierManager() {
                   </p>
                 </div>
               </Modal.Header>
-              <form onSubmit={handleSaveSupplier}>
-                <Modal.Body className="flex flex-col gap-3 py-3 overflow-hidden">
+              <form
+                className="flex min-h-0 flex-1 flex-col"
+                onSubmit={handleSaveSupplier}
+              >
+                <Modal.Body className="min-h-0 flex-1 overflow-y-auto scrollbar-thin py-3">
                   {formStep === 1 ? (
                     <div className="flex flex-col gap-3">
                       <Label>Supplier Name</Label>
@@ -527,7 +530,7 @@ export default function SupplierManager() {
                     </div>
                   )}
                 </Modal.Body>
-                <Modal.Footer className="flex justify-end gap-2 mt-4">
+                <Modal.Footer className="mt-4 flex shrink-0 justify-end gap-2">
                   <Button
                     variant="tertiary"
                     type="button"

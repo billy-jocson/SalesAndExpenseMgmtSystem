@@ -8,12 +8,10 @@ import { useDebounce } from "../hooks/useDebounce.js";
 import {
   DateField,
   DateRangePicker,
-  // Card,
   InputGroup,
   RangeCalendar,
   TextField,
   Typography,
-  // Typography,
 } from "@heroui/react";
 import AddExpenseModal from "../components/AddExpenseModal.jsx";
 import { fetchAllExpenses, fetchCategories } from "../api/expenses";
@@ -72,7 +70,7 @@ export default function Expenses() {
       <Navbar />
 
       <div className="flex w-full gap-3">
-        <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 h-full overflow-y-scroll">
+        <div className="bg-white flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 h-full overflow-y-scroll scrollbar-thin">
           <TopBar
             title="Expenses"
             body="Track and manage your business expenses"
@@ -167,7 +165,7 @@ export default function Expenses() {
                 {expenses.length} {expenses.length > 1 ? "expenses" : "expense"}{" "}
                 found.
               </Typography>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="space-y-3 max-h-20">
                 {expenses.map((e, index) => (
                   <ExpenseCard key={index} data={e} />
                 ))}

@@ -173,7 +173,7 @@ CREATE TABLE `sales_items` (
 
 -- 4. View for Calculated Sales Totals (Dynamic 3NF View)
 CREATE OR REPLACE VIEW `vw_sales_summary` AS
-SELECT 
+SELECT
     s.sale_id,
     s.staff_id,
     s.payment_method_id,

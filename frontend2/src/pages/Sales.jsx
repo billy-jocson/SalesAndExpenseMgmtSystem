@@ -48,8 +48,8 @@ export default function Sales() {
     <div className="flex gap-3">
       <Navbar />
 
-      <div className="flex w-full gap-3">
-        <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll">
+      <div className="flex w-full gap-3 ">
+        <div className="bg-white flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll scrollbar-thin">
           <TopBar
             title="Sales"
             body="Track all your sales in this page."
@@ -112,7 +112,7 @@ export default function Sales() {
               </DateRangePicker.Popover>
             </DateRangePicker>
           </div>
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="space-y-3">
             {loading ? (
               <ListCardSkeleton />
             ) : sales.length === 0 ? (

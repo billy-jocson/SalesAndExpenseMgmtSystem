@@ -55,8 +55,7 @@ class Supplier
         $postalCode = $data['postal_code'] ?? null;
 
         $stmt = $this->db->prepare("CALL sp_suppliers_add(?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param(
-            'ssssssssi',
+        $stmt->bind_param('ssssssssi',
             $username,
             $passwordHash,
             $supplierName,
@@ -67,13 +66,13 @@ class Supplier
             $postalCode,
             $roleId
         );
-
+        
         try {
             $stmt->execute();
             $result = $stmt->get_result()->fetch_assoc();
             $this->clearResults();
             $stmt->close();
-
+            
             return [
                 'status' => 'Success',
                 'message' => 'Supplier added successfully.',
@@ -114,8 +113,7 @@ class Supplier
         $postalCode = $data['postal_code'] ?? null;
 
         $stmt = $this->db->prepare("CALL sp_suppliers_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param(
-            'iissssssss',
+        $stmt->bind_param('iissssssss',
             $supplierId,
             $supplierUserId,
             $newUsername,
@@ -132,7 +130,7 @@ class Supplier
             $stmt->execute();
             $this->clearResults();
             $stmt->close();
-
+            
             return [
                 'status' => 'Success',
                 'message' => 'Supplier updated successfully.'
@@ -192,7 +190,7 @@ class Supplier
         $result = $stmt->get_result()->fetch_assoc();
         $this->clearResults();
         $stmt->close();
-
+        
         return ($result['affected_rows'] ?? 0) > 0;
     }
 

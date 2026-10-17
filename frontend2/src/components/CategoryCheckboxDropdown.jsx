@@ -21,7 +21,7 @@ export default function CategoryCheckboxDropdown({
           ▾
         </span>
       </summary>
-      <div className="absolute left-0 top-full z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
+      <div className="absolute left-0 top-full z-20 mt-1 max-h-56 w-full overflow-y-auto scrollbar-thin rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
         {clearLabel && (
           <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700 hover:bg-gray-50">
             <input

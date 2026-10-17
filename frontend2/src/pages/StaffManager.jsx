@@ -62,7 +62,7 @@ function StaffCard({ staff, onDelete, onEdit }) {
     `${staff.first_name?.charAt(0) ?? ""}${staff.last_name?.charAt(0) ?? ""}`.toUpperCase();
 
   return (
-    <div className="h-fit p-4 rounded-2xl border border-zinc-200 bg-white shadow-sm hover:shadow-md transition-all flex flex-col gap-1">
+    <div className="h-full p-4 rounded-2xl border border-zinc-200 bg-white shadow-sm hover:shadow-md transition-all flex flex-col gap-1">
       <div className="flex gap-4 items-start mb-3">
         <div className="h-12 w-12 rounded-full bg-foreground text-white flex items-center justify-center font-bold text-sm shrink-0">
           {initials}
@@ -247,7 +247,7 @@ export default function StaffManager() {
     <div className="flex gap-3">
       <Navbar />
       <div className="flex w-full gap-3">
-        <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-4 max-h-[calc(100dvh-2rem)] overflow-y-scroll">
+        <div className="bg-white flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-4 max-h-[calc(100dvh-2rem)] overflow-y-scroll scrollbar-thin">
           <TopBar
             title="Staff Manager"
             body="Create and view staff accounts"
@@ -286,7 +286,7 @@ export default function StaffManager() {
             {staffs.length} {staffs.length > 1 ? "staffs" : "staff"} found.
           </Typography>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 w-full h-full">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 w-full">
             {loading ? (
               <ListCardSkeleton />
             ) : staffs.length === 0 ? (

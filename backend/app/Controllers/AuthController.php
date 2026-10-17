@@ -23,7 +23,6 @@ class AuthController
         $user = $this->userModel->findByUsername($data['username']);
 
         if ($user && password_verify($data['password'], $user['password_hash'])) {
-
             // Kukunin ang permissions dynamically galing sa MySQL Grants
             $roleModel = new Role();
             $allRoles = $roleModel->fetchRoles();

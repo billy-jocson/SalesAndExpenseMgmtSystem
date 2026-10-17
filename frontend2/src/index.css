@@ -2,6 +2,27 @@
 @import "@heroui/styles";
 @custom-variant dark (&:where(.dark, .dark *));
 
+@layer utilities {
+	.scrollbar-thin {
+		scrollbar-color: rgb(148 163 184 / 0.7) transparent;
+		scrollbar-width: thin;
+	}
+
+	.scrollbar-thin::-webkit-scrollbar {
+		width: 6px;
+		height: 6px;
+	}
+
+	.scrollbar-thin::-webkit-scrollbar-thumb {
+		border-radius: 9999px;
+		background-color: rgb(148 163 184 / 0.7);
+	}
+
+	.scrollbar-thin::-webkit-scrollbar-track {
+		background: transparent;
+	}
+}
+
 @font-face {
   font-family: 'Lora-Bold';
   src: url('./assets/fonts/Lora/Lora-Bold.ttf') format('truetype');

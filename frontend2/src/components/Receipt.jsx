@@ -1,12 +1,6 @@
-import {
-  Document,
-  Image,
-  Page,
-  StyleSheet,
-  Text,
-  View,
-} from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import calculaLogo from "../assets/Logo_light.svg";
+import calculaLogoPng from "../assets/Logo_light.png";
 
 // 2. Update your formatters to use the Peso symbol
 const formatMoney = (value) => `PHP ${Number(value ?? 0).toFixed(2)}`;
@@ -170,7 +164,7 @@ export function ReceiptPDF({ data }) {
       <Page size="A4" style={styles.page}>
         <View style={styles.pageContent}>
           <View style={styles.header}>
-            <Image src={calculaLogo} style={styles.logo} />
+            <Image src={calculaLogoPng} style={styles.logo} />
             <Text style={styles.title}>SALES RECEIPT</Text>
           </View>
 
@@ -317,7 +311,7 @@ export default function Receipt({ data, logoSrc }) {
       >
         <header style={{ textAlign: "center", marginBottom: "22px" }}>
           <img
-            src={logoSrc}
+            src={calculaLogo}
             alt="Calcula"
             style={{ width: "220px", margin: "0 auto 14px" }}
           />

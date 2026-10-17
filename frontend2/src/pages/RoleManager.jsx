@@ -191,7 +191,7 @@ export default function RoleManager() {
     <div className="flex gap-3">
       <Navbar />
       <div className="flex w-full gap-3">
-        <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-4 max-h-[calc(100dvh-2rem)] overflow-y-scroll">
+        <div className="bg-white flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-4 max-h-[calc(100dvh-2rem)] overflow-y-scroll scrollbar-thin">
           <TopBar
             title="Role Manager"
             body="Create roles and assign page access."
@@ -238,6 +238,7 @@ export default function RoleManager() {
                 <RoleCard
                   key={r.role_id}
                   role={r}
+                  currentUserRole={user?.role}
                   onEdit={openEditModal}
                   onDelete={(role) => {
                     setFormData(role);
@@ -253,7 +254,7 @@ export default function RoleManager() {
       <Modal isOpen={isModalOpen} onOpenChange={setIsModalOpen}>
         <Modal.Backdrop>
           <Modal.Container>
-            <Modal.Dialog className="w-[min(30rem,calc(100vw-2rem))] rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <Modal.Dialog className="w-[min(30rem,calc(100vw-2rem))] rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto scrollbar-thin">
               <Modal.CloseTrigger />
               <Modal.Header>
                 <Modal.Heading>

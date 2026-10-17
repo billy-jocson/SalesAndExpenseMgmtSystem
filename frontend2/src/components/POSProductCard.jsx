@@ -24,7 +24,7 @@ export default function POSProductCard({
   }
 
   return (
-    <Card className="w-auto grow gap-2 shadow-md">
+    <Card className="w-auto grow gap-2 shadow-md border border-zinc-200">
       <img
         alt={name}
         className="pointer-events-none aspect-square w-56 mx-auto rounded-2xl object-cover select-none"

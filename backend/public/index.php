@@ -1,6 +1,6 @@
 <?php
 
-header('Access-Control-Allow-Origin: http://localhost:5173');
+header('Access-Control-Allow-Origin: http://localhost:3306');
 header('Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Content-Type: application/json; charset=UTF-8');
@@ -24,6 +24,9 @@ use App\Controllers\StaffController;
 use App\Controllers\SupplierController;
 use App\Controllers\POSController;
 use App\Controllers\RoleController;
+use App\Controllers\OrderController;
+use App\Controllers\NotificationController;
+
 
 function jsonResponse($data, int $status = 200): void
 {
@@ -94,6 +97,12 @@ try {
             break;
         case $requestMethod === 'POST' && $path === '/products':
             $response = (new ProductController())->addProduct($input, $_FILES ?? []);
+            break;
+        case $requestMethod === 'POST'
+            && count($segments) === 2
+            && $segments[0] === 'products':
+            $input['product_id'] = $segments[1];
+            $response = (new ProductController())->updateProduct($input, $_FILES ?? []);
             break;
         case $requestMethod === 'PATCH'
             && count($segments) === 2
@@ -211,6 +220,38 @@ try {
             $segments[0] === 'staff':
             $input['staff_id'] = $segments[1];
             (new StaffController())->updateStaff($input);
+            break;
+        case $requestMethod === 'POST' && $path === '/orders/pending':
+            $response = (new OrderController())->createPendingOrder($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/orders/pending':
+            $response = (new OrderController())->fetchPendingOrders($input);
+            break;
+        case $requestMethod === 'POST'
+            && count($segments) === 3
+            && $segments[0] === 'orders'
+            && $segments[2] === 'accept':
+            $input['order_id'] = $segments[1];
+            $response = (new OrderController())->acceptOrder($input);
+            break;
+        case $requestMethod === 'POST'
+            && count($segments) === 3
+            && $segments[0] === 'orders'
+            && $segments[2] === 'reject':
+            $input['order_id'] = $segments[1];
+            $response = (new OrderController())->rejectOrder($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/notifications':
+            $response = (new NotificationController())->fetchNotifications($input);
+            break;
+        case $requestMethod === 'POST' && $path === '/notifications/mark-read':
+            $response = (new NotificationController())->markAsRead($input);
+            break;
+        case $requestMethod === 'POST' && $path === '/notifications/mark-all-read':
+            $response = (new NotificationController())->markAllAsRead($input);
+            break;
+        case $requestMethod === 'GET' && $path === '/admin/orders-status':
+            $response = (new NotificationController())->fetchAdminOrdersStatus($input);
             break;
         default:
             jsonResponse(['status' => 'Error', 'message' => 'Endpoint not found'], 404);

@@ -128,7 +128,7 @@ export default function LoginPage() {
           </Button>
         </Form>
       </div>
-      <div className="flex flex-1 justify-center items-center lg:static absolute z-[-1]">
+      <div className="flex flex-1 justify-center items-center lg:static absolute z-1">
         <video
           src={trimmedSrc}
           autoPlay

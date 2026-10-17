@@ -50,6 +50,12 @@ const expenseColors = [
   "#df05fc",
 ];
 
+const formatDashboardCurrency = (value) =>
+  Number(value ?? 0).toLocaleString("en-US", {
+    style: "currency",
+    currency: "PHP",
+  });
+
 // Main dashboard page
 export default function Dashboard() {
   // Used for the new sale button to navigate to pos page
@@ -143,14 +149,18 @@ export default function Dashboard() {
         setChartData(nextData);
       }
 
-      if (
+      const lineChartData =
         lineChartRes.status === "fulfilled" &&
-        lineChartRes.value?.status === "success"
-      ) {
-        const formattedData = (lineChartRes.value.data || []).map((item) => ({
+        lineChartRes.value?.status === "success" &&
+        Array.isArray(lineChartRes.value.data)
+          ? lineChartRes.value.data
+          : [];
+
+      if (lineChartData.length > 0) {
+        const formattedData = lineChartData.map((item) => ({
           ...item,
-          sales: Number(item.sales),
-          expense: Number(item.expense),
+          sales: Number(item.sales ?? 0),
+          expense: Number(item.expense ?? 0),
         }));
         setData(formattedData);
 
@@ -171,7 +181,7 @@ export default function Dashboard() {
             netIncome: totalSales - totalExpenses,
           }));
         }
-      } else if (lineChartRes.status === "fulfilled") {
+      } else {
         setData([]);
       }
     };
@@ -273,11 +283,31 @@ export default function Dashboard() {
       return accumulator;
     }, {}),
   ).map(([category, value]) => ({ category, value }));
+  const trendTotals = data.reduce(
+    (totals, item) => ({
+      sales: totals.sales + Number(item.sales ?? 0),
+      expenses: totals.expenses + Number(item.expense ?? 0),
+    }),
+    { sales: 0, expenses: 0 },
+  );
+  const expenseBreakdownTotal = chartData.reduce(
+    (total, item) => total + Number(item.total_amount ?? 0),
+    0,
+  );
+  const hasChartValues = chartData.some(
+    (item) => Number(item.total_amount ?? 0) > 0,
+  );
+  const expenseCategorySummary = chartData
+    .map(
+      (item) =>
+        `${item.category_name}: ${formatDashboardCurrency(item.total_amount)}`,
+    )
+    .join(", ");
 
   return (
     <div className="flex gap-3">
       <Navbar />
-      <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll min-h-[calc(100vh-2rem)]">
+      <div className="bg-white flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] min-h-[calc(100vh-2rem)] overflow-y-scroll scrollbar-thin">
         <TopBar
           title="Dashboard"
           body={
@@ -389,7 +419,7 @@ export default function Dashboard() {
                     </p>
 
                     {inventoryBreakdown.length > 0 ? (
-                      <div className="h-72 w-full">
+                      <div className="h-72 w-full border-[1.5px] border-zinc-300">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
@@ -438,7 +468,7 @@ export default function Dashboard() {
                   </Button>
                   {user?.role === "Administrator" && <AddExpenseModal />}
                   <DateRangePicker value={dateRange} onChange={setDateRange}>
-                    <DateField.Group>
+                    <DateField.Group className=" border-[1.5px] border-zinc-300">
                       <DateField.InputContainer>
                         <DateField.Input slot="start">
                           {(segment) => <DateField.Segment segment={segment} />}
@@ -502,7 +532,7 @@ export default function Dashboard() {
                   />
                 </div>
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <div className="mt-5 rounded-lg bg-white p-5 shadow-md">
+                  <div className="mt-5 rounded-2xl bg-white p-5 shadow-md  border-[1.5px] border-zinc-300">
                     <h2 className="text-lg font-semibold text-zinc-800">
                       Sales vs. Expense Trend
                     </h2>
@@ -550,13 +580,32 @@ export default function Dashboard() {
                         </ResponsiveContainer>
                       ) : (
                         <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500">
-                          No data available for this date range.
+                          No data exists in this selected date range.
                         </div>
                       )}
                     </div>
+                    {user?.role === "Administrator" && data.length > 0 && (
+                      <p className="mt-4 rounded-lg bg-zinc-50 p-3 text-sm leading-6 text-zinc-700">
+                        For the selected period, sales totaled{" "}
+                        <strong>
+                          {formatDashboardCurrency(trendTotals.sales)}
+                        </strong>
+                        , expenses totaled{" "}
+                        <strong>
+                          {formatDashboardCurrency(trendTotals.expenses)}
+                        </strong>
+                        , and net income was{" "}
+                        <strong>
+                          {formatDashboardCurrency(
+                            trendTotals.sales - trendTotals.expenses,
+                          )}
+                        </strong>
+                        .
+                      </p>
+                    )}
                   </div>
 
-                  <div className="mt-5 rounded-lg bg-white p-5 shadow-md">
+                  <div className="mt-5 rounded-2xl bg-white p-5 shadow-md border-[1.5px] border-zinc-300">
                     <h2 className="text-lg font-semibold text-zinc-800">
                       Expense Breakdown
                     </h2>
@@ -564,7 +613,7 @@ export default function Dashboard() {
                       See where you spend your revenue.
                     </p>
                     <div className="h-72 w-full">
-                      {chartData && chartData.length > 0 ? (
+                      {hasChartValues ? (
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
@@ -599,10 +648,24 @@ export default function Dashboard() {
                         </ResponsiveContainer>
                       ) : (
                         <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500">
-                          No data exists yet in the database.
+                          No data exists in this selected date range.
                         </div>
                       )}
                     </div>
+                    {user?.role === "Administrator" && hasChartValues && (
+                      <p className="mt-4 rounded-lg bg-zinc-50 p-3 text-sm leading-6 text-zinc-700">
+                        Expenses totaled{" "}
+                        <strong>
+                          {formatDashboardCurrency(expenseBreakdownTotal)}
+                        </strong>
+                        {expenseCategorySummary && (
+                          <>
+                            {" "}
+                            across these categories: {expenseCategorySummary}.
+                          </>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
               </>
@@ -678,10 +741,10 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div className="rounded-lg bg-white p-5 shadow-md">
                   <h2 className="text-lg font-semibold text-zinc-800">
-                    Sales Trend
+                    Revenue
                   </h2>
                   <p className="mb-5 text-sm text-zinc-500">
-                    Track your sales here.
+                    Track your revenue here.
                   </p>
                   <div className="h-72 w-full">
                     {data && data.length > 0 ? (
@@ -729,7 +792,7 @@ export default function Dashboard() {
                     See all your product counts.
                   </p>
                   <div className="h-72 w-full">
-                    {chartData && chartData.length > 0 ? (
+                    {hasChartValues ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie

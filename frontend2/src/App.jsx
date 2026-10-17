@@ -14,10 +14,14 @@ import NotFound from "./pages/NotFound";
 import ContextProvider from "./context/ContextProvider";
 import ProtectedRoute from "./context/ProtectedRoute";
 import RoleManager from "./pages/RoleManager";
+import AwaitingOrders from "./pages/AwaitingOrders";
+import NotificationsPage from "./pages/NotificationsPage.jsx";
+
+
 
 export default function App() {
   return (
-    <div className="dark:bg-zinc-950 box-border h-dvh w-screen scrollbar-thin scrollbar-thumb-slate-400 hover:scrollbar-thumb-slate-500 lg:p-4">
+    <div className="bg-zinc-100/50 box-border h-dvh w-screen scrollbar-thin scrollbar-thumb-slate-400 hover:scrollbar-thumb-slate-500 lg:p-4">
       <ContextProvider>
         <Routes>
           <Route path={NavRoutes.LOGIN} element={<LoginPage />} />
@@ -51,6 +55,10 @@ export default function App() {
           <Route element={<ProtectedRoute path={NavRoutes.ROLEMANAGER} />}>
             <Route path={NavRoutes.ROLEMANAGER} element={<RoleManager />} />
           </Route>
+          <Route element={<ProtectedRoute path={NavRoutes.AWAITINGORDERS} />}>
+            <Route path={NavRoutes.AWAITINGORDERS} element={<AwaitingOrders />} />
+          </Route>
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </ContextProvider>

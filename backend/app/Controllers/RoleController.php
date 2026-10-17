@@ -67,7 +67,10 @@ class RoleController
     {
         try {
             $this->requireAdmin($data);
-            return $this->roleModel->deleteRole((int) ($data['role_id'] ?? 0));
+            return $this->roleModel->deleteRole(
+                (int) ($data['role_id'] ?? 0),
+                (int) ($data['user_id'] ?? 0)
+            );
         } catch (\Throwable $e) {
             return ['status' => 'Error', 'message' => $e->getMessage()];
         }

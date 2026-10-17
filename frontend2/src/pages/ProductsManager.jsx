@@ -12,17 +12,13 @@ import {
   toast,
   Modal,
   Typography,
-  Table,
-  Chip,
 } from "@heroui/react";
 import { userContext } from "../context/UserContext";
 import {
   addProduct,
   buildProductImageUrl,
-  fetchProductExpiry,
   fetchCategories,
   fetchProducts,
-  handleOrdering,
 } from "../api/productmanager.js";
 import ProductCategoryDropdown from "../components/ProductCategoryDropdown.jsx";
 import CategoryCheckboxDropdown from "../components/CategoryCheckboxDropdown.jsx";
@@ -57,9 +53,6 @@ export default function ProductsManager() {
   const [isOrderOpen, setIsOrderOpen] = useState(false);
   const debouncedItemOrderSearch = useDebounce(itemOrderSearch);
   const [cartItems, setCartItems] = useState([]);
-  const [orderExpirationDate, setOrderExpirationDate] = useState("");
-  const [expiryProducts, setExpiryProducts] = useState([]);
-  const [expiryLoading, setExpiryLoading] = useState(true);
 
   useEffect(() => {
     document.title = "Products Manager";
@@ -98,42 +91,6 @@ export default function ProductsManager() {
 
     loadCategories();
   }, []);
-
-  useEffect(() => {
-    let isCurrent = true;
-
-    const loadExpiryProducts = async () => {
-      if (role === "supplier") {
-        setExpiryProducts([]);
-        setExpiryLoading(false);
-        return;
-      }
-
-      setExpiryLoading(true);
-      try {
-        const data = await fetchProductExpiry();
-        if (data?.status !== "Success") {
-          throw new Error(data?.message ?? "Unable to load product expiry.");
-        }
-        if (isCurrent) {
-          setExpiryProducts(data.products ?? []);
-        }
-      } catch (error) {
-        if (isCurrent) {
-          toast.danger(error.message || "Unable to load product expiry.");
-        }
-      } finally {
-        if (isCurrent) {
-          setExpiryLoading(false);
-        }
-      }
-    };
-
-    loadExpiryProducts();
-    return () => {
-      isCurrent = false;
-    };
-  }, [role, productsRefreshKey]);
 
   const handleAddProduct = async () => {
     if (
@@ -193,6 +150,9 @@ export default function ProductsManager() {
           price: Number(data.wholesalePrice),
           quantity: 1,
           image: buildProductImageUrl(data.imagePath),
+          supplier_id: data.supplier_id,
+          supplier_name: data.supplier_name,
+          supplier_product_id: data.supplier_product_id || data.id,
         },
       ];
     });
@@ -253,11 +213,7 @@ export default function ProductsManager() {
     );
 
     const orderFunction = async () => {
-      if (!orderExpirationDate) {
-        toast.danger("Select an expiration date for the ordered products.");
-        return;
-      }
-
+      // ADMIN FIX: No expiry needed - supplier sets it upon acceptance!
       if (!paymentValue?.trim()) {
         toast.danger(
           paymentMethod === "Cash"
@@ -272,11 +228,28 @@ export default function ProductsManager() {
         return;
       }
 
-      const responses = await handleOrdering(
-        cartItems,
-        orderExpirationDate,
-        paymentMethod,
-        paymentMethod === "GCash" ? paymentValue.trim() : "",
+      // ADMIN FIX: Create pending orders without expiry - supplier will set expiry!
+      const { requestNewOrder } = await import("../api/ordermanager.js");
+      const responses = await Promise.all(
+        cartItems.map(async (product) => {
+          try {
+            console.log("Ordering FIXED supplier:", product.supplier_id, product.name);
+            if (!product.supplier_id) {
+              return { status: "Error", message: `No supplier_id for ${product.name}`, productName: product.name };
+            }
+            const res = await requestNewOrder({
+              supplierProductId: product.supplier_product_id || product.id,
+              supplierId: product.supplier_id,
+              quantity: product.quantity,
+              requestedBy: user?.user_id || user?.id || 1,
+              paymentMethod,
+              referenceCode: paymentMethod === "GCash" ? paymentValue.trim() : "",
+            });
+            return { ...res, productName: product.name };
+          } catch (error) {
+            return { status: "Error", message: error.message, productName: product.name };
+          }
+        })
       );
       setProductsRefreshKey((value) => value + 1);
       const orderSucceeded = responses.every(
@@ -284,9 +257,9 @@ export default function ProductsManager() {
       );
 
       if (orderSucceeded) {
-        toast.success("Products ordered and inventory updated.");
+        toast.success("Order requests sent to suppliers! Suppliers will set expiry upon acceptance.");
         setCartItems([]);
-        setOrderExpirationDate("");
+        // setOrderExpirationDate(""); // Removed - no expiry for admin
       } else {
         const failedProducts = responses
           .filter((response) => response?.status?.toLowerCase() !== "success")
@@ -310,7 +283,7 @@ export default function ProductsManager() {
         }`}
         aria-hidden={cartItems.length === 0}
       >
-        <div className="flex h-full overflow-y-scroll min-h-96 flex-col gap-3 rounded-3xl bg-slate-50 p-4">
+        <div className="flex h-full overflow-y-scroll min-h-96 flex-col gap-3 rounded-3xl bg-slate-50 p-4 scrollbar-thin">
           <div className="pb-1">
             <Typography type="h3">Order Cart</Typography>
             <Typography type="body-sm" color="muted">
@@ -318,7 +291,7 @@ export default function ProductsManager() {
             </Typography>
           </div>
 
-          <div className="min-h-[300px] max-h-[350px] flex-1 space-y-3 overflow-y-auto">
+          <div className="min-h-[300px] max-h-[350px] flex-1 space-y-3 overflow-y-auto scrollbar-thin">
             {cartItems.map((item) => (
               <POSBillItem
                 key={item.id}
@@ -345,17 +318,7 @@ export default function ProductsManager() {
               <span>₱{subtotal.toFixed(2)}</span>
             </div>
           </div>
-          <TextField className="w-full" name="order-expiration-date">
-            <Label>Expiration date</Label>
-            <InputGroup>
-              <InputGroup.Input
-                className="w-full"
-                type="date"
-                value={orderExpirationDate}
-                onChange={(event) => setOrderExpirationDate(event.target.value)}
-              />
-            </InputGroup>
-          </TextField>
+          {/* ADMIN FIX: Removed Expiry Date - Supplier sets it! */}
           <div className="flex gap-2">
             <Button
               variant={paymentMethod === "Cash" ? "primary" : "outline"}
@@ -411,7 +374,7 @@ export default function ProductsManager() {
     <div className="flex gap-3 relative overflow-hidden">
       <Navbar />
 
-      <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll">
+      <div className="bg-white flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-3 max-h-[calc(100dvh-2rem)] overflow-y-scroll scrollbar-thin">
         <TopBar
           title="Products Manager"
           body="Manage your products here."
@@ -494,7 +457,7 @@ export default function ProductsManager() {
                   </div>
 
                   {/* Drawer Body (Scrollable) */}
-                  <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+                  <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-thin">
                     {/* Image Upload Area */}
                     <div>
                       <div className="relative flex flex-col items-center justify-center w-full h-48 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 hover:bg-gray-100 transition-colors overflow-hidden group cursor-pointer">
@@ -661,7 +624,7 @@ export default function ProductsManager() {
                         </Modal.Header>
                         <Modal.Body className="max-h-full overflow-hidden">
                           <div className="flex h-full min-h-96 gap-3">
-                            <div className="min-w-0 flex-1 overflow-y-auto">
+                            <div className="min-w-0 flex-1 overflow-y-auto scrollbar-thin">
                               <div
                                 className={
                                   cartItems.length > 0
@@ -678,6 +641,7 @@ export default function ProductsManager() {
                                     imagePath={data.image_path}
                                     category={data.category}
                                     supplier_name={data.supplier_name}
+                                    supplier_id={data.supplier_id}
                                     wholesalePrice={data.wholesale_price}
                                     onOrder={handleOrder}
                                   />
@@ -700,94 +664,7 @@ export default function ProductsManager() {
             )}
           </div>
         </div>
-
-        {role !== "supplier" && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <Typography type="h3">
-                  Near-expiry and expired products
-                </Typography>
-                <Typography type="body-sm" color="muted">
-                  Remaining stock expiring within 30 days or already expired.
-                </Typography>
-              </div>
-              {!expiryLoading && (
-                <Chip variant="soft" color="warning" size="sm">
-                  {expiryProducts.length} batches
-                </Chip>
-              )}
-            </div>
-
-            {expiryLoading ? (
-              <Typography type="body-sm" color="muted">
-                Loading expiry information...
-              </Typography>
-            ) : expiryProducts.length === 0 ? (
-              <Typography type="body-sm" color="muted">
-                No near-expiry or expired stock found.
-              </Typography>
-            ) : (
-              <Table>
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Near-expiry and expired products">
-                    <Table.Header>
-                      <Table.Column>Product</Table.Column>
-                      <Table.Column>Batch</Table.Column>
-                      <Table.Column>Remaining stock</Table.Column>
-                      <Table.Column>Expiration date</Table.Column>
-                      <Table.Column>Status</Table.Column>
-                    </Table.Header>
-                    <Table.Body>
-                      {expiryProducts.map((product) => {
-                        const daysUntilExpiry = Number(
-                          product.days_until_expiry,
-                        );
-                        const isExpired = product.expiry_status === "Expired";
-                        const dateLabel = isExpired
-                          ? `${Math.abs(daysUntilExpiry)} ${
-                              Math.abs(daysUntilExpiry) === 1 ? "day" : "days"
-                            } overdue`
-                          : daysUntilExpiry === 0
-                            ? "Expires today"
-                            : `${daysUntilExpiry} ${
-                                daysUntilExpiry === 1 ? "day" : "days"
-                              } left`;
-
-                        return (
-                          <Table.Row key={product.batch_id}>
-                            <Table.Cell>{product.product_name}</Table.Cell>
-                            <Table.Cell>{product.batch_number}</Table.Cell>
-                            <Table.Cell>{product.quantity_in_stock}</Table.Cell>
-                            <Table.Cell>
-                              <div>
-                                <div>{product.expiration_date}</div>
-                                <Typography type="body-xs" color="muted">
-                                  {dateLabel}
-                                </Typography>
-                              </div>
-                            </Table.Cell>
-                            <Table.Cell>
-                              <Chip
-                                variant="soft"
-                                color={isExpired ? "danger" : "warning"}
-                                size="sm"
-                              >
-                                {product.expiry_status}
-                              </Chip>
-                            </Table.Cell>
-                          </Table.Row>
-                        );
-                      })}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
-            )}
-          </section>
-        )}
-
-        {products.length === 0 ? (
+                {products.length === 0 ? (
           <NoItemFound
             title="No products found"
             body="There is nothing to show here."
