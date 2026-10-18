@@ -864,62 +864,69 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_product_categories_get` ()   BEG
 END$$
 
 DROP PROCEDURE IF EXISTS `sp_roles_create`$$
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_roles_create` (IN `p_role_name` VARCHAR(50), IN `p_description` VARCHAR(255))   BEGIN
-    DECLARE v_exists INT DEFAULT 0;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_roles_create` (IN `p_role_name` VARCHAR(50), IN `p_description` VARCHAR(255))
+BEGIN
+    DECLARE v_role_id INT DEFAULT NULL;
+    DECLARE v_is_active TINYINT DEFAULT NULL;
 
-    SELECT COUNT(*) INTO v_exists 
-    FROM roles 
-    WHERE LOWER(role_name) = LOWER(TRIM(p_role_name));
+    SELECT role_id, is_active INTO v_role_id, v_is_active
+    FROM roles
+    WHERE LOWER(role_name) = LOWER(TRIM(p_role_name))
+    LIMIT 1;
 
-    IF v_exists > 0 THEN
-        SIGNAL SQLSTATE '45000' 
-        SET MESSAGE_TEXT = 'A role with this name already exists.';
+    IF v_is_active = 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A role with this name already exists.';
     END IF;
 
-    INSERT INTO roles (role_name, description) 
-    VALUES (TRIM(p_role_name), p_description);
-
-    SELECT LAST_INSERT_ID() AS role_id;
+    IF v_role_id IS NOT NULL THEN
+        UPDATE roles SET is_active = 1, description = p_description WHERE role_id = v_role_id;
+        SELECT v_role_id AS role_id;
+    ELSE
+        INSERT INTO roles (role_name, description) VALUES (TRIM(p_role_name), p_description);
+        SELECT LAST_INSERT_ID() AS role_id;
+    END IF;
 END$$
 
 DROP PROCEDURE IF EXISTS `sp_roles_delete`$$
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_roles_delete` (IN `p_role_id` INT)   BEGIN
-    DECLARE v_role_name VARCHAR(50);
-    DECLARE v_count INT DEFAULT 0;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_roles_delete` (IN `p_role_id` INT)
+BEGIN
+    DECLARE v_exists INT DEFAULT 0;
+    DECLARE v_active_users INT DEFAULT 0;
 
-    SELECT role_name INTO v_role_name 
-    FROM roles 
-    WHERE role_id = p_role_id 
-    LIMIT 1;
+    SELECT COUNT(*) INTO v_exists
+    FROM roles
+    WHERE role_id = p_role_id AND is_active = 1;
 
-    IF v_role_name IS NULL THEN
+    IF v_exists = 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Role not found.';
     END IF;
 
-    SELECT COUNT(*) INTO v_count 
-    FROM users 
-    WHERE role_id = p_role_id;
+    SELECT COUNT(*) INTO v_active_users
+    FROM users
+    WHERE role_id = p_role_id AND is_active = 1;
 
-    IF v_count > 0 THEN
-        SIGNAL SQLSTATE '45000' 
+    IF v_active_users > 0 THEN
+        SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Cannot delete: user account(s) still use this role. Reassign or remove them first.';
     END IF;
 
-    DELETE FROM roles WHERE role_id = p_role_id;
+    UPDATE roles SET is_active = 0 WHERE role_id = p_role_id;
 
     SELECT ROW_COUNT() AS affected_rows;
 END$$
 
 DROP PROCEDURE IF EXISTS `sp_roles_fetch_all`$$
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_roles_fetch_all` (IN `p_search` VARCHAR(255))   BEGIN
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_roles_fetch_all` (IN `p_search` VARCHAR(255))
+BEGIN
     DECLARE v_search VARCHAR(255);
     SET v_search = CONCAT('%', COALESCE(p_search, ''), '%');
 
     SELECT r.role_id, r.role_name, r.description,
            COUNT(u.user_id) AS user_count
     FROM roles r
-    LEFT JOIN users u ON u.role_id = r.role_id
-    WHERE r.role_name LIKE v_search OR r.description LIKE v_search
+    LEFT JOIN users u ON u.role_id = r.role_id AND u.is_active = 1
+    WHERE r.is_active = 1
+      AND (r.role_name LIKE v_search OR r.description LIKE v_search)
     GROUP BY r.role_id, r.role_name, r.description
     ORDER BY r.role_name ASC;
 END$$
@@ -1234,10 +1241,11 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_staff_get_by_id` (IN `p_staff_id
 END$$
 
 DROP PROCEDURE IF EXISTS `sp_staff_roles_get`$$
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_staff_roles_get` ()   BEGIN
-    SELECT role_id, role_name 
-    FROM roles 
-    WHERE LOWER(role_name) != 'supplier' 
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_staff_roles_get` ()
+BEGIN
+    SELECT role_id, role_name
+    FROM roles
+    WHERE LOWER(role_name) != 'supplier' AND is_active = 1
     ORDER BY role_name ASC;
 END$$
 
@@ -1772,7 +1780,8 @@ DROP TABLE IF EXISTS `roles`;
 CREATE TABLE `roles` (
   `role_id` int(11) NOT NULL,
   `role_name` varchar(50) NOT NULL,
-  `description` varchar(255) DEFAULT NULL
+  `description` varchar(255) DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -2401,6 +2410,10 @@ ALTER TABLE `supplier_products`
 --
 ALTER TABLE `users`
   ADD CONSTRAINT `fk_users_roles` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `notifications` 
+    ADD CONSTRAINT `fk_notifications_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
 COMMIT;
 
 -- --------------------------------------------------------

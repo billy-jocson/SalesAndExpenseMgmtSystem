@@ -30,19 +30,9 @@ export default function RoleCard({
           <Shield className="w-6 h-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold text-lg truncate text-gray-900">
-              {role.role_name}
-            </p>
-            {role.is_protected && (
-              <span
-                title="Used by the system (login, permissions) — name can't be changed"
-                className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500"
-              >
-                System role
-              </span>
-            )}
-          </div>
+          <p className="font-semibold text-lg truncate text-gray-900">
+            {role.role_name}
+          </p>
 
           <p className="text-xs text-zinc-500 mt-2 line-clamp-2">
             {role.description || "No description provided."}
