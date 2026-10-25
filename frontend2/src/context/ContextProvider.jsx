@@ -1,9 +1,5 @@
 import { useState } from "react";
-import {
-  ROLE_PERMISSIONS,
-  permissionsToRoutes,
-  userContext,
-} from "./UserContext";
+import { permissionsToRoutes, userContext } from "./UserContext";
 
 function getStoredUser() {
   try {
@@ -16,9 +12,7 @@ function getStoredUser() {
 
 export default function ContextProvider({ children }) {
   const [user, setUser] = useState(getStoredUser);
-  const role = user?.role?.trim().toLowerCase() ?? "";
-  const permissions =
-    ROLE_PERMISSIONS[role] ?? permissionsToRoutes(user?.permissions);
+  const permissions = permissionsToRoutes(user?.permissions);
 
   const setSession = (session) => {
     const nextUser = session?.user ?? session ?? null;
@@ -31,15 +25,31 @@ export default function ContextProvider({ children }) {
     sessionStorage.removeItem("data");
   };
 
-  const canAccess = (path) => permissions === "*" || permissions.includes(path);
+  const canAccess = (path) => permissions.includes(path);
+  const hasPermission = (permissionName) => {
+    if (!Array.isArray(user?.permissions)) return false;
+
+    const requested = permissionName.toLowerCase().split("_");
+    return user.permissions.some((permission) => {
+      const granted = permission.permission_name?.toLowerCase().split("_");
+      return (
+        granted?.join("_") === requested.join("_") ||
+        (granted?.length === 2 &&
+          requested.length === 2 &&
+          granted[0] === requested[1] &&
+          granted[1] === requested[0])
+      );
+    });
+  };
 
   return (
     <userContext.Provider
       value={{
         user,
-        role,
+        role: user?.role?.trim().toLowerCase() ?? "",
         isAuthenticated: Boolean(user),
         canAccess,
+        hasPermission,
         setSession,
         logout,
       }}

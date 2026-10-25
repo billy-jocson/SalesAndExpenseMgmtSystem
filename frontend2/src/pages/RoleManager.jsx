@@ -18,39 +18,15 @@ import { ListCardSkeleton } from "../components/PageSkeleton.jsx";
 import { userContext } from "../context/UserContext";
 import RoleCard from "../components/RoleCard.jsx";
 
-// Simpleng listahan ng mga Pahina para sa UI
-const APP_MODULES = [
-  {
-    id: "Sales",
-    label: "Point of Sales & Sales",
-    desc: "Access to checkout process and sales history.",
-  },
-  {
-    id: "Inventory",
-    label: "Products & Inventory",
-    desc: "Manage store products, batches, and restocking.",
-  },
-  {
-    id: "Expenses",
-    label: "Expenses",
-    desc: "Record and manage operating expenses.",
-  },
-  {
-    id: "Suppliers",
-    label: "Supplier Manager",
-    desc: "Manage supplier information and contacts.",
-  },
-  {
-    id: "Staff",
-    label: "Staff & Roles",
-    desc: "Manage system users and role permissions.",
-  },
-];
-
 export default function RoleManager() {
-  const { user } = useContext(userContext);
+  const { user, hasPermission } = useContext(userContext);
+  const canReadRoles = hasPermission("read_staffs");
+  const canCreateRoles = hasPermission("write_staffs");
+  const canUpdateRoles = hasPermission("update_staffs");
+  const canDeleteRoles = hasPermission("delete_staffs");
   const [search, setSearch] = useState("");
   const [roles, setRoles] = useState([]);
+  const [availablePermissions, setAvailablePermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -62,7 +38,7 @@ export default function RoleManager() {
     role_id: "",
     role_name: "",
     description: "",
-    permissions: {},
+    permission_ids: [],
   });
 
   const debouncedSearch = useDebounce(search);
@@ -79,6 +55,7 @@ export default function RoleManager() {
         } else {
           const dataArray = Array.isArray(res) ? res : res?.data || [];
           setRoles(dataArray);
+          setAvailablePermissions(res?.permissions ?? []);
         }
       } catch (e) {
         toast?.danger?.(`Failed to load roles ${e}`);
@@ -87,12 +64,12 @@ export default function RoleManager() {
       }
     };
 
-    if (user?.role === "Administrator") {
+    if (canReadRoles) {
       load();
     }
-  }, [refreshKey, user]);
+  }, [canReadRoles, refreshKey, user?.id]);
 
-  if (user?.role !== "Administrator") {
+  if (!canReadRoles) {
     return (
       <div className="flex gap-3">
         <Navbar />
@@ -100,7 +77,7 @@ export default function RoleManager() {
           <div className="flex flex-col shadow-md rounded-[1.75rem] w-full p-7 gap-4">
             <NoItemFound
               title="Access Denied"
-              body="You must be an Administrator to view and manage roles."
+              body="You don't have permission to view roles."
             />
           </div>
         </div>
@@ -108,16 +85,13 @@ export default function RoleManager() {
     );
   }
 
-  // Automatic na ipapasa ng React ang buong CRUD grants (Read, Write, Update, Delete) kapag chineck ang module
-  const handlePermissionToggle = (moduleId) => {
+  const handlePermissionToggle = (permissionId) => {
     setFormData((prev) => {
-      const hasAccess = (prev.permissions[moduleId] || []).length > 0;
       return {
         ...prev,
-        permissions: {
-          ...prev.permissions,
-          [moduleId]: hasAccess ? [] : ["Read", "Write", "Update", "Delete"],
-        },
+        permission_ids: prev.permission_ids.includes(permissionId)
+          ? prev.permission_ids.filter((id) => id !== permissionId)
+          : [...prev.permission_ids, permissionId],
       };
     });
   };
@@ -128,7 +102,7 @@ export default function RoleManager() {
       role_id: "",
       role_name: "",
       description: "",
-      permissions: {},
+      permission_ids: [],
     });
     setIsModalOpen(true);
   };
@@ -139,13 +113,18 @@ export default function RoleManager() {
       role_id: role.role_id,
       role_name: role.role_name,
       description: role.description || "",
-      permissions: role.permissions || {},
+      permission_ids: role.permission_ids || [],
     });
     setIsModalOpen(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (modalMode === "add" ? !canCreateRoles : !canUpdateRoles) {
+      toast.danger("You don't have permission to save role changes.");
+      return;
+    }
+
     try {
       const response =
         modalMode === "add"
@@ -166,6 +145,11 @@ export default function RoleManager() {
   };
 
   const handleDelete = async () => {
+    if (!canDeleteRoles) {
+      toast.danger("You don't have permission to delete roles.");
+      return;
+    }
+
     try {
       const response = await deleteRole(formData.role_id, user?.id);
       if (response?.status?.toLowerCase() !== "success") {
@@ -186,6 +170,12 @@ export default function RoleManager() {
     const searchLower = debouncedSearch.toLowerCase();
     return name.includes(searchLower) || description.includes(searchLower);
   });
+  const permissionsByModule = availablePermissions.reduce((groups, permission) => {
+    const module = permission.module || "Other";
+    groups[module] ??= [];
+    groups[module].push(permission);
+    return groups;
+  }, {});
 
   return (
     <div className="flex gap-3">
@@ -211,13 +201,14 @@ export default function RoleManager() {
                 />
               </InputGroup>
             </TextField>
-            <Button
+            {canCreateRoles && <Button
+              size="sm"
               variant="primary"
               className="rounded-lg shrink-0"
               onPress={openAddModal}
             >
-              + Create Role
-            </Button>
+              Add Role
+            </Button>}
           </div>
 
           <Typography type="body-sm" color="muted">
@@ -225,7 +216,7 @@ export default function RoleManager() {
             {filteredRoles.length === 1 ? "role" : "roles"} found.
           </Typography>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 w-full">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3 w-full">
             {loading ? (
               <ListCardSkeleton count={3} />
             ) : filteredRoles.length === 0 ? (
@@ -244,6 +235,8 @@ export default function RoleManager() {
                     setFormData(role);
                     setIsDeleteOpen(true);
                   }}
+                  canEdit={canUpdateRoles}
+                  canDelete={canDeleteRoles}
                 />
               ))
             )}
@@ -303,34 +296,63 @@ export default function RoleManager() {
 
                   <div>
                     <h3 className="text-sm font-bold text-gray-800 mb-3 border-b pb-2">
-                      Page Access
+                      Permissions
                     </h3>
                     <div className="flex flex-col gap-2">
-                      {APP_MODULES.map((mod) => {
-                        const isChecked =
-                          (formData.permissions[mod.id] || []).length > 0;
-                        return (
-                          <label
-                            key={mod.id}
-                            className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${isChecked ? "bg-blue-50 border-blue-200" : "hover:bg-slate-50"}`}
+                      {Object.entries(permissionsByModule).map(
+                        ([module, modulePermissions]) => (
+                          <fieldset
+                            key={module}
+                            className="rounded-xl border p-3"
                           >
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 accent-blue-600 cursor-pointer"
-                              checked={isChecked}
-                              onChange={() => handlePermissionToggle(mod.id)}
-                            />
-                            <div>
-                              <div className="font-semibold text-sm text-slate-800">
-                                {mod.label}
-                              </div>
-                              <div className="text-xs text-slate-500 mt-0.5">
-                                {mod.desc}
-                              </div>
+                            <legend className="px-1 text-sm font-semibold text-slate-800">
+                              {module}
+                            </legend>
+                            <div className="flex flex-col gap-2">
+                              {modulePermissions.map((permission) => {
+                                const permissionId = Number(
+                                  permission.permission_id,
+                                );
+                                const isChecked =
+                                  formData.permission_ids.includes(
+                                    permissionId,
+                                  );
+                                const label = permission.permission_name
+                                  .replaceAll("_", " ")
+                                  .replace(/\b\w/g, (letter) =>
+                                    letter.toUpperCase(),
+                                  );
+
+                                return (
+                                  <label
+                                    key={permissionId}
+                                    className={`flex items-start gap-3 rounded-lg p-2 cursor-pointer transition-colors ${isChecked ? "bg-blue-50" : "hover:bg-slate-50"}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      className="mt-1 size-4 accent-blue-600"
+                                      checked={isChecked}
+                                      onChange={() =>
+                                        handlePermissionToggle(permissionId)
+                                      }
+                                    />
+                                    <span>
+                                      <span className="block text-sm font-medium text-slate-800">
+                                        {label}
+                                      </span>
+                                      {permission.description && (
+                                        <span className="mt-0.5 block text-xs text-slate-500">
+                                          {permission.description}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </label>
+                                );
+                              })}
                             </div>
-                          </label>
-                        );
-                      })}
+                          </fieldset>
+                        ),
+                      )}
                     </div>
                   </div>
                 </Modal.Body>
@@ -341,9 +363,12 @@ export default function RoleManager() {
                   >
                     Cancel
                   </Button>
-                  <Button variant="primary" type="submit">
-                    Save Role
-                  </Button>
+                  {((modalMode === "add" && canCreateRoles) ||
+                    (modalMode === "edit" && canUpdateRoles)) && (
+                    <Button variant="primary" type="submit">
+                      Save Role
+                    </Button>
+                  )}
                 </Modal.Footer>
               </form>
             </Modal.Dialog>
@@ -374,9 +399,11 @@ export default function RoleManager() {
                 >
                   Cancel
                 </Button>
-                <Button variant="danger" onPress={handleDelete}>
-                  Delete Role
-                </Button>
+                {canDeleteRoles && (
+                  <Button variant="danger" onPress={handleDelete}>
+                    Delete Role
+                  </Button>
+                )}
               </Modal.Footer>
             </Modal.Dialog>
           </Modal.Container>

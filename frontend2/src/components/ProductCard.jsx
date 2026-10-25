@@ -10,7 +10,7 @@ import {
   toast,
   Typography,
 } from "@heroui/react";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import CategoryCheckboxDropdown from "./CategoryCheckboxDropdown.jsx";
 import {
   buildProductImageUrl,
@@ -19,6 +19,7 @@ import {
   updateProduct,
   updateSellingPrice,
 } from "../api/productmanager.js";
+import { userContext } from "../context/UserContext.js";
 
 export default function ProductCard({
   id,
@@ -33,6 +34,13 @@ export default function ProductCard({
   onSuccess,
 }) {
   const isSupplierRole = (role ?? "").trim().toLowerCase() === "supplier";
+  const { hasPermission } = useContext(userContext);
+  const canEditProduct = isSupplierRole
+    ? hasPermission("write_vendor_products")
+    : hasPermission("update_inventory");
+  const canDeleteProduct =
+    !isSupplierRole && hasPermission("delete_inventory");
+  const canOpenProduct = canEditProduct || canDeleteProduct;
   const [isOpen, setIsOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [newSellPrice, setNewSellPrice] = useState(sellprice ?? "");
@@ -77,6 +85,11 @@ export default function ProductCard({
   };
 
   const handleEdit = async () => {
+    if (!canEditProduct) {
+      toast.danger("You don't have permission to update this product.");
+      return;
+    }
+
     const numericPrice = Number(newSellPrice);
 
     if (!isSupplierRole) {
@@ -131,6 +144,11 @@ export default function ProductCard({
   };
 
   const handleDelete = async () => {
+    if (!canDeleteProduct) {
+      toast.danger("You don't have permission to delete this product.");
+      return;
+    }
+
     const response = await deleteProduct(id, role);
 
     if (response?.status?.toLowerCase() === "success") {
@@ -149,17 +167,22 @@ export default function ProductCard({
       <article
         role="button"
         tabIndex={0}
-        aria-label={`Edit ${name}`}
+        aria-label={canOpenProduct ? `Manage ${name}` : name}
         onClick={(event) => {
-          if (event.currentTarget.contains(event.target)) openEditor();
+          if (canOpenProduct && event.currentTarget.contains(event.target)) {
+            openEditor();
+          }
         }}
         onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
+          if (
+            canOpenProduct &&
+            (event.key === "Enter" || event.key === " ")
+          ) {
             event.preventDefault();
             openEditor();
           }
         }}
-        className="flex h-fit w-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white p-3.5 shadow-md transition-shadow hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+        className={`flex h-fit w-full flex-col overflow-hidden rounded-2xl bg-white p-3.5 shadow-md transition-shadow hover:shadow-lg ${canOpenProduct ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" : ""}`}
       >
         <div className="flex h-48 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-50 p-2">
           <img
@@ -306,19 +329,25 @@ export default function ProductCard({
               </TextField>
             </Drawer.Body>
 
-            <Drawer.Footer className="flex gap-2">
-              <Button className="rounded-md" fullWidth onPress={handleEdit}>
-                Update
-              </Button>
-              <Button
-                fullWidth
-                variant="danger"
-                className="rounded-md"
-                onPress={() => setIsDeleteOpen(true)}
-              >
-                Delete
-              </Button>
-            </Drawer.Footer>
+            {(canEditProduct || canDeleteProduct) && (
+              <Drawer.Footer className="flex gap-2">
+                {canEditProduct && (
+                  <Button className="rounded-md" fullWidth onPress={handleEdit}>
+                    Update
+                  </Button>
+                )}
+                {canDeleteProduct && (
+                  <Button
+                    fullWidth
+                    variant="danger"
+                    className="rounded-md"
+                    onPress={() => setIsDeleteOpen(true)}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </Drawer.Footer>
+            )}
           </Drawer.Dialog>
         </Drawer.Content>
       </Drawer.Backdrop>

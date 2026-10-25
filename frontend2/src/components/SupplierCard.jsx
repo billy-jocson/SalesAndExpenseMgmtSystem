@@ -1,4 +1,5 @@
-import { Button, Card, Separator, Typography } from "@heroui/react";
+import { Pencil, TrashBin } from "@gravity-ui/icons";
+import { Button, Card, Separator } from "@heroui/react";
 
 function SupplierDetail({ label, value, className = "" }) {
   return (
@@ -12,7 +13,6 @@ function SupplierDetail({ label, value, className = "" }) {
 }
 
 export default function SupplierCard({
-  supplierId,
   supplierName,
   contactPerson,
   email,
@@ -20,48 +20,65 @@ export default function SupplierCard({
   address,
   onEdit,
   onDelete,
+  canEdit = true,
+  canDelete = true,
 }) {
+  const initials = supplierName.split(" ", 2);
   return (
-    <Card className="w-full hover:scale-101 hover:shadow-lg transition-all h-fit">
-      <Card.Header className="gap-3">
-        <div className="min-w-0">
-          <Typography type="label-sm" color="muted">
-            Supplier ID #{supplierId}
-          </Typography>
-        </div>
-      </Card.Header>
-      <Separator />
+    <Card className="w-full hover:border-blue-400 transition-all h-fit border border-zinc-300">
+      <Card.Content>
+        <div className="flex gap-3 w-full">
+          <div className="w-fit">
+            <div className="h-12 w-12 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center font-bold text-sm shrink-0">
+              {initials[0].charAt(0)}
+              {initials[1].charAt(0)}
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 w-full">
+            <div className="flex justify-between items-center">
+              <div className="truncate text-base font-semibold text-gray-900">
+                {supplierName}
+              </div>
+              {(canEdit || canDelete) && (
+                <div className="flex items-center h-fit">
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-lg text-amber-500"
+                      onPress={onEdit}
+                    >
+                      <Pencil />
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-lg text-red-500"
+                      onPress={onDelete}
+                    >
+                      <TrashBin />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+            <Separator />
 
-      <Card.Content className="flex flex-col gap-3">
-        <Card.Title className="truncate text-base font-semibold text-gray-900">
-          {supplierName}
-        </Card.Title>
-
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-          <SupplierDetail label="Contact person" value={contactPerson} />
-          <SupplierDetail label="Phone" value={phone} />
-          <SupplierDetail label="Email" value={email} />
-          <SupplierDetail
-            label="Address"
-            value={address}
-            className="col-span-2"
-          />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <SupplierDetail label="Contact person" value={contactPerson} />
+              <SupplierDetail label="Phone" value={phone} />
+              <SupplierDetail label="Email" value={email} />
+              <SupplierDetail
+                label="Address"
+                value={address}
+                className="col-span-2"
+              />
+            </div>
+          </div>
         </div>
       </Card.Content>
-      <Separator />
-
-      <Card.Footer className="flex justify-end gap-1">
-        <Button
-          variant="primary"
-          className="rounded-full bg-amber-500"
-          onPress={onEdit}
-        >
-          Edit
-        </Button>
-        <Button variant="danger" className="rounded-full" onPress={onDelete}>
-          Delete
-        </Button>
-      </Card.Footer>
     </Card>
   );
 }

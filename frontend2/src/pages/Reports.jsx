@@ -47,7 +47,12 @@ const currency = (value) =>
 export default function Reports() {
   const [dateRange, setDateRange] = useState(() => {
     const currentDate = today(getLocalTimeZone());
-    return { start: currentDate, end: currentDate };
+    const oneMonthAgo = currentDate.subtract({ months: 2 });
+
+    return {
+      start: oneMonthAgo,
+      end: currentDate,
+    };
   });
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -147,6 +152,7 @@ export default function Reports() {
           <div className="flex flex-col">
             <div className="ms-auto flex gap-2">
               <Button
+                size="sm"
                 variant="primary"
                 className="rounded-lg"
                 onClick={() => window.print()}
@@ -154,6 +160,7 @@ export default function Reports() {
                 Print Report
               </Button>
               <Button
+                size="sm"
                 variant="secondary"
                 className="rounded-lg"
                 onClick={handleDownloadReport}
@@ -408,7 +415,6 @@ export default function Reports() {
                           fill={expenseColors[index % expenseColors.length]}
                         />
                       ))}
-
                     </Pie>
                     <Tooltip formatter={(value) => currency(value)} />
                     <Legend verticalAlign="bottom" />
@@ -547,7 +553,11 @@ export default function Reports() {
                   <YAxis />
                   <Legend verticalAlign="bottom" />
                   <Bar dataKey="total_sales" name="Revenue" fill="#168bf0" />
-                  <Bar dataKey="total_expenses" name="Expenses" fill="#ff7043" />
+                  <Bar
+                    dataKey="total_expenses"
+                    name="Expenses"
+                    fill="#ff7043"
+                  />
                 </BarChart>
               )}
             </div>

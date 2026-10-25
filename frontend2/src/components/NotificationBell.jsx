@@ -18,13 +18,13 @@ export default function NotificationBell() {
   const [filter, setFilter] = useState("all");
 
   const userId = user?.id || user?.user_id || user?.userId;
-  
+
   // BULLETPROOF CHECKER: Kapag may supplier_id, Supplier siya. Kapag wala, check if Admin/Administrator
   const isSupplier = Boolean(user?.supplier_id);
-  const isAdmin = !isSupplier && (
-    user?.role?.toLowerCase() === "admin" || 
-    user?.role?.toLowerCase() === "administrator"
-  );
+  const isAdmin =
+    !isSupplier &&
+    (user?.role?.toLowerCase() === "admin" ||
+      user?.role?.toLowerCase() === "administrator");
 
   // HIDE BELL for Cashier, Warehouse, Viewer, and other non-operational roles
   // SHOW BELL ONLY for Admin and Supplier
@@ -41,7 +41,9 @@ export default function NotificationBell() {
       }
       const allData = await fetchNotifications(userId, "all");
       if (allData?.status === "Success") {
-        const unread = (allData.notifications ?? []).filter(n => !n.is_read && n.is_read != 1).length;
+        const unread = (allData.notifications ?? []).filter(
+          (n) => !n.is_read && n.is_read != 1,
+        ).length;
         setTotalUnread(unread);
         if (filter === "all") {
           setUnreadCount(allData.unread_count ?? unread);
@@ -111,7 +113,7 @@ export default function NotificationBell() {
   const badgeCount = filter === "all" ? unreadCount : totalUnread;
 
   return (
-    <div className="relative">
+    <div className="ms-auto relative">
       <Button
         variant="ghost"
         size="icon"
@@ -143,7 +145,11 @@ export default function NotificationBell() {
                   <Check className="size-4 mr-1" /> Mark all read
                 </Button>
               )}
-              <Button variant="ghost" size="sm" onPress={() => setIsOpen(false)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={() => setIsOpen(false)}
+              >
                 <Xmark className="size-4" />
               </Button>
             </div>
@@ -164,7 +170,7 @@ export default function NotificationBell() {
             >
               Unread ({totalUnread})
             </Button>
-            
+
             {/* Supplier lang ang makakakita ng Requests */}
             {isSupplier && (
               <Button
@@ -181,14 +187,18 @@ export default function NotificationBell() {
               <>
                 <Button
                   size="sm"
-                  variant={filter === "ORDER_ACCEPTED" ? "primary" : "secondary"}
+                  variant={
+                    filter === "ORDER_ACCEPTED" ? "primary" : "secondary"
+                  }
                   onPress={() => setFilter("ORDER_ACCEPTED")}
                 >
                   Accepted
                 </Button>
                 <Button
                   size="sm"
-                  variant={filter === "ORDER_REJECTED" ? "primary" : "secondary"}
+                  variant={
+                    filter === "ORDER_REJECTED" ? "primary" : "secondary"
+                  }
                   onPress={() => setFilter("ORDER_REJECTED")}
                 >
                   Rejected
@@ -216,7 +226,9 @@ export default function NotificationBell() {
                   <div
                     key={notif.notification_id}
                     className={`p-4 hover:bg-gray-50 transition-colors ${
-                      !notif.is_read ? "bg-blue-50/50 border-l-4 border-l-blue-500" : ""
+                      !notif.is_read
+                        ? "bg-blue-50/50 border-l-4 border-l-blue-500"
+                        : ""
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -243,14 +255,21 @@ export default function NotificationBell() {
                         >
                           {notif.title}
                         </Typography>
-                        <Typography type="body-xs" color="muted" className="line-clamp-2">
+                        <Typography
+                          type="body-xs"
+                          color="muted"
+                          className="line-clamp-2"
+                        >
                           {notif.message}
                         </Typography>
                         {notif.product_name && (
                           <div className="mt-2 text-xs bg-gray-100 rounded-lg p-2 border">
-                            <span className="font-medium">{notif.product_name}</span>
+                            <span className="font-medium">
+                              {notif.product_name}
+                            </span>
                             {notif.supplier_name && ` • ${notif.supplier_name}`}
-                            {notif.requested_quantity && ` • Qty: ${notif.requested_quantity}`}
+                            {notif.requested_quantity &&
+                              ` • Qty: ${notif.requested_quantity}`}
                           </div>
                         )}
                       </div>

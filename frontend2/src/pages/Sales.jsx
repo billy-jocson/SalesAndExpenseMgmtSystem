@@ -1,6 +1,6 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import salesIcon from "../assets/images/salesorexpense.png";
 import SaleCard from "../components/SaleCard.jsx";
 import {
@@ -15,8 +15,11 @@ import { useDebounce } from "../hooks/useDebounce.js";
 import { getSales } from "../api/sales.js";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { ListCardSkeleton } from "../components/PageSkeleton.jsx";
+import { userContext } from "../context/UserContext.js";
 
 export default function Sales() {
+  const { hasPermission } = useContext(userContext);
+  const canReadSales = hasPermission("read_sales");
   const [searchItem, setSearchItem] = useState("");
   const debouncedSearchItem = useDebounce(searchItem);
   const [dateRange, setDateRange] = useState(null);
@@ -28,6 +31,12 @@ export default function Sales() {
 
   useEffect(() => {
     const loadSales = async () => {
+      if (!canReadSales) {
+        setSales([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const data = await getSales(
@@ -42,7 +51,7 @@ export default function Sales() {
     };
 
     loadSales();
-  }, [debouncedSearchItem, dateRange]);
+  }, [canReadSales, debouncedSearchItem, dateRange]);
 
   return (
     <div className="flex gap-3">
@@ -113,7 +122,12 @@ export default function Sales() {
             </DateRangePicker>
           </div>
           <div className="space-y-3">
-            {loading ? (
+            {!canReadSales ? (
+              <NoItemFound
+                title="Access denied"
+                body="You don't have permission to read sales."
+              />
+            ) : loading ? (
               <ListCardSkeleton />
             ) : sales.length === 0 ? (
               <NoItemFound

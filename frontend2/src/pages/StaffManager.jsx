@@ -16,14 +16,7 @@ import {
   toast,
   Typography,
 } from "@heroui/react";
-import {
-  Envelope,
-  Magnifier,
-  Person,
-  PersonFill,
-  Smartphone,
-  TrashBin,
-} from "@gravity-ui/icons";
+import { Magnifier, Person, TrashBin } from "@gravity-ui/icons";
 import { useContext, useEffect, useState } from "react";
 import { parseDate } from "@internationalized/date";
 import staffIcon from "../assets/images/supmanager.png";
@@ -38,6 +31,7 @@ import { useDebounce } from "../hooks/useDebounce.js";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { ListCardSkeleton } from "../components/PageSkeleton.jsx";
 import { userContext } from "../context/UserContext";
+import StaffCard from "../components/StaffCard.jsx";
 
 const getTodayDate = () => {
   const today = new Date();
@@ -57,56 +51,12 @@ const createStaffForm = () => ({
   role_name: "",
 });
 
-function StaffCard({ staff, onDelete, onEdit }) {
-  const initials =
-    `${staff.first_name?.charAt(0) ?? ""}${staff.last_name?.charAt(0) ?? ""}`.toUpperCase();
-
-  return (
-    <div className="h-full p-4 rounded-2xl border border-zinc-200 bg-white shadow-sm hover:shadow-md transition-all flex flex-col gap-1">
-      <div className="flex gap-4 items-start mb-3">
-        <div className="h-12 w-12 rounded-full bg-foreground text-white flex items-center justify-center font-bold text-sm shrink-0">
-          {initials}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-[0.95rem] truncate">
-            {staff.first_name} {staff.middle_name} {staff.last_name}
-          </p>
-          <p className="text-xs text-zinc-500">
-            @{staff.username} • {staff.role_name}
-          </p>
-          <div className="mt-2 flex flex-col gap-1 text-xs text-zinc-600">
-            {staff.email && (
-              <span className="flex gap-1">
-                <Envelope /> {staff.email}
-              </span>
-            )}
-            {staff.phone && (
-              <span className="flex gap-1">
-                <Smartphone /> {staff.phone}
-              </span>
-            )}
-            {staff.hire_date && (
-              <span className="flex gap-1">
-                <PersonFill /> Hired: {staff.hire_date}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="flex gap-1 justify-end mt-auto">
-        <Button className="bg-amber-500" onPress={() => onEdit(staff)}>
-          Edit
-        </Button>
-        <Button variant="danger" onPress={() => onDelete(staff)}>
-          Delete
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export default function StaffManager() {
-  const user = useContext(userContext);
+  const { user, hasPermission } = useContext(userContext);
+  const canReadStaff = hasPermission("read_staffs");
+  const canWriteStaff = hasPermission("write_staffs");
+  const canUpdateStaff = hasPermission("update_staffs");
+  const canDeleteStaff = hasPermission("delete_staffs");
   const [search, setSearch] = useState("");
   const [staffs, setStaffs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -123,6 +73,12 @@ export default function StaffManager() {
   useEffect(() => {
     document.title = "Staff Manager";
     const load = async () => {
+      if (!canReadStaff) {
+        setStaffs([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const res = await fetchStaffs(debouncedSearch);
@@ -138,7 +94,7 @@ export default function StaffManager() {
     };
 
     load();
-  }, [debouncedSearch, refreshKey, user?.id]);
+  }, [canReadStaff, debouncedSearch, refreshKey, user?.id]);
 
   useEffect(() => {
     const loadRoles = async () => {
@@ -160,6 +116,11 @@ export default function StaffManager() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (editingStaff ? !canUpdateStaff : !canWriteStaff) {
+      toast.danger("You don't have permission to save staff changes.");
+      return;
+    }
+
     const errors = {};
 
     if (!formData.first_name.trim())
@@ -207,6 +168,10 @@ export default function StaffManager() {
   };
 
   const handleDelete = async () => {
+    if (!canDeleteStaff) {
+      toast.danger("You don't have permission to delete staff.");
+      return;
+    }
     if (!staffToDelete) return;
     try {
       const response = await deleteStaff(staffToDelete.staff_id);
@@ -268,7 +233,8 @@ export default function StaffManager() {
                 />
               </InputGroup>
             </TextField>
-            <Button
+            {canWriteStaff && <Button
+              size="sm"
               variant="primary"
               className="rounded-lg"
               onPress={() => {
@@ -278,16 +244,21 @@ export default function StaffManager() {
                 setIsAddOpen(true);
               }}
             >
-              + Add Staff
-            </Button>
+              Add Staff
+            </Button>}
           </div>
 
           <Typography type="body-sm" color="muted">
             {staffs.length} {staffs.length > 1 ? "staffs" : "staff"} found.
           </Typography>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 w-full">
-            {loading ? (
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3 w-full">
+            {!canReadStaff ? (
+              <NoItemFound
+                title="Access denied"
+                body="You don't have permission to read staff accounts."
+              />
+            ) : loading ? (
               <ListCardSkeleton />
             ) : staffs.length === 0 ? (
               <NoItemFound
@@ -301,6 +272,8 @@ export default function StaffManager() {
                   staff={s}
                   onDelete={setStaffToDelete}
                   onEdit={handleEdit}
+                  canEdit={canUpdateStaff}
+                  canDelete={canDeleteStaff}
                 />
               ))
             )}
@@ -549,9 +522,12 @@ export default function StaffManager() {
                   >
                     Cancel
                   </Button>
-                  <Button variant="primary" type="submit">
-                    {editingStaff ? "Save Changes" : "Create Staff"}
-                  </Button>
+                  {((editingStaff && canUpdateStaff) ||
+                    (!editingStaff && canWriteStaff)) && (
+                    <Button variant="primary" type="submit">
+                      {editingStaff ? "Save Changes" : "Create Staff"}
+                    </Button>
+                  )}
                 </Modal.Footer>
               </form>
             </Modal.Dialog>
@@ -586,9 +562,11 @@ export default function StaffManager() {
                 >
                   Cancel
                 </Button>
-                <Button variant="danger" onPress={handleDelete}>
-                  Delete Staff
-                </Button>
+                {canDeleteStaff && (
+                  <Button variant="danger" onPress={handleDelete}>
+                    Delete Staff
+                  </Button>
+                )}
               </Modal.Footer>
             </Modal.Dialog>
           </Modal.Container>

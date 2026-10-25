@@ -45,8 +45,15 @@ export default function ProductsManager() {
   });
   const [addCategoryOptions, setAddCategoryOptions] = useState([]);
   const debouncedSearchItem = useDebounce(searchItem);
-  const { role, user } = useContext(userContext);
-  const canManageProducts = ["supplier", "Administrator"].includes(role);
+  const { role, user, hasPermission } = useContext(userContext);
+  const isSupplier = role === "supplier";
+  const canReadProducts = isSupplier
+    ? hasPermission("write_vendor_products")
+    : hasPermission("read_inventory");
+  const canAddProduct = isSupplier
+    ? hasPermission("write_vendor_products")
+    : hasPermission("write_inventory");
+  const canOrderProducts = !isSupplier && hasPermission("write_inventory");
   const [spProducts, setSpProducts] = useState([]);
   const [itemOrderSearch, setSearchItemOrder] = useState("");
   const [orderCategorySelected, setOrderCategorySelected] = useState([]);
@@ -58,6 +65,11 @@ export default function ProductsManager() {
     document.title = "Products Manager";
 
     const loadProducts = async () => {
+      if (!canReadProducts) {
+        setProducts([]);
+        return;
+      }
+
       const data = await fetchProducts(
         role,
         user?.supplier_id,
@@ -75,6 +87,7 @@ export default function ProductsManager() {
     loadProducts();
   }, [
     role,
+    canReadProducts,
     user?.supplier_id,
     debouncedSearchItem,
     categorySelected,
@@ -93,6 +106,11 @@ export default function ProductsManager() {
   }, []);
 
   const handleAddProduct = async () => {
+    if (!canAddProduct) {
+      toast.danger("You don't have permission to add products.");
+      return;
+    }
+
     if (
       !addForm.productName.trim() ||
       addForm.categoryIds.length === 0 ||
@@ -213,6 +231,11 @@ export default function ProductsManager() {
     );
 
     const orderFunction = async () => {
+      if (!canOrderProducts) {
+        toast.danger("You don't have permission to order products.");
+        return;
+      }
+
       // ADMIN FIX: No expiry needed - supplier sets it upon acceptance!
       if (!paymentValue?.trim()) {
         toast.danger(
@@ -233,9 +256,17 @@ export default function ProductsManager() {
       const responses = await Promise.all(
         cartItems.map(async (product) => {
           try {
-            console.log("Ordering FIXED supplier:", product.supplier_id, product.name);
+            console.log(
+              "Ordering FIXED supplier:",
+              product.supplier_id,
+              product.name,
+            );
             if (!product.supplier_id) {
-              return { status: "Error", message: `No supplier_id for ${product.name}`, productName: product.name };
+              return {
+                status: "Error",
+                message: `No supplier_id for ${product.name}`,
+                productName: product.name,
+              };
             }
             const res = await requestNewOrder({
               supplierProductId: product.supplier_product_id || product.id,
@@ -243,13 +274,18 @@ export default function ProductsManager() {
               quantity: product.quantity,
               requestedBy: user?.user_id || user?.id || 1,
               paymentMethod,
-              referenceCode: paymentMethod === "GCash" ? paymentValue.trim() : "",
+              referenceCode:
+                paymentMethod === "GCash" ? paymentValue.trim() : "",
             });
             return { ...res, productName: product.name };
           } catch (error) {
-            return { status: "Error", message: error.message, productName: product.name };
+            return {
+              status: "Error",
+              message: error.message,
+              productName: product.name,
+            };
           }
-        })
+        }),
       );
       setProductsRefreshKey((value) => value + 1);
       const orderSucceeded = responses.every(
@@ -257,7 +293,9 @@ export default function ProductsManager() {
       );
 
       if (orderSucceeded) {
-        toast.success("Order requests sent to suppliers! Suppliers will set expiry upon acceptance.");
+        toast.success(
+          "Order requests sent to suppliers! Suppliers will set expiry upon acceptance.",
+        );
         setCartItems([]);
         // setOrderExpirationDate(""); // Removed - no expiry for admin
       } else {
@@ -401,7 +439,7 @@ export default function ProductsManager() {
               selectedIds={categorySelected}
               onSelectionChange={setCategorySelected}
             />
-            {canManageProducts ? (
+            {canAddProduct ? (
               <>
                 <Button
                   aria-label="Add product"
@@ -467,11 +505,11 @@ export default function ProductsManager() {
                             className="object-cover w-full h-full"
                             alt="Preview"
                           />
-                        ) : (
+                        ) : canOrderProducts ? (
                           <div className="px-4 py-2 bg-white text-[#006FEE] font-medium text-sm rounded-lg shadow-sm border border-gray-200">
                             Upload a Photo
                           </div>
-                        )}
+                        ) : null}
                         <input
                           type="file"
                           accept="image/*"
@@ -576,8 +614,11 @@ export default function ProductsManager() {
             ) : (
               <>
                 <Modal isOpen={isOrderOpen} onOpenChange={setIsOrderOpen}>
-                  <Button onPress={() => setIsOrderOpen(true)}>
-                    <Box className="size-4" />
+                  <Button
+                    size="sm"
+                    className="rounded-lg"
+                    onPress={() => setIsOrderOpen(true)}
+                  >
                     Order Products
                   </Button>
                   <Modal.Backdrop>
@@ -664,7 +705,12 @@ export default function ProductsManager() {
             )}
           </div>
         </div>
-                {products.length === 0 ? (
+        {!canReadProducts ? (
+          <NoItemFound
+            title="Access denied"
+            body="You don't have permission to read inventory."
+          />
+        ) : products.length === 0 ? (
           <NoItemFound
             title="No products found"
             body="There is nothing to show here."

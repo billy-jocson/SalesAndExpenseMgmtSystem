@@ -47,7 +47,7 @@ export default function LoginPage() {
     if (data.status === "Error") {
       openErrorModal(data.status, data.message);
       return;
-    } else if (data.user?.username) {
+    } else if (data.status === "Success") {
       setSession(data);
       sessionStorage.setItem("dashboardWelcomeToast", "1");
       const targetRoute = NavRoutes.DASHBOARD;

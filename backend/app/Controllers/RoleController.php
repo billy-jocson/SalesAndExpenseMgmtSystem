@@ -15,28 +15,22 @@ class RoleController
         $this->roleModel = new Role();
     }
 
-    /**
-     * Role Manager is administrator-only. This app doesn't use PHP
-     * sessions anywhere, so -- same pattern as POSController::checkout --
-     * the frontend sends user_id with every request, and this looks up
-     * that user's actual role_name in the database rather than trusting
-     * anything the client claims about its own role.
-     */
-    private function requireAdmin($data)
+    private function requirePermission($data, string $permission)
     {
         $userId = (int) ($data['user_id'] ?? 0);
-        if (!$this->roleModel->isUserAdministrator($userId)) {
-            throw new RuntimeException('Forbidden: administrators only.');
+        if (!$this->roleModel->userHasPermission($userId, $permission)) {
+            throw new RuntimeException('Forbidden: missing permission ' . $permission . '.');
         }
     }
 
     public function getRoles($data = [])
     {
         try {
-            $this->requireAdmin($data);
+            $this->requirePermission($data, 'read_staffs');
             return [
                 'status' => 'Success',
                 'data' => $this->roleModel->fetchRoles(),
+                'permissions' => $this->roleModel->fetchPermissions(),
             ];
         } catch (\Throwable $e) {
             return ['status' => 'Error', 'message' => $e->getMessage()];
@@ -46,7 +40,7 @@ class RoleController
     public function addRole($data = [])
     {
         try {
-            $this->requireAdmin($data);
+            $this->requirePermission($data, 'write_staffs');
             return $this->roleModel->addRole($data);
         } catch (\Throwable $e) {
             return ['status' => 'Error', 'message' => $e->getMessage()];
@@ -56,7 +50,7 @@ class RoleController
     public function updateRole($data = [])
     {
         try {
-            $this->requireAdmin($data);
+            $this->requirePermission($data, 'update_staffs');
             return $this->roleModel->updateRole($data);
         } catch (\Throwable $e) {
             return ['status' => 'Error', 'message' => $e->getMessage()];
@@ -66,7 +60,7 @@ class RoleController
     public function deleteRole($data = [])
     {
         try {
-            $this->requireAdmin($data);
+            $this->requirePermission($data, 'delete_staffs');
             return $this->roleModel->deleteRole(
                 (int) ($data['role_id'] ?? 0),
                 (int) ($data['user_id'] ?? 0)

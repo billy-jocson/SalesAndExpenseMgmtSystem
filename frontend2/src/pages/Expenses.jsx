@@ -1,6 +1,6 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import expensesIcon from "../assets/images/salesorexpense.png";
 import ExpenseCard from "../components/ExpenseCard.jsx";
 import { Magnifier } from "@gravity-ui/icons";
@@ -18,8 +18,11 @@ import { fetchAllExpenses, fetchCategories } from "../api/expenses";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { CardGridSkeleton } from "../components/PageSkeleton.jsx";
 import CategoryCheckboxDropdown from "../components/CategoryCheckboxDropdown.jsx";
+import { userContext } from "../context/UserContext.js";
 
 export default function Expenses() {
+  const { hasPermission } = useContext(userContext);
+  const canReadExpenses = hasPermission("read_expenses");
   const [searchItem, setSearchItem] = useState("");
   const debouncedSearchItem = useDebounce(searchItem);
   const [categories, setCategories] = useState([]);
@@ -48,6 +51,12 @@ export default function Expenses() {
 
   useEffect(() => {
     const loadExpenses = async () => {
+      if (!canReadExpenses) {
+        setExpenses([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const data = await fetchAllExpenses(
@@ -63,7 +72,13 @@ export default function Expenses() {
     };
 
     loadExpenses();
-  }, [debouncedSearchItem, categorySelected, dateRange, expensesRefreshKey]);
+  }, [
+    canReadExpenses,
+    debouncedSearchItem,
+    categorySelected,
+    dateRange,
+    expensesRefreshKey,
+  ]);
 
   return (
     <div className="flex gap-3">
@@ -152,7 +167,12 @@ export default function Expenses() {
             </div>
           </div>
 
-          {loading ? (
+          {!canReadExpenses ? (
+            <NoItemFound
+              title="Access denied"
+              body="You don't have permission to read expenses."
+            />
+          ) : loading ? (
             <CardGridSkeleton />
           ) : expenses.length === 0 ? (
             <NoItemFound

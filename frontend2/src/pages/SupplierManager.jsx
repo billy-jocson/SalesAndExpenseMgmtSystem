@@ -16,7 +16,7 @@ import {
   useFilter,
 } from "@heroui/react";
 import { Magnifier, Person, TrashBin } from "@gravity-ui/icons";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import supplierIcon from "../assets/images/supmanager.png";
 import SupplierCard from "../components/SupplierCard.jsx";
 import {
@@ -30,8 +30,14 @@ import {
 import { useDebounce } from "../hooks/useDebounce.js";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { ListCardSkeleton } from "../components/PageSkeleton.jsx";
+import { userContext } from "../context/UserContext.js";
 
 export default function SupplierManager() {
+  const { hasPermission } = useContext(userContext);
+  const canReadSuppliers = hasPermission("read_suppliers");
+  const canWriteSuppliers = hasPermission("write_suppliers");
+  const canUpdateSuppliers = hasPermission("update_suppliers");
+  const canDeleteSuppliers = hasPermission("delete_suppliers");
   const [searchSupplier, setSearchSupplier] = useState("");
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +74,11 @@ export default function SupplierManager() {
     document.title = "Supplier Manager";
     const loadSuppliers = async () => {
       setLoading(true);
+      if (!canReadSuppliers) {
+        setSuppliers([]);
+        setLoading(false);
+        return;
+      }
       try {
         const data = await getSuppliers(debouncedSearchSupplier);
         const supplierList = Array.isArray(data)
@@ -91,7 +102,7 @@ export default function SupplierManager() {
       }
     };
     loadSuppliers();
-  }, [debouncedSearchSupplier, supplierRefreshKey]);
+  }, [canReadSuppliers, debouncedSearchSupplier, supplierRefreshKey]);
 
   useEffect(() => {
     const loadPostalCodes = async () => {
@@ -181,6 +192,11 @@ export default function SupplierManager() {
   };
 
   const handleSavePostalCode = async () => {
+    if (!canWriteSuppliers) {
+      toast.danger("You don't have permission to add postal codes.");
+      return;
+    }
+
     const postalCode = newPostalCodeData.postal_code.trim();
     const city = newPostalCodeData.city.trim();
     const state = newPostalCodeData.state.trim();
@@ -215,6 +231,10 @@ export default function SupplierManager() {
 
   const handleSaveSupplier = async (e) => {
     e?.preventDefault?.();
+    if (supplierToEdit ? !canUpdateSuppliers : !canWriteSuppliers) {
+      toast.danger("You don't have permission to save supplier changes.");
+      return;
+    }
 
     if (!formData.supplier_name.trim()) {
       toast.danger("Supplier name is required.");
@@ -282,6 +302,11 @@ export default function SupplierManager() {
   };
 
   const handleDelete = async (supplierId) => {
+    if (!canDeleteSuppliers) {
+      toast.danger("You don't have permission to delete suppliers.");
+      return;
+    }
+
     const response = await deleteSupplier(supplierId);
     if (response?.status?.toLowerCase() !== "success") {
       toast.danger(response?.message ?? "Unable to delete supplier.");
@@ -315,20 +340,26 @@ export default function SupplierManager() {
                 />
               </InputGroup>
             </TextField>
-            <Button
+            {canWriteSuppliers && <Button
+              size="sm"
               variant="primary"
               className="rounded-lg"
               onPress={openAddModal}
             >
-              + Add Supplier
-            </Button>
+              Add Supplier
+            </Button>}
           </div>
           <Typography type="body-sm" color="muted">
             {suppliers.length} {suppliers.length > 1 ? "suppliers" : "supplier"}{" "}
             found.
           </Typography>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 h-full w-full">
-            {loading ? (
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 h-full w-full">
+            {!canReadSuppliers ? (
+              <NoItemFound
+                title="Access denied"
+                body="You don't have permission to read suppliers."
+              />
+            ) : loading ? (
               <ListCardSkeleton />
             ) : suppliers.length === 0 ? (
               <NoItemFound
@@ -342,6 +373,8 @@ export default function SupplierManager() {
                   {...supplier}
                   onEdit={() => openEditModal(supplier)}
                   onDelete={() => setSupplierToDelete(supplier)}
+                  canEdit={canUpdateSuppliers}
+                  canDelete={canDeleteSuppliers}
                 />
               ))
             )}
@@ -364,10 +397,10 @@ export default function SupplierManager() {
             <Modal.Dialog className="flex max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100vw-2rem))] flex-col rounded-2xl bg-white p-6 shadow-xl">
               <Modal.CloseTrigger />
               <Modal.Header className="flex items-start gap-3">
-                  <Modal.Icon className="shrink-0 bg-blue-500 text-white">
+                <Modal.Icon className="shrink-0 bg-blue-500 text-white">
                   <Person className="size-5" />
                 </Modal.Icon>
-                  <div className="flex min-w-0 flex-col gap-1">
+                <div className="flex min-w-0 flex-col gap-1">
                   <Modal.Heading>
                     {supplierToEdit ? "Edit Supplier" : "Add New Supplier"}
                   </Modal.Heading>
@@ -653,9 +686,11 @@ export default function SupplierManager() {
                 >
                   Cancel
                 </Button>
-                <Button variant="primary" onPress={handleSavePostalCode}>
-                  Save Postal Code
-                </Button>
+                {canWriteSuppliers && (
+                  <Button variant="primary" onPress={handleSavePostalCode}>
+                    Save Postal Code
+                  </Button>
+                )}
               </Modal.Footer>
             </Modal.Dialog>
           </Modal.Container>
@@ -686,12 +721,12 @@ export default function SupplierManager() {
                 </p>
               </Modal.Body>
               <Modal.Footer>
-                <Button
+                {canDeleteSuppliers && <Button
                   variant="tertiary"
                   onPress={() => setSupplierToDelete(null)}
                 >
                   Cancel
-                </Button>
+                </Button>}
                 <Button
                   variant="danger"
                   onPress={async () => {

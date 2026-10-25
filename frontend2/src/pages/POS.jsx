@@ -29,7 +29,9 @@ import { CardGridSkeleton } from "../components/PageSkeleton.jsx";
 import { userContext } from "../context/UserContext";
 
 export default function POS() {
-  const { user } = useContext(userContext);
+  const { user, hasPermission } = useContext(userContext);
+  const canReadInventory = hasPermission("read_inventory");
+  const canWriteSales = hasPermission("write_sales");
   const [searchItem, setSearchItem] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -113,6 +115,11 @@ export default function POS() {
   const total = subtotal + tax;
 
   const handleProcessTransaction = async () => {
+    if (!canWriteSales) {
+      toast.danger("You don't have permission to create sales.");
+      return;
+    }
+
     if (cartItems.length === 0) {
       return toast.danger("Customer cart is empty.");
     }
@@ -264,13 +271,15 @@ export default function POS() {
         </InputGroup>
       </TextField>
 
-      <Button
-        variant="primary"
-        className="w-full bg-green-600 text-white"
-        onPress={handleProcessTransaction}
-      >
-        Process Transaction
-      </Button>
+      {canWriteSales && (
+        <Button
+          variant="primary"
+          className="w-full bg-green-600 text-white"
+          onPress={handleProcessTransaction}
+        >
+          Process Transaction
+        </Button>
+      )}
     </>
   );
 
@@ -278,6 +287,12 @@ export default function POS() {
     document.title = "POS System";
 
     const loadProducts = async () => {
+      if (!canReadInventory) {
+        setProducts([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const data = await fetchProducts(
@@ -293,7 +308,7 @@ export default function POS() {
     };
 
     loadProducts();
-  }, [debouncedSearchItem, categorySelected, user?.role]);
+  }, [canReadInventory, debouncedSearchItem, categorySelected, user?.role]);
 
   return (
     <div className="flex gap-3">
@@ -398,7 +413,12 @@ export default function POS() {
               />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 w-full">
-              {loading ? (
+              {!canReadInventory ? (
+                <NoItemFound
+                  title="Access denied"
+                  body="You don't have permission to read inventory."
+                />
+              ) : loading ? (
                 <CardGridSkeleton count={6} />
               ) : products.length === 0 ? (
                 <NoItemFound

@@ -16,11 +16,14 @@ import {
   toast,
   Typography,
 } from "@heroui/react";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { addExpense, fetchCategories } from "../api/expenses";
 import { fetchPaymentMethods } from "../api/payment";
+import { userContext } from "../context/UserContext.js";
 
 export default function AddExpenseModal({ onSuccess }) {
+  const { hasPermission } = useContext(userContext);
+  const canWriteExpenses = hasPermission("write_expenses");
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState(0);
   const [categories, setCategories] = useState([]);
@@ -32,6 +35,10 @@ export default function AddExpenseModal({ onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canWriteExpenses) {
+      toast.danger("You don't have permission to add expenses.");
+      return;
+    }
 
     const response = await addExpense(
       amount,
@@ -102,13 +109,15 @@ export default function AddExpenseModal({ onSuccess }) {
 
   return (
     <Modal isOpen={isOpen} onOpenChange={setIsOpen}>
-      <Button
-        variant="primary"
-        className="w-full rounded-lg bg-purple-600 text-white"
-      >
-        <CirclePlusFill className="size-4" />
-        Add Expense
-      </Button>
+      {canWriteExpenses && (
+        <Button
+          variant="primary"
+          className="w-full rounded-lg bg-purple-600 text-white"
+        >
+          <CirclePlusFill className="size-4" />
+          Add Expense
+        </Button>
+      )}
       <Modal.Backdrop>
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-90">

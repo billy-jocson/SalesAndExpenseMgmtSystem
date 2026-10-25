@@ -80,7 +80,7 @@ export default function Dashboard() {
   const [inventoryProducts, setInventoryProducts] = useState([]);
   const [dateRange, setDateRange] = useState(() => {
     const currentDate = today(getLocalTimeZone());
-    const oneMonthAgo = currentDate.subtract({ months: 1 });
+    const oneMonthAgo = currentDate.subtract({ months: 2 });
 
     return {
       start: oneMonthAgo,
@@ -466,7 +466,7 @@ export default function Dashboard() {
                     <CirclePlusFill className="size-4" />
                     New Sale
                   </Button>
-                  {user?.role === "Administrator" && <AddExpenseModal />}
+                  <AddExpenseModal />
                   <DateRangePicker value={dateRange} onChange={setDateRange}>
                     <DateField.Group className=" border-[1.5px] border-zinc-300">
                       <DateField.InputContainer>

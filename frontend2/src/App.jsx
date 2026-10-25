@@ -17,8 +17,6 @@ import RoleManager from "./pages/RoleManager";
 import AwaitingOrders from "./pages/AwaitingOrders";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 
-
-
 export default function App() {
   return (
     <div className="bg-zinc-100/50 box-border h-dvh w-screen scrollbar-thin scrollbar-thumb-slate-400 hover:scrollbar-thumb-slate-500 lg:p-4">
@@ -56,7 +54,10 @@ export default function App() {
             <Route path={NavRoutes.ROLEMANAGER} element={<RoleManager />} />
           </Route>
           <Route element={<ProtectedRoute path={NavRoutes.AWAITINGORDERS} />}>
-            <Route path={NavRoutes.AWAITINGORDERS} element={<AwaitingOrders />} />
+            <Route
+              path={NavRoutes.AWAITINGORDERS}
+              element={<AwaitingOrders />}
+            />
           </Route>
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="*" element={<NotFound />} />

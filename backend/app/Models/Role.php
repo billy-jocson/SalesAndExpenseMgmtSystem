@@ -10,30 +10,6 @@ class Role
 {
     private $db;
 
-    private const PROTECTED_ROLES = [
-        'administrator',
-        'cashier staff',
-        'inventory staff',
-        'supplier',
-    ];
-
-    private const GRANT_LOCKED_ROLES = ['administrator'];
-
-    private const MODULE_TABLES = [
-        'Sales' => ['sales', 'sales_items'],
-        'Inventory' => ['store_products', 'supplier_products', 'product_batches', 'product_categories'],
-        'Expenses' => ['expenses', 'expense_categories'],
-        'Suppliers' => ['suppliers', 'postal_codes'],
-        'Staff' => ['staffs', 'users', 'roles'],
-    ];
-
-    private const ACTION_PRIVILEGE = [
-        'Read' => 'SELECT',
-        'Write' => 'INSERT',
-        'Update' => 'UPDATE',
-        'Delete' => 'DELETE',
-    ];
-
     public function __construct(mysqli $db = null)
     {
         $this->db = $db ?? (new Database())->getConnection();
@@ -41,114 +17,150 @@ class Role
 
     private function clearResults(): void
     {
-        $counter = 0;
         while ($this->db->more_results() && $this->db->next_result()) {
             if ($result = $this->db->store_result()) {
                 $result->free();
             }
-            if (++$counter > 50) {
-                break;
-            }
         }
     }
 
-    private function getDatabaseName(): string
+    public function fetchPermissions(): array
     {
-        $res = $this->db->query("SELECT DATABASE()");
-        $row = $res ? $res->fetch_row() : null;
-        return !empty($row[0]) ? $row[0] : 'inventory_system';
+        $result = $this->db->query('CALL sp_permissions_fetch_all()');
+        $permissions = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        $this->clearResults();
+
+        foreach ($permissions as &$permission) {
+            $permission['permission_id'] = (int) $permission['permission_id'];
+        }
+        unset($permission);
+
+        return $permissions;
     }
 
-    public function fetchRoles($search = '')
+    public function fetchRolePermissions(int $roleId): array
     {
-        $searchParam = $search ?? '';
-        $stmt = $this->db->prepare("CALL sp_roles_fetch_all(?)");
-        $stmt->bind_param('s', $searchParam);
+        $stmt = $this->db->prepare('CALL sp_roles_fetch_permissions(?)');
+        $stmt->bind_param('i', $roleId);
         $stmt->execute();
         $result = $stmt->get_result();
-        $roles = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        $permissions = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
         $this->clearResults();
         $stmt->close();
 
-        $grantsByRoleId = $this->fetchAllRoleGrants();
-
-        foreach ($roles as &$role) {
-            $roleId = (int) $role['role_id'];
-            $role['user_count'] = (int) $role['user_count'];
-            $role['is_protected'] = in_array(
-                strtolower(trim($role['role_name'])),
-                self::PROTECTED_ROLES,
-                true
-            );
-            $role['is_grant_locked'] = in_array(
-                strtolower(trim($role['role_name'])),
-                self::GRANT_LOCKED_ROLES,
-                true
-            );
-
-            if ($role['is_grant_locked']) {
-                $role['permissions'] = array_map(
-                    fn() => array_keys(self::ACTION_PRIVILEGE),
-                    self::MODULE_TABLES
-                );
-                continue;
-            }
-
-            $role['permissions'] = $grantsByRoleId[$roleId] ?? array_fill_keys(array_keys(self::MODULE_TABLES), []);
+        foreach ($permissions as &$permission) {
+            $permission['permission_id'] = (int) $permission['permission_id'];
         }
-        unset($role);
+        unset($permission);
 
-        return $roles;
+        return $permissions;
     }
 
-    public function addRole($data = [])
+    public function fetchRoles($search = ''): array
     {
-        $roleName = trim((string) ($data['role_name'] ?? ''));
-        $description = trim((string) ($data['description'] ?? ''));
-        $permissions = $this->normalizePermissions($data['permissions'] ?? []);
+        $search = (string) ($search ?? '');
+        $stmt = $this->db->prepare('CALL sp_roles_fetch_all(?)');
+        $stmt->bind_param('s', $search);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $rows = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        $this->clearResults();
+        $stmt->close();
 
-        if ($roleName === '') {
-            throw new RuntimeException('Role name is required.');
-        }
-        if (strlen($roleName) > 50) {
-            throw new RuntimeException('Role name must be 50 characters or fewer.');
-        }
-
-        try {
-            $stmt = $this->db->prepare("CALL sp_roles_create(?, ?)");
-            $stmt->bind_param('ss', $roleName, $description);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $row = $result ? $result->fetch_assoc() : null;
-            $this->clearResults();
-            $stmt->close();
-
-            if (!$row || empty($row['role_id'])) {
-                throw new RuntimeException('Failed to create role record.');
+        $roles = [];
+        foreach ($rows as $row) {
+            $roleId = (int) $row['role_id'];
+            if (!isset($roles[$roleId])) {
+                $roles[$roleId] = [
+                    'role_id' => $roleId,
+                    'role_name' => $row['role_name'],
+                    'description' => $row['description'],
+                    'user_count' => (int) $row['user_count'],
+                    'permissions' => [],
+                    'permission_ids' => [],
+                ];
             }
 
-            $roleId = (int)$row['role_id'];
-        } catch (Throwable $e) {
-            $this->clearResults();
-            throw new RuntimeException($e->getMessage());
+            if ($row['permission_id'] !== null) {
+                $permissionId = (int) $row['permission_id'];
+                $roles[$roleId]['permissions'][] = [
+                    'permission_id' => $permissionId,
+                    'permission_name' => $row['permission_name'],
+                    'module' => $row['module'],
+                    'description' => $row['permission_description'],
+                ];
+                $roles[$roleId]['permission_ids'][] = $permissionId;
+            }
         }
 
+        return array_values($roles);
+    }
+
+    public function addRole(array $data): array
+    {
+        return $this->saveRole(null, $data);
+    }
+
+    public function updateRole(array $data): array
+    {
+        $roleId = (int) ($data['role_id'] ?? 0);
+        if ($roleId <= 0) {
+            throw new RuntimeException('A valid role is required.');
+        }
+
+        return $this->saveRole($roleId, $data);
+    }
+
+    private function saveRole(?int $roleId, array $data): array
+    {
+        $isCreate = $roleId === null;
+        $name = trim((string) ($data['role_name'] ?? ''));
+        $description = trim((string) ($data['description'] ?? ''));
+        $permissionIds = $this->permissionIdsToCsv($data['permission_ids'] ?? []);
+
+        if ($name === '' || strlen($name) > 50) {
+            throw new RuntimeException('Role name must be between 1 and 50 characters.');
+        }
+
+        $this->db->begin_transaction();
         try {
-            $mysqlRole = $this->mysqlRoleName($roleId);
-            $this->runStatement("CREATE ROLE IF NOT EXISTS '{$mysqlRole}'");
-            $this->grantPermissions($mysqlRole, $permissions);
-        } catch (Throwable $e) {
-            $this->runStatement("DROP ROLE IF EXISTS '{$this->mysqlRoleName($roleId)}'");
-            $cleanup = $this->db->prepare("DELETE FROM roles WHERE role_id = ?");
-            $cleanup->bind_param('i', $roleId);
-            $cleanup->execute();
-            $cleanup->close();
-            throw new RuntimeException('Failed to provision role privileges: ' . $e->getMessage());
+            if ($roleId === null) {
+                $stmt = $this->db->prepare('CALL sp_roles_create(?, ?)');
+                $stmt->bind_param('ss', $name, $description);
+                $stmt->execute();
+                $row = $stmt->get_result()->fetch_assoc();
+                $roleId = (int) ($row['role_id'] ?? 0);
+                $this->clearResults();
+                $stmt->close();
+
+                if ($roleId <= 0) {
+                    throw new RuntimeException('Failed to create role.');
+                }
+            } else {
+                $stmt = $this->db->prepare('CALL sp_roles_update(?, ?, ?)');
+                $stmt->bind_param('iss', $roleId, $name, $description);
+                $stmt->execute();
+                $this->clearResults();
+                $stmt->close();
+            }
+
+            $stmt = $this->db->prepare('CALL sp_roles_replace_permissions(?, ?)');
+            $stmt->bind_param('is', $roleId, $permissionIds);
+            $stmt->execute();
+            $this->clearResults();
+            $stmt->close();
+            $this->db->commit();
+        } catch (Throwable $error) {
+            $this->db->rollback();
+            $this->clearResults();
+            throw new RuntimeException($error->getMessage());
         }
 
         return [
             'status' => 'Success',
-            'message' => 'Role created successfully.',
+            'message' => $isCreate
+                ? 'Role created successfully.'
+                : 'Role updated successfully.',
             'role_id' => $roleId,
         ];
     }
@@ -159,230 +171,72 @@ class Role
             return false;
         }
 
-        $stmt = $this->db->prepare("CALL sp_roles_is_admin(?)");
+        $stmt = $this->db->prepare('CALL sp_roles_is_admin(?)');
         $stmt->bind_param('i', $userId);
         $stmt->execute();
         $result = $stmt->get_result();
-        $user = $result ? $result->fetch_assoc() : null;
+        $row = $result ? $result->fetch_assoc() : null;
         $this->clearResults();
         $stmt->close();
 
-        if ($user) {
-            return strtolower(trim($user['role_name'])) === 'administrator';
-        }
-
-        return false;
+        return (bool) ($row['is_admin'] ?? false);
     }
 
-    public function updateRole($data = [])
+    public function userHasPermission(int $userId, string $permissionName): bool
     {
-        $roleId = (int) ($data['role_id'] ?? 0);
-        $roleName = trim((string) ($data['role_name'] ?? ''));
-        $description = trim((string) ($data['description'] ?? ''));
-        $permissions = $this->normalizePermissions($data['permissions'] ?? []);
+        $stmt = $this->db->prepare(
+            'SELECT EXISTS (
+                SELECT 1
+                FROM users u
+                INNER JOIN roles r ON r.role_id = u.role_id
+                INNER JOIN role_permissions rp ON rp.role_id = r.role_id
+                INNER JOIN permissions p ON p.permission_id = rp.permission_id
+                WHERE u.user_id = ?
+                  AND u.is_active = 1
+                  AND r.is_active = 1
+                  AND p.permission_name = ?
+            ) AS has_permission'
+        );
+        $stmt->bind_param('is', $userId, $permissionName);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
 
-        if ($roleId <= 0 || $roleName === '') {
-            throw new RuntimeException('A valid role and name are required.');
-        }
-
-        try {
-            $stmt = $this->db->prepare("CALL sp_roles_update(?, ?, ?)");
-            $stmt->bind_param('iss', $roleId, $roleName, $description);
-            $stmt->execute();
-            $this->clearResults();
-            $stmt->close();
-        } catch (Throwable $e) {
-            $this->clearResults();
-            throw new RuntimeException($e->getMessage());
-        }
-
-        $isGrantLocked = in_array(strtolower($roleName), self::GRANT_LOCKED_ROLES, true);
-        if ($isGrantLocked) {
-            return ['status' => 'Success', 'message' => 'Role updated successfully.'];
-        }
-
-        $mysqlRole = $this->mysqlRoleName($roleId);
-        $this->runStatement("REVOKE ALL PRIVILEGES, GRANT OPTION FROM '{$mysqlRole}'");
-        $this->grantPermissions($mysqlRole, $permissions);
-
-        return ['status' => 'Success', 'message' => 'Role updated successfully.'];
+        return (bool) ($row['has_permission'] ?? false);
     }
 
-    public function deleteRole($roleId, $currentUserId = 0)
+    public function deleteRole($roleId, $currentUserId = 0): array
     {
-        $roleId = (int)$roleId;
+        $roleId = (int) $roleId;
+        $currentUserId = (int) $currentUserId;
         if ($roleId <= 0) {
             throw new RuntimeException('A valid role is required.');
         }
 
-        $currentUserId = (int) $currentUserId;
-        if ($currentUserId > 0) {
-            $currentRoleStmt = $this->db->prepare(
-                'SELECT role_id FROM users WHERE user_id = ?'
-            );
-            $currentRoleStmt->bind_param('i', $currentUserId);
-            $currentRoleStmt->execute();
-            $currentRole = $currentRoleStmt->get_result()->fetch_assoc();
-            $currentRoleStmt->close();
-
-            if ((int) ($currentRole['role_id'] ?? 0) === $roleId) {
-                throw new RuntimeException(
-                    'You cannot delete the role assigned to your account.'
-                );
-            }
-        }
-
-        try {
-            $stmt = $this->db->prepare("CALL sp_roles_delete(?)");
-            $stmt->bind_param('i', $roleId);
-            $stmt->execute();
-            $this->clearResults();
-            $stmt->close();
-        } catch (Throwable $e) {
-            $this->clearResults();
-            throw new RuntimeException($e->getMessage());
-        }
-
-        $this->runStatement("DROP ROLE IF EXISTS '{$this->mysqlRoleName($roleId)}'");
+        $stmt = $this->db->prepare('CALL sp_roles_delete(?, ?)');
+        $stmt->bind_param('ii', $roleId, $currentUserId);
+        $stmt->execute();
+        $this->clearResults();
+        $stmt->close();
 
         return ['status' => 'Success', 'message' => 'Role deleted successfully.'];
     }
 
-    private function mysqlRoleName(int $roleId): string
+    private function permissionIdsToCsv($permissionIds): string
     {
-        return "app_role_" . (int)$roleId;
-    }
-
-    private function grantPermissions(string $mysqlRole, array $permissions): void
-    {
-        $dbName = $this->getDatabaseName();
-
-        foreach ($permissions as $module => $actions) {
-            if (!array_key_exists($module, self::MODULE_TABLES)) {
-                throw new RuntimeException("Unknown permission module: {$module}");
-            }
-            if (empty($actions)) {
-                continue;
-            }
-
-            $privileges = [];
-            foreach ($actions as $action) {
-                if (!array_key_exists($action, self::ACTION_PRIVILEGE)) {
-                    throw new RuntimeException("Unknown permission action: {$action}");
-                }
-                $privileges[] = self::ACTION_PRIVILEGE[$action];
-            }
-            $privilegeList = implode(', ', array_unique($privileges));
-
-            foreach (self::MODULE_TABLES[$module] as $table) {
-                $this->runStatement(
-                    "GRANT {$privilegeList} ON `{$dbName}`.`{$table}` TO '{$mysqlRole}'"
-                );
-            }
-
-            if ($module === 'Expenses' && in_array('Write', $actions, true)) {
-                $this->runStatement(
-                    "GRANT EXECUTE ON PROCEDURE `{$dbName}`.`sp_add_expense` TO '{$mysqlRole}'"
-                );
-            }
-        }
-    }
-
-    private function fetchAllRoleGrants(): array
-    {
-        $tableToModule = [];
-        foreach (self::MODULE_TABLES as $module => $tables) {
-            foreach ($tables as $table) {
-                $tableToModule[$table] = $module;
-            }
-        }
-        $privilegeToAction = array_flip(self::ACTION_PRIVILEGE);
-
-        $grants = [];
-
-        try {
-            $tableResult = $this->db->query(
-                "SELECT User, Table_name, Table_priv
-                 FROM mysql.tables_priv
-                 WHERE User LIKE 'app\\_role\\_%'"
-            );
-            if ($tableResult) {
-                while ($row = $tableResult->fetch_assoc()) {
-                    $roleId = $this->roleIdFromMysqlName($row['User']);
-                    $module = $tableToModule[$row['Table_name']] ?? null;
-                    if ($roleId === null || $module === null) {
-                        continue;
-                    }
-
-                    $grants[$roleId] ??= array_fill_keys(array_keys(self::MODULE_TABLES), []);
-                    foreach (explode(',', $row['Table_priv']) as $priv) {
-                        $action = $privilegeToAction[strtoupper(trim($priv))] ?? null;
-                        if ($action !== null) {
-                            $grants[$roleId][$module][] = $action;
-                        }
-                    }
-                }
-            }
-
-            $procResult = $this->db->query(
-                "SELECT User, Routine_name, Proc_priv
-                 FROM mysql.procs_priv
-                 WHERE User LIKE 'app\\_role\\_%' AND Routine_name = 'sp_add_expense'"
-            );
-            if ($procResult) {
-                while ($row = $procResult->fetch_assoc()) {
-                    $roleId = $this->roleIdFromMysqlName($row['User']);
-                    if ($roleId === null || stripos($row['Proc_priv'], 'Execute') === false) {
-                        continue;
-                    }
-                    $grants[$roleId] ??= array_fill_keys(array_keys(self::MODULE_TABLES), []);
-                    $grants[$roleId]['Expenses'][] = 'Write';
-                }
-            }
-        } catch (Throwable $e) {
-            // Hindi ika-crash ang app kung walang direct read permission sa mysql.tables_priv
+        if (!is_array($permissionIds)) {
+            throw new RuntimeException('Permission IDs must be an array.');
         }
 
-        foreach ($grants as &$modules) {
-            foreach ($modules as &$actions) {
-                $actions = array_values(array_unique($actions));
+        $ids = [];
+        foreach ($permissionIds as $id) {
+            $id = filter_var($id, FILTER_VALIDATE_INT);
+            if ($id === false || $id <= 0) {
+                throw new RuntimeException('A valid permission ID is required.');
             }
-            unset($actions);
-        }
-        unset($modules);
-
-        return $grants;
-    }
-
-    private function roleIdFromMysqlName(string $mysqlRoleName): ?int
-    {
-        if (preg_match('/^app_role_(\d+)$/', $mysqlRoleName, $matches)) {
-            return (int) $matches[1];
-        }
-        return null;
-    }
-
-    private function runStatement(string $sql): void
-    {
-        if (!$this->db->query($sql)) {
-            throw new RuntimeException("Database statement failed: {$this->db->error}");
-        }
-    }
-
-    private function normalizePermissions($permissions): array
-    {
-        if (!is_array($permissions)) {
-            return [];
+            $ids[] = $id;
         }
 
-        $normalized = [];
-        foreach ($permissions as $module => $actions) {
-            if (!is_array($actions)) {
-                continue;
-            }
-            $normalized[$module] = array_values(array_unique(array_map('strval', $actions)));
-        }
-
-        return $normalized;
+        return implode(',', array_unique($ids));
     }
 }

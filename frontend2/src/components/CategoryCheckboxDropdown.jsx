@@ -13,7 +13,7 @@ export default function CategoryCheckboxDropdown({
 
   return (
     <details className={`group relative ${className}`}>
-      <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-xl bg-gray-50 px-3 text-sm text-gray-700 shadow-sm marker:hidden">
+      <summary className="flex min-h-8 cursor-pointer list-none items-center justify-between rounded-xl bg-gray-50 px-3 text-sm text-gray-700 shadow-sm marker:hidden">
         <span className="truncate">
           {selectedNames.length > 0 ? selectedNames.join(", ") : placeholder}
         </span>

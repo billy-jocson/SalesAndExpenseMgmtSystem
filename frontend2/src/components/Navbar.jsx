@@ -337,7 +337,6 @@ export default function Navbar() {
       ? {
           ...item,
           children: item.children.filter(({ path }) => {
-            if (path === NavRoutes.AWAITINGORDERS) return true;
             return canAccess(path);
           }),
         }
@@ -345,7 +344,6 @@ export default function Navbar() {
   )
   .filter((item) => {
     if (item.children) return item.children.length > 0;
-    if (item.path === NavRoutes.AWAITINGORDERS) return true;
     return canAccess(item.path);
   });
 
