@@ -7,10 +7,14 @@ function getStoredUser() {
     const token = sessionStorage.getItem("data");
     if (!token) return null;
 
-    // old saved format compatibility
-    const parsed = JSON.parse(token);
-    const actualToken =
-      typeof parsed === "string" ? parsed : (parsed?.user ?? null);
+    let actualToken;
+    try {
+      const parsed = JSON.parse(token);
+      actualToken =
+        typeof parsed === "string" ? parsed : (parsed?.user ?? null);
+    } catch {
+      actualToken = token;
+    }
 
     return actualToken ? jwtDecode(actualToken) : null;
   } catch {
