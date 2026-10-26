@@ -190,10 +190,18 @@ export default function AwaitingOrders() {
                                   ? "warning"
                                   : order.status === "ACCEPTED"
                                     ? "success"
-                                    : "danger"
+                                    : order.status === "CANCELLED"
+                                      ? "default"
+                                      : "danger"
                               }
                             >
-                              {order.status === "PENDING" ? "Pending" : order.status === "ACCEPTED" ? "Accepted" : "Rejected"}
+                              {order.status === "PENDING"
+                                ? "Pending"
+                                : order.status === "ACCEPTED"
+                                  ? "Accepted"
+                                  : order.status === "CANCELLED"
+                                    ? "Cancelled"
+                                    : "Rejected"}
                             </Chip>
                           </Table.Cell>
                           <Table.Cell>

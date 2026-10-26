@@ -16,6 +16,7 @@ import ProtectedRoute from "./context/ProtectedRoute";
 import RoleManager from "./pages/RoleManager";
 import AwaitingOrders from "./pages/AwaitingOrders";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
+import OrdersPage from "./pages/OrdersPage.jsx";
 
 export default function App() {
   return (
@@ -58,6 +59,9 @@ export default function App() {
               path={NavRoutes.AWAITINGORDERS}
               element={<AwaitingOrders />}
             />
+          </Route>
+          <Route element={<ProtectedRoute path={NavRoutes.ORDERS} />}>
+            <Route path={NavRoutes.ORDERS} element={<OrdersPage />} />
           </Route>
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="*" element={<NotFound />} />

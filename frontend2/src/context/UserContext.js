@@ -4,7 +4,7 @@ export const userContext = createContext(null);
 
 const MODULE_ROUTES = {
   Sales: ["/pos", "/sales"],
-  Inventory: ["/productsmanager", "/restockproducts", "/awaiting-orders"],
+  Inventory: ["/productsmanager", "/restockproducts", "/awaiting-orders", "/orders"],
   Expenses: ["/expenses"],
   Suppliers: ["/suppliermanager"],
   Staff: ["/staffmanager", "/rolemanager"],

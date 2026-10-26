@@ -32,6 +32,19 @@ export const fetchPendingOrders = async (supplierId, status = "PENDING", search 
   );
 };
 
+export const fetchMyOrders = async (userId, status = "all") => {
+  return request(`/orders/mine${queryString({ user_id: userId, status })}`, {
+    method: "GET",
+  });
+};
+
+export const cancelOrder = async (orderId, userId) => {
+  return request(`/orders/${orderId}`, {
+    method: "DELETE",
+    body: { user_id: userId },
+  });
+};
+
 // UPDATED WITH NOTIF BOTH ENDS - now includes supplier_user_id to notify Admin!
 export const acceptOrder = async (orderId, { expirationDate, batchNumber = "", supplier_user_id = null, expiration_date = null } = {}) => {
   // Support both naming

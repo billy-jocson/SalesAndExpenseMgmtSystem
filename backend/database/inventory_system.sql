@@ -1615,7 +1615,7 @@ CREATE TABLE `pending_orders` (
   `store_product_id` int(11) DEFAULT NULL,
   `supplier_id` int(11) NOT NULL,
   `requested_quantity` int(11) NOT NULL,
-  `status` enum('PENDING','ACCEPTED','REJECTED') NOT NULL DEFAULT 'PENDING',
+  `status` enum('PENDING','ACCEPTED','REJECTED','CANCELLED') NOT NULL DEFAULT 'PENDING', /* supports requester cancellation */
   `requested_by` int(11) DEFAULT NULL,
   `expiry_date` date DEFAULT NULL COMMENT 'Filled by supplier upon acceptance - grayed out past dates',
   `batch_number` varchar(50) DEFAULT NULL,
@@ -2595,6 +2595,10 @@ ALTER TABLE `supplier_product_categories`
 ALTER TABLE `users`
   ADD CONSTRAINT `fk_users_roles` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
+
+ALTER TABLE `pending_orders`
+MODIFY status ENUM('PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED')
+NOT NULL DEFAULT 'PENDING';
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

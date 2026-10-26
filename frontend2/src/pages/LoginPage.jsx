@@ -48,7 +48,7 @@ export default function LoginPage() {
       openErrorModal(data.status, data.message);
       return;
     } else if (data.status === "Success") {
-      setSession(data);
+      setSession(data.user);
       sessionStorage.setItem("dashboardWelcomeToast", "1");
       const targetRoute = NavRoutes.DASHBOARD;
       navigate(targetRoute);
@@ -128,7 +128,7 @@ export default function LoginPage() {
           </Button>
         </Form>
       </div>
-      <div className="flex flex-1 justify-center items-center lg:static absolute z-1">
+      <div className="flex flex-1 justify-center items-center lg:static absolute z-[-1] lg:z-1">
         <video
           src={trimmedSrc}
           autoPlay

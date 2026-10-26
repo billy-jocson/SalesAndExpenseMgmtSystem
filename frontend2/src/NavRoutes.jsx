@@ -10,6 +10,7 @@ export const NavRoutes = {
   REPORTS: "/reports",
   STAFFMANAGER: "/staffmanager",
   ROLEMANAGER: "/rolemanager",
-  AWAITINGORDERS: "/awaiting-orders", // <-- DAGDAG MO TO
-
+  AWAITINGORDERS: "/awaiting-orders",
+  NOTIFICATIONS: "/notifications",
+  ORDERS: "/orders",
 };

@@ -4,6 +4,8 @@ namespace App\Controllers;
 
 use App\Models\User;
 use App\Models\Role;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 class AuthController
 {
@@ -28,19 +30,26 @@ class AuthController
                 (int) $user['role_id']
             );
 
+            $dotenv = \Dotenv\Dotenv::createImmutable(dirname(__DIR__, 3));
+            $dotenv->load();
+
+            $payload = [
+                'id' => $user['user_id'],
+                'username' => $user['username'],
+                'first_name' => $user['first_name'],
+                'last_name' => $user['last_name'],
+                'role' => $user['role_name'],
+                'supplier_id' => $user['supplier_id'] ?? null,
+                'supplier_name' => $user['supplier_name'] ?? null,
+                'permissions' => $userPermissions,
+            ];
+            $key = $_ENV['SECRET_KEY'];
+            $token = JWT::encode($payload, $key, 'HS256');
+
             return [
                 'status' => 'Success',
                 'message' => 'Login successful!',
-                'user' => [
-                    'id' => $user['user_id'],
-                    'username' => $user['username'],
-                    'first_name' => $user['first_name'],
-                    'last_name' => $user['last_name'],
-                    'role' => $user['role_name'],
-                    'supplier_id' => $user['supplier_id'] ?? null,
-                    'supplier_name' => $user['supplier_name'] ?? null,
-                    'permissions' => $userPermissions,
-                ]
+                'user' => $token
             ];
         }
 

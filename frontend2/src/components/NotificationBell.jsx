@@ -1,7 +1,9 @@
 import { useContext, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Bell, Check, Xmark } from "@gravity-ui/icons";
 import { Button, Chip, Typography } from "@heroui/react";
 import { userContext } from "../context/UserContext.js";
+import { NavRoutes } from "../NavRoutes.jsx";
 import {
   fetchNotifications,
   markAsRead,
@@ -12,10 +14,10 @@ import { formatDateTime } from "../utils/dateTime.js";
 export default function NotificationBell() {
   const { user } = useContext(userContext);
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [totalUnread, setTotalUnread] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState("all");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const userId = user?.id || user?.user_id || user?.userId;
 
@@ -25,47 +27,48 @@ export default function NotificationBell() {
     !isSupplier &&
     (user?.role?.toLowerCase() === "admin" ||
       user?.role?.toLowerCase() === "administrator");
-
-  // HIDE BELL for Cashier, Warehouse, Viewer, and other non-operational roles
-  // SHOW BELL ONLY for Admin and Supplier
-  if (!isAdmin && !isSupplier) {
-    return null;
-  }
-
-  const loadNotifications = async () => {
-    if (!userId) return;
-    try {
-      const data = await fetchNotifications(userId, filter);
-      if (data?.status === "Success") {
-        setNotifications(data.notifications ?? []);
-      }
-      const allData = await fetchNotifications(userId, "all");
-      if (allData?.status === "Success") {
-        const unread = (allData.notifications ?? []).filter(
-          (n) => !n.is_read && n.is_read != 1,
-        ).length;
-        setTotalUnread(unread);
-        if (filter === "all") {
-          setUnreadCount(allData.unread_count ?? unread);
-        } else {
-          setUnreadCount(data?.unread_count ?? 0);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load notifications:", err);
-    }
-  };
+  const canShowBell = isAdmin || isSupplier;
 
   useEffect(() => {
-    loadNotifications();
+    if (!canShowBell || !userId) return;
+
+    let isCurrent = true;
+    const loadNotifications = async () => {
+      try {
+        const [data, allData] = await Promise.all([
+          fetchNotifications(userId, filter),
+          fetchNotifications(userId, "all"),
+        ]);
+        if (!isCurrent) return;
+
+        if (data?.status === "Success") {
+          setNotifications(data.notifications ?? []);
+        }
+        if (allData?.status === "Success") {
+          const unread = (allData.notifications ?? []).filter(
+            (notification) => Number(notification.is_read) !== 1,
+          ).length;
+          setTotalUnread(unread);
+        }
+      } catch (err) {
+        console.error("Failed to load notifications:", err);
+      }
+    };
+
+    void loadNotifications();
     const interval = setInterval(loadNotifications, 5000);
-    return () => clearInterval(interval);
-  }, [userId, filter]);
+    return () => {
+      isCurrent = false;
+      clearInterval(interval);
+    };
+  }, [canShowBell, userId, filter, refreshKey]);
 
   const handleMarkRead = async (notifId) => {
     try {
-      await markAsRead(notifId, userId);
-      loadNotifications();
+      const response = await markAsRead(notifId, userId);
+      if (response?.status === "Success") {
+        setRefreshKey((key) => key + 1);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -73,8 +76,10 @@ export default function NotificationBell() {
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllAsRead(userId);
-      loadNotifications();
+      const response = await markAllAsRead(userId);
+      if (response?.status === "Success") {
+        setRefreshKey((key) => key + 1);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -89,6 +94,7 @@ export default function NotificationBell() {
       case "RESTOCK_ACCEPTED":
         return "success";
       case "ORDER_REJECTED":
+      case "ORDER_CANCELLED":
         return "danger";
       default:
         return "default";
@@ -105,12 +111,16 @@ export default function NotificationBell() {
         return "Accepted";
       case "ORDER_REJECTED":
         return "Rejected";
+      case "ORDER_CANCELLED":
+        return "Cancelled";
       default:
         return type;
     }
   };
 
-  const badgeCount = filter === "all" ? unreadCount : totalUnread;
+  if (!canShowBell) {
+    return null;
+  }
 
   return (
     <div className="ms-auto relative">
@@ -122,7 +132,7 @@ export default function NotificationBell() {
       >
         <Bell className="size-5" />
         {totalUnread > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full size-5 flex items-center justify-center font-bold animate-pulse">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full size-5 flex items-center justify-center font-bold">
             {totalUnread > 9 ? "9+" : totalUnread}
           </span>
         )}
@@ -130,7 +140,7 @@ export default function NotificationBell() {
 
       {isOpen && (
         <div className="absolute right-0 top-12 w-[400px] max-h-fit bg-white shadow-2xl rounded-2xl border z-[100] flex flex-col">
-          <div className="p-4 border-b flex items-center justify-between">
+          <div className="p-4 border-b flex items-center justify-between gap-2">
             <div>
               <Typography type="body" weight="semibold">
                 Notifications
@@ -139,7 +149,12 @@ export default function NotificationBell() {
                 {totalUnread} unread
               </Typography>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center flex-wrap">
+              <Link to={NavRoutes.NOTIFICATIONS} onClick={() => setIsOpen(false)}>
+                <Button variant="ghost" size="sm">
+                  View all
+                </Button>
+              </Link>
               {totalUnread > 0 && (
                 <Button variant="ghost" size="sm" onPress={handleMarkAllRead}>
                   <Check className="size-4 mr-1" /> Mark all read

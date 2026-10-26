@@ -59,6 +59,51 @@ class Order
         return $data;
     }
 
+    public function getOrdersByRequester($userId, $status = 'all')
+    {
+        $sql = "SELECT po.*, sp.product_name, pc.category_name, s.supplier_name
+                FROM pending_orders po
+                JOIN suppliers s ON po.supplier_id = s.supplier_id
+                JOIN supplier_products sp ON po.supplier_product_id = sp.supplier_product_id
+                LEFT JOIN product_categories pc ON pc.category_id = sp.category_id
+                WHERE po.requested_by = ?";
+        $types = 'i';
+
+        if ($status !== 'all') {
+            $sql .= " AND po.status = ?";
+        }
+
+        $sql .= " ORDER BY po.created_at DESC";
+        $stmt = $this->db->prepare($sql);
+        if ($status === 'all') {
+            $stmt->bind_param($types, $userId);
+        } else {
+            $types .= 's';
+            $stmt->bind_param($types, $userId, $status);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $orders = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        $stmt->close();
+
+        return $orders;
+    }
+
+    public function cancelPendingOrder($orderId, $userId)
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE pending_orders
+             SET status = 'CANCELLED'
+             WHERE order_id = ? AND requested_by = ? AND status = 'PENDING'"
+        );
+        $stmt->bind_param('ii', $orderId, $userId);
+        $stmt->execute();
+        $cancelled = $stmt->affected_rows === 1;
+        $stmt->close();
+
+        return $cancelled;
+    }
+
     public function acceptOrder($orderId, $expiryDate, $batchNumber)
     {
         if (!empty($expiryDate)) {

@@ -119,6 +119,71 @@ class OrderController
         }
     }
 
+    public function fetchMyOrders($data = [])
+    {
+        $userId = (int) ($data['user_id'] ?? 0);
+        $status = strtoupper(trim((string) ($data['status'] ?? 'all')));
+        $allowedStatuses = ['ALL', 'PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED'];
+
+        if ($userId <= 0 || !in_array($status, $allowedStatuses, true)) {
+            return ['status' => 'Error', 'message' => 'A valid user_id and status are required.'];
+        }
+
+        try {
+            $orders = $this->orderModel->getOrdersByRequester($userId, strtolower($status) === 'all' ? 'all' : $status);
+
+            return [
+                'status' => 'Success',
+                'message' => 'Orders retrieved.',
+                'orders' => $orders,
+            ];
+        } catch (\Throwable $error) {
+            return ['status' => 'Error', 'message' => $error->getMessage()];
+        }
+    }
+
+    public function cancelOrder($data = [])
+    {
+        $orderId = (int) ($data['order_id'] ?? 0);
+        $userId = (int) ($data['user_id'] ?? 0);
+
+        if ($orderId <= 0 || $userId <= 0) {
+            return ['status' => 'Error', 'message' => 'A valid order_id and user_id are required.'];
+        }
+
+        try {
+            $orderInfo = $this->notificationModel->getOrderInfo($orderId);
+            if (!$orderInfo || (int) ($orderInfo['requested_by'] ?? 0) !== $userId) {
+                return ['status' => 'Error', 'message' => 'Order not found or you are not its requester.'];
+            }
+
+            if (!$this->orderModel->cancelPendingOrder($orderId, $userId)) {
+                return ['status' => 'Error', 'message' => 'Only pending orders can be cancelled.'];
+            }
+
+            try {
+                $supplierUserId = $this->notificationModel->getSupplierUserId($orderInfo['supplier_id']);
+                if ($supplierUserId) {
+                    $productName = $this->notificationModel->getProductName($orderInfo['supplier_product_id']) ?? 'Product';
+                    $this->notificationModel->create(
+                        $supplierUserId,
+                        $userId,
+                        'ORDER_CANCELLED',
+                        "Order Cancelled - {$productName}",
+                        "The requester cancelled order #{$orderId}: {$productName}.",
+                        $orderId
+                    );
+                }
+            } catch (\Throwable $notificationError) {
+                error_log("Order cancellation notification failed: " . $notificationError->getMessage());
+            }
+
+            return ['status' => 'Success', 'message' => 'Order cancelled.'];
+        } catch (\Throwable $error) {
+            return ['status' => 'Error', 'message' => $error->getMessage()];
+        }
+    }
+
     public function acceptOrder($data = [])
     {
         $orderId = (int) ($data['order_id'] ?? $data['id'] ?? 0);

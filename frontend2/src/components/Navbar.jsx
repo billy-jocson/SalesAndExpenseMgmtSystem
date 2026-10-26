@@ -303,6 +303,13 @@ export default function Navbar() {
               icon: Receipt,
             }] 
           : []),
+        ...(user?.supplier_id
+          ? []
+          : [{
+              label: "My Orders",
+              path: NavRoutes.ORDERS,
+              icon: BookOpen,
+            }]),
       ],
     },
     {
