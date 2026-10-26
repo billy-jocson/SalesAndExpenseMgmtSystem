@@ -50,9 +50,7 @@ export default function ProductsManager() {
   const canReadProducts = isSupplier
     ? hasPermission("write_vendor_products")
     : hasPermission("read_inventory");
-  const canAddProduct = isSupplier
-    ? hasPermission("write_vendor_products")
-    : hasPermission("write_inventory");
+  const canAddProduct = isSupplier && hasPermission("write_vendor_products");
   const canOrderProducts = !isSupplier && hasPermission("write_inventory");
   const [spProducts, setSpProducts] = useState([]);
   const [itemOrderSearch, setSearchItemOrder] = useState("");
