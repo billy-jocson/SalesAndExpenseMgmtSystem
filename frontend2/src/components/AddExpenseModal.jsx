@@ -16,13 +16,13 @@ import {
   toast,
   Typography,
 } from "@heroui/react";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { addExpense, fetchCategories } from "../api/expenses";
 import { fetchPaymentMethods } from "../api/payment";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 
 export default function AddExpenseModal({ onSuccess }) {
-  const { hasPermission } = useContext(userContext);
+  const { hasPermission } = useAuth();
   const canWriteExpenses = hasPermission("write_expenses");
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState(0);

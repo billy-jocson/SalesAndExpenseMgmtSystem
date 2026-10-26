@@ -15,9 +15,7 @@ import {
   DrawerRoot,
   DrawerTrigger,
 } from "@heroui/react";
-import { useCookies } from "react-cookie";
-import { useContext } from "react";
-import { userContext } from "../context/UserContext";
+import useAuth from "../hooks/useAuth";
 import {
   LayoutCellsLarge,
   Calculator,
@@ -36,8 +34,7 @@ import {
 } from "@gravity-ui/icons";
 
 function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
-  const [, , removeCookie] = useCookies(["username"]);
-  const { logout } = useContext(userContext);
+  const { logout } = useAuth();
   const [openGroup, setOpenGroup] = useState(() => {
     return (
       menuItems.find(({ children }) =>
@@ -215,7 +212,6 @@ function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
                       variant="primary"
                       onClick={() => {
                         onNavigate();
-                        removeCookie("username", { path: "/" });
                         logout();
                       }}
                     >
@@ -251,7 +247,7 @@ function SidebarContent({ menuItems, location, onNavigate, user, initials }) {
 export default function Navbar() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const { user, canAccess } = useContext(userContext);
+  const { user, canAccess } = useAuth();
   const firstName = user?.first_name ?? "";
   const lastName = user?.last_name ?? "";
   const supplierWords = user?.supplier_name?.split(/\s+/).filter(Boolean) ?? [];

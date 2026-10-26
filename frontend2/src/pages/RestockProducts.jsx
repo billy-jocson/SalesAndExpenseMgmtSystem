@@ -1,6 +1,6 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import restockIcon from "../assets/images/restockprod.png";
 import {
   Table,
@@ -18,10 +18,10 @@ import { useDebounce } from "../hooks/useDebounce.js";
 import RestockModal from "../components/RestockModal.jsx";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { TableSkeleton } from "../components/PageSkeleton.jsx";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 
 export default function RestockProducts() {
-  const { role, user } = useContext(userContext);
+  const { role, user } = useAuth();
   const [searchItem, setSearchItem] = useState("");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);

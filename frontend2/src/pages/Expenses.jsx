@@ -1,6 +1,6 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import expensesIcon from "../assets/images/salesorexpense.png";
 import ExpenseCard from "../components/ExpenseCard.jsx";
 import { Magnifier } from "@gravity-ui/icons";
@@ -18,10 +18,10 @@ import { fetchAllExpenses, fetchCategories } from "../api/expenses";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { CardGridSkeleton } from "../components/PageSkeleton.jsx";
 import CategoryCheckboxDropdown from "../components/CategoryCheckboxDropdown.jsx";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 
 export default function Expenses() {
-  const { hasPermission } = useContext(userContext);
+  const { hasPermission } = useAuth();
   const canReadExpenses = hasPermission("read_expenses");
   const [searchItem, setSearchItem] = useState("");
   const debouncedSearchItem = useDebounce(searchItem);

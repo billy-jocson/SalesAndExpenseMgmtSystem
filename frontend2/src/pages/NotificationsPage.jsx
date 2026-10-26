@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
 import {
@@ -10,7 +10,7 @@ import {
   Button,
 } from "@heroui/react";
 import { Magnifier } from "@gravity-ui/icons";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 import {
   fetchAdminOrdersStatus,
   fetchNotifications,
@@ -20,7 +20,7 @@ import { TableSkeleton } from "../components/PageSkeleton.jsx";
 import { useDebounce } from "../hooks/useDebounce.js";
 
 export default function NotificationsPage() {
-  const { user } = useContext(userContext);
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("all");
   const [orders, setOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);

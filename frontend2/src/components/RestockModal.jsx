@@ -7,12 +7,12 @@ import {
   TextField,
   toast,
 } from "@heroui/react";
-import { useState, useContext } from "react";
+import { useState } from "react";
 import { requestRestock } from "../api/ordermanager.js";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 
 export default function RestockModal({ product, onSuccess }) {
-  const { user } = useContext(userContext);
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [quantity, setQuantity] = useState("");
 

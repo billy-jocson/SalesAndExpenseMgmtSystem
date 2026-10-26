@@ -16,7 +16,7 @@ import {
   useFilter,
 } from "@heroui/react";
 import { Magnifier, Person, TrashBin } from "@gravity-ui/icons";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import supplierIcon from "../assets/images/supmanager.png";
 import SupplierCard from "../components/SupplierCard.jsx";
 import {
@@ -30,10 +30,10 @@ import {
 import { useDebounce } from "../hooks/useDebounce.js";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { ListCardSkeleton } from "../components/PageSkeleton.jsx";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 
 export default function SupplierManager() {
-  const { hasPermission } = useContext(userContext);
+  const { hasPermission } = useAuth();
   const canReadSuppliers = hasPermission("read_suppliers");
   const canWriteSuppliers = hasPermission("write_suppliers");
   const canUpdateSuppliers = hasPermission("update_suppliers");

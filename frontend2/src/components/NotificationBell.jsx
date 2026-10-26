@@ -1,8 +1,8 @@
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bell, Check, Xmark } from "@gravity-ui/icons";
 import { Button, Chip, Typography } from "@heroui/react";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 import { NavRoutes } from "../NavRoutes.jsx";
 import {
   fetchNotifications,
@@ -12,7 +12,7 @@ import {
 import { formatDateTime } from "../utils/dateTime.js";
 
 export default function NotificationBell() {
-  const { user } = useContext(userContext);
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [totalUnread, setTotalUnread] = useState(0);
   const [isOpen, setIsOpen] = useState(false);

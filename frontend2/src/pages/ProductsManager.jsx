@@ -1,6 +1,6 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import productsIcon from "../assets/images/prodmanager.png";
 import { Box, Magnifier, Wallet } from "@gravity-ui/icons";
 import ProductCard from "../components/ProductCard.jsx";
@@ -13,7 +13,7 @@ import {
   Modal,
   Typography,
 } from "@heroui/react";
-import { userContext } from "../context/UserContext";
+import useAuth from "../hooks/useAuth";
 import {
   addProduct,
   buildProductImageUrl,
@@ -45,7 +45,7 @@ export default function ProductsManager() {
   });
   const [addCategoryOptions, setAddCategoryOptions] = useState([]);
   const debouncedSearchItem = useDebounce(searchItem);
-  const { role, user, hasPermission } = useContext(userContext);
+  const { role, user, hasPermission } = useAuth();
   const isSupplier = role === "supplier";
   const canReadProducts = isSupplier
     ? hasPermission("write_vendor_products")

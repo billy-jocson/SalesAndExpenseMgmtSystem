@@ -1,6 +1,6 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import salesIcon from "../assets/images/salesorexpense.png";
 import SaleCard from "../components/SaleCard.jsx";
 import {
@@ -15,10 +15,10 @@ import { useDebounce } from "../hooks/useDebounce.js";
 import { getSales } from "../api/sales.js";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { ListCardSkeleton } from "../components/PageSkeleton.jsx";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 
 export default function Sales() {
-  const { hasPermission } = useContext(userContext);
+  const { hasPermission } = useAuth();
   const canReadSales = hasPermission("read_sales");
   const [searchItem, setSearchItem] = useState("");
   const debouncedSearchItem = useDebounce(searchItem);

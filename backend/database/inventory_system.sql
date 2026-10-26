@@ -6,7 +6,8 @@
 -- Generation Time: Oct 24, 2026 at 09:45 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
-
+CREATE DATABASE IF NOT EXISTS `inventory_system`;
+USE `inventory_system`;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";

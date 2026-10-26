@@ -1,7 +1,7 @@
 import Navbar from "../components/Navbar";
 import TopBar from "../components/TopBar.jsx";
 import posIcon from "../assets/images/pos.png";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import POSProductCard from "../components/POSProductCard.jsx";
 import POSBillItem from "../components/POSBillItem.jsx";
 import {
@@ -26,10 +26,10 @@ import ProductCategoryDropdown from "../components/ProductCategoryDropdown.jsx";
 import { useDebounce } from "../hooks/useDebounce.js";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { CardGridSkeleton } from "../components/PageSkeleton.jsx";
-import { userContext } from "../context/UserContext";
+import useAuth from "../hooks/useAuth";
 
 export default function POS() {
-  const { user, hasPermission } = useContext(userContext);
+  const { user, hasPermission } = useAuth();
   const canReadInventory = hasPermission("read_inventory");
   const canWriteSales = hasPermission("write_sales");
   const [searchItem, setSearchItem] = useState("");

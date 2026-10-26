@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Magnifier, Xmark } from "@gravity-ui/icons";
 import {
   Button,
@@ -14,7 +14,7 @@ import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { TableSkeleton } from "../components/PageSkeleton.jsx";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 import { cancelOrder, fetchMyOrders } from "../api/ordermanager.js";
 import { useDebounce } from "../hooks/useDebounce.js";
 
@@ -35,7 +35,7 @@ const statusColor = (status) => {
 };
 
 export default function OrdersPage() {
-  const { user } = useContext(userContext);
+  const { user } = useAuth();
   const userId = user?.id || user?.user_id || user?.userId;
   const [status, setStatus] = useState("all");
   const [orders, setOrders] = useState([]);

@@ -9,17 +9,17 @@ import {
   Typography,
 } from "@heroui/react";
 import { Magnifier, Shield, TrashBin } from "@gravity-ui/icons";
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState } from "react";
 import roleIcon from "../assets/images/supmanager.png";
 import { fetchRoles, addRole, updateRole, deleteRole } from "../api/roles.js";
 import { useDebounce } from "../hooks/useDebounce.js";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { ListCardSkeleton } from "../components/PageSkeleton.jsx";
-import { userContext } from "../context/UserContext";
+import useAuth from "../hooks/useAuth";
 import RoleCard from "../components/RoleCard.jsx";
 
 export default function RoleManager() {
-  const { user, hasPermission } = useContext(userContext);
+  const { user, hasPermission } = useAuth();
   const canReadRoles = hasPermission("read_staffs");
   const canCreateRoles = hasPermission("write_staffs");
   const canUpdateRoles = hasPermission("update_staffs");

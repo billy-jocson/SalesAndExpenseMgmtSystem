@@ -10,7 +10,7 @@ import {
   toast,
   Typography,
 } from "@heroui/react";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import CategoryCheckboxDropdown from "./CategoryCheckboxDropdown.jsx";
 import {
   buildProductImageUrl,
@@ -19,7 +19,7 @@ import {
   updateProduct,
   updateSellingPrice,
 } from "../api/productmanager.js";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 
 export default function ProductCard({
   id,
@@ -34,7 +34,7 @@ export default function ProductCard({
   onSuccess,
 }) {
   const isSupplierRole = (role ?? "").trim().toLowerCase() === "supplier";
-  const { hasPermission } = useContext(userContext);
+  const { hasPermission } = useAuth();
   const canEditProduct = isSupplierRole
     ? hasPermission("write_vendor_products")
     : hasPermission("update_inventory");

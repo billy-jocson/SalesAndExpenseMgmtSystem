@@ -17,7 +17,7 @@ import {
   Typography,
 } from "@heroui/react";
 import { Magnifier, Person, TrashBin } from "@gravity-ui/icons";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { parseDate } from "@internationalized/date";
 import staffIcon from "../assets/images/supmanager.png";
 import {
@@ -30,7 +30,7 @@ import {
 import { useDebounce } from "../hooks/useDebounce.js";
 import NoItemFound from "../components/NoItemFound.jsx";
 import { ListCardSkeleton } from "../components/PageSkeleton.jsx";
-import { userContext } from "../context/UserContext";
+import useAuth from "../hooks/useAuth";
 import StaffCard from "../components/StaffCard.jsx";
 
 const getTodayDate = () => {
@@ -52,7 +52,7 @@ const createStaffForm = () => ({
 });
 
 export default function StaffManager() {
-  const { user, hasPermission } = useContext(userContext);
+  const { user, hasPermission } = useAuth();
   const canReadStaff = hasPermission("read_staffs");
   const canWriteStaff = hasPermission("write_staffs");
   const canUpdateStaff = hasPermission("update_staffs");

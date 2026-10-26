@@ -11,8 +11,7 @@ import RestockProducts from "./pages/RestockProducts";
 import Reports from "./pages/Reports";
 import StaffManager from "./pages/StaffManager";
 import NotFound from "./pages/NotFound";
-import ContextProvider from "./context/ContextProvider";
-import ProtectedRoute from "./context/ProtectedRoute";
+import ProtectedRoute from "./components/ProtectedRoute";
 import RoleManager from "./pages/RoleManager";
 import AwaitingOrders from "./pages/AwaitingOrders";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
@@ -21,52 +20,50 @@ import OrdersPage from "./pages/OrdersPage.jsx";
 export default function App() {
   return (
     <div className="bg-zinc-100/50 box-border h-dvh w-screen scrollbar-thin scrollbar-thumb-slate-400 hover:scrollbar-thumb-slate-500 lg:p-4">
-      <ContextProvider>
-        <Routes>
-          <Route path={NavRoutes.LOGIN} element={<LoginPage />} />
-          <Route element={<ProtectedRoute path={NavRoutes.DASHBOARD} />}>
-            <Route path={NavRoutes.DASHBOARD} element={<Dashboard />} />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.POS} />}>
-            <Route path={NavRoutes.POS} element={<POS />} />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.PRODMANAGER} />}>
-            <Route path={NavRoutes.PRODMANAGER} element={<ProductsManager />} />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.SALES} />}>
-            <Route path={NavRoutes.SALES} element={<Sales />} />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.EXPENSES} />}>
-            <Route path={NavRoutes.EXPENSES} element={<Expenses />} />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.SUPMANAGER} />}>
-            <Route path={NavRoutes.SUPMANAGER} element={<SupplierManager />} />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.RESTOCKPROD} />}>
-            <Route path={NavRoutes.RESTOCKPROD} element={<RestockProducts />} />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.REPORTS} />}>
-            <Route path={NavRoutes.REPORTS} element={<Reports />} />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.STAFFMANAGER} />}>
-            <Route path={NavRoutes.STAFFMANAGER} element={<StaffManager />} />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.ROLEMANAGER} />}>
-            <Route path={NavRoutes.ROLEMANAGER} element={<RoleManager />} />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.AWAITINGORDERS} />}>
-            <Route
-              path={NavRoutes.AWAITINGORDERS}
-              element={<AwaitingOrders />}
-            />
-          </Route>
-          <Route element={<ProtectedRoute path={NavRoutes.ORDERS} />}>
-            <Route path={NavRoutes.ORDERS} element={<OrdersPage />} />
-          </Route>
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </ContextProvider>
+      <Routes>
+        <Route path={NavRoutes.LOGIN} element={<LoginPage />} />
+        <Route element={<ProtectedRoute path={NavRoutes.DASHBOARD} />}>
+          <Route path={NavRoutes.DASHBOARD} element={<Dashboard />} />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.POS} />}>
+          <Route path={NavRoutes.POS} element={<POS />} />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.PRODMANAGER} />}>
+          <Route path={NavRoutes.PRODMANAGER} element={<ProductsManager />} />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.SALES} />}>
+          <Route path={NavRoutes.SALES} element={<Sales />} />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.EXPENSES} />}>
+          <Route path={NavRoutes.EXPENSES} element={<Expenses />} />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.SUPMANAGER} />}>
+          <Route path={NavRoutes.SUPMANAGER} element={<SupplierManager />} />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.RESTOCKPROD} />}>
+          <Route path={NavRoutes.RESTOCKPROD} element={<RestockProducts />} />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.REPORTS} />}>
+          <Route path={NavRoutes.REPORTS} element={<Reports />} />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.STAFFMANAGER} />}>
+          <Route path={NavRoutes.STAFFMANAGER} element={<StaffManager />} />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.ROLEMANAGER} />}>
+          <Route path={NavRoutes.ROLEMANAGER} element={<RoleManager />} />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.AWAITINGORDERS} />}>
+          <Route
+            path={NavRoutes.AWAITINGORDERS}
+            element={<AwaitingOrders />}
+          />
+        </Route>
+        <Route element={<ProtectedRoute path={NavRoutes.ORDERS} />}>
+          <Route path={NavRoutes.ORDERS} element={<OrdersPage />} />
+        </Route>
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </div>
   );
 }

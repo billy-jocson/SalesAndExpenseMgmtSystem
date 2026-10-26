@@ -30,6 +30,19 @@ class AuthController
                 (int) $user['role_id']
             );
 
+            // The token is stored in a cookie (~4 KB limit), so keep only the
+            // fields the frontend needs. With every permission the full rows
+            // (including descriptions) exceed the limit and the browser would
+            // silently drop the cookie.
+            $userPermissions = array_map(
+                fn(array $permission) => [
+                    'permission_id' => $permission['permission_id'],
+                    'permission_name' => $permission['permission_name'],
+                    'module' => $permission['module'],
+                ],
+                $userPermissions
+            );
+
             $dotenv = \Dotenv\Dotenv::createImmutable(dirname(__DIR__, 3));
             $dotenv->load();
 

@@ -9,12 +9,12 @@ import {
   Typography,
   toast,
 } from "@heroui/react";
-import { useContext, useState } from "react";
+import { useState } from "react";
 import { acceptOrder } from "../api/ordermanager.js";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 
 export default function SupplierAcceptModal({ order, onSuccess }) {
-  const { user } = useContext(userContext);
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [expiryDate, setExpiryDate] = useState("");
   const [noExpiry, setNoExpiry] = useState(false);

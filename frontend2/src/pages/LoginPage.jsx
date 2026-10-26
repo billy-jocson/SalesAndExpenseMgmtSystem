@@ -15,8 +15,7 @@ import {
   Typography,
 } from "@heroui/react";
 import { loginUser } from "../api/auth";
-import { useContext } from "react";
-import { userContext } from "../context/UserContext";
+import useAuth from "../hooks/useAuth";
 import loginVideo from "../assets/loginvideo.mp4";
 
 export default function LoginPage() {
@@ -28,7 +27,7 @@ export default function LoginPage() {
     message: "",
   });
   const [formData, setFormData] = useState({ username: "", password: "" });
-  const { setSession } = useContext(userContext);
+  const { setSession } = useAuth();
   const trimmedSrc = `${loginVideo}#t=7`;
 
   useEffect(() => {

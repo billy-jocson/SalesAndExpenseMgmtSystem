@@ -2,7 +2,7 @@
 import Navbar from "../components/Navbar.jsx";
 import TopBar from "../components/TopBar.jsx";
 import DashboardCards from "../components/DashboardCards.jsx";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Wallet, Box, CirclePlusFill } from "@gravity-ui/icons";
 import {
   Button,
@@ -36,7 +36,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import AddExpenseModal from "../components/AddExpenseModal.jsx";
-import { userContext } from "../context/UserContext.js";
+import useAuth from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { fetchProducts } from "../api/productmanager.js";
 
@@ -62,7 +62,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   // Contains current user information from the session
-  const { user } = useContext(userContext);
+  const { user } = useAuth();
   const [businessData, setBusinessData] = useState({
     netIncome: 0,
     sales: 0,
