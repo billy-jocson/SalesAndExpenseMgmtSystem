@@ -33,6 +33,13 @@ class POSController
         // We still accept reference number from the React frontend payload
         $referenceNumber = $data['reference_number'] ?? null;
 
+        if (
+            $paymentMethodId === 2 &&
+            (!is_string($referenceNumber) || !preg_match('/^\d{1,13}$/', $referenceNumber))
+        ) {
+            return ['status' => 'Error', 'message' => 'Enter a GCash reference number using up to 13 digits.'];
+        }
+
         $taxAmount = (float)($data['tax_amount'] ?? 0);
         $items = $data['items'];
         $amount = $data['amount'];

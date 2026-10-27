@@ -130,6 +130,13 @@ export default function POS() {
       );
     }
 
+    if (
+      paymentMethod === "GCash" &&
+      !/^\d{1,13}$/.test(paymentValue.trim())
+    ) {
+      return toast.danger("Enter a GCash reference number using up to 13 digits.");
+    }
+
     let numericPayment = Number(paymentValue);
     if (
       paymentMethod === "Cash" &&
@@ -259,6 +266,8 @@ export default function POS() {
           </InputGroup.Prefix>
           <InputGroup.Input
             type={paymentMethod === "Cash" ? "number" : "text"}
+            inputMode={paymentMethod === "GCash" ? "numeric" : undefined}
+            maxLength={paymentMethod === "GCash" ? 13 : undefined}
             className="w-full"
             placeholder={
               paymentMethod === "Cash"
@@ -266,7 +275,14 @@ export default function POS() {
                 : "Enter reference number"
             }
             value={paymentValue}
-            onChange={(event) => setPaymentValue(event.target.value)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setPaymentValue(
+                paymentMethod === "GCash"
+                  ? value.replace(/\D/g, "").slice(0, 13)
+                  : value,
+              );
+            }}
           />
         </InputGroup>
       </TextField>

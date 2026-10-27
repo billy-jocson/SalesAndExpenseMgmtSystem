@@ -30,8 +30,11 @@ export default function RestockModal({ product, onSuccess }) {
       return;
     }
 
-    if (paymentMethod === "GCash" && !referenceCode.trim()) {
-      toast.danger("Enter the GCash reference number.");
+    if (
+      paymentMethod === "GCash" &&
+      !/^\d{1,13}$/.test(referenceCode.trim())
+    ) {
+      toast.danger("Enter a GCash reference number using up to 13 digits.");
       return;
     }
 
@@ -126,10 +129,15 @@ export default function RestockModal({ product, onSuccess }) {
                     </InputGroup.Prefix>
                     <InputGroup.Input
                       type="text"
-                      maxLength={50}
+                      inputMode="numeric"
+                      maxLength={13}
                       placeholder="Enter reference number"
                       value={referenceCode}
-                      onChange={(event) => setReferenceCode(event.target.value)}
+                      onChange={(event) =>
+                        setReferenceCode(
+                          event.target.value.replace(/\D/g, "").slice(0, 13),
+                        )
+                      }
                     />
                   </InputGroup>
                 </TextField>

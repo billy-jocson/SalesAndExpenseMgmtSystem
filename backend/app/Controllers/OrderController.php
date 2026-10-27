@@ -36,6 +36,16 @@ class OrderController
             ];
         }
 
+        if (
+            !in_array($paymentMethod, ['Cash', 'GCash'], true) ||
+            ($paymentMethod === 'GCash' && !preg_match('/^\d{1,13}$/', $referenceCode))
+        ) {
+            return [
+                'status' => 'Error',
+                'message' => 'Select a valid payment method and enter a GCash reference number using up to 13 digits.'
+            ];
+        }
+
         try {
             $result = $this->orderModel->createPendingOrder(
                 $orderType,

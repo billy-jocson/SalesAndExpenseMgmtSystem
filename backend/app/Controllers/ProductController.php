@@ -197,7 +197,14 @@ class ProductController
         $paymentMethod = trim((string) ($data['payment_method'] ?? 'Cash'));
         $referenceCode = trim((string) ($data['reference_code'] ?? ''));
 
-        if ($productId <= 0 || $quantity <= 0 || $expirationDate === '' || !in_array($paymentMethod, ['Cash', 'GCash'], true) || strlen($referenceCode) > 50) {
+        if (
+            $productId <= 0 ||
+            $quantity <= 0 ||
+            $expirationDate === '' ||
+            !in_array($paymentMethod, ['Cash', 'GCash'], true) ||
+            strlen($referenceCode) > 50 ||
+            ($paymentMethod === 'GCash' && !preg_match('/^\d{1,13}$/', $referenceCode))
+        ) {
             return ['status' => 'Error', 'message' => 'Complete all restock fields with valid values.'];
         }
 
