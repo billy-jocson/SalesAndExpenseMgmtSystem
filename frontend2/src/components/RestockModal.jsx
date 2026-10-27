@@ -17,9 +17,15 @@ export default function RestockModal({ product, onSuccess }) {
   const [quantity, setQuantity] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [referenceCode, setReferenceCode] = useState("");
+  const unitCost = Number(product.unitCost) || 0;
+  const total = (Number(quantity) || 0) * unitCost;
 
   const handleSubmit = async () => {
-    if (!quantity || Number(quantity) <= 0) {
+    if (
+      !quantity ||
+      !Number.isInteger(Number(quantity)) ||
+      Number(quantity) <= 0
+    ) {
       toast.danger("Please enter valid quantity.");
       return;
     }
@@ -82,6 +88,15 @@ export default function RestockModal({ product, onSuccess }) {
                   />
                 </InputGroup>
               </TextField>
+
+              <div className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-sm">
+                <span className="text-slate-600">
+                  ₱{unitCost.toFixed(2)} × {Number(quantity) || 0}
+                </span>
+                <span className="font-semibold text-slate-900">
+                  Total: ₱{total.toFixed(2)}
+                </span>
+              </div>
 
               <div className="flex gap-2">
                 <Button

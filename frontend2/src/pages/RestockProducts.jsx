@@ -286,6 +286,7 @@ export default function RestockProducts() {
                               product={{
                                 id: product.id,
                                 name: product.prodname,
+                                unitCost: product.wholesale_price,
                                 supplier_id: product.supplier_id,
                                 supplier_product_id:
                                   product.supplier_product_id || product.id,

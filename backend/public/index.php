@@ -37,6 +37,23 @@ function jsonResponse($data, int $status = 200): void
     exit;
 }
 
+function cleanRequestInput($value)
+{
+    if (is_array($value)) {
+        foreach ($value as $key => $item) {
+            $value[$key] = cleanRequestInput($item);
+        }
+
+        return $value;
+    }
+
+    if (is_string($value)) {
+        return trim(preg_replace('/[\x00-\x1F\x7F]/', '', $value));
+    }
+
+    return $value;
+}
+
 // POST (Recording), GET (Fetching), DELETE (Deletion), PATCH (Updating)
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 
@@ -58,6 +75,7 @@ if (!is_array($input)) {
 if (!empty($_POST)) {
     $input = array_merge($input, $_POST);
 }
+$input = cleanRequestInput($input);
 
 try {
     $response = null;
