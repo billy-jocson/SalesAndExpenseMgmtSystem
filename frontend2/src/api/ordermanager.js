@@ -82,6 +82,8 @@ export const requestRestock = async ({
   supplierId,
   quantity,
   requestedBy,
+  paymentMethod = "Cash",
+  referenceCode = "",
 }) => {
   return createPendingOrder({
     orderType: "RESTOCK",
@@ -90,6 +92,8 @@ export const requestRestock = async ({
     supplierId,
     quantity,
     requestedBy,
+    paymentMethod,
+    referenceCode,
   });
 };
 

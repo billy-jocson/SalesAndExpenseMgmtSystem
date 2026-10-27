@@ -73,7 +73,7 @@ class ProductController
         $productId = (int) ($data['product_id'] ?? 0);
         $sellingPrice = (float) ($data['selling_price'] ?? -1);
 
-        if ($productId <= 0 || $sellingPrice < 0) {
+        if ($productId <= 0 || $sellingPrice <= 0) {
             return [
                 'status' => 'Error',
                 'message' => 'A valid product and selling price are required.'
