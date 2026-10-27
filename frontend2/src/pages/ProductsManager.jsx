@@ -17,8 +17,24 @@ export default function ProductsManager() {
   const [categorySelected, setCategorySelected] = useState("");
   const [productsRefreshKey, setProductsRefreshKey] = useState(0);
   const debouncedSearchItem = useDebounce(searchItem);
+<<<<<<< Updated upstream
   const { role, user } = useContext(userContext);
   const canManageProducts = ["supplier"].includes(role);
+=======
+  const { role, user, hasPermission } = useContext(userContext);
+  const isSupplier = role === "supplier";
+  const canReadProducts = isSupplier
+    ? hasPermission("write_vendor_products")
+    : hasPermission("read_inventory");
+  const canAddProduct = isSupplier && hasPermission("write_vendor_product");
+  const canOrderProducts = !isSupplier && hasPermission("write_inventory");
+  const [spProducts, setSpProducts] = useState([]);
+  const [itemOrderSearch, setSearchItemOrder] = useState("");
+  const [orderCategorySelected, setOrderCategorySelected] = useState([]);
+  const [isOrderOpen, setIsOrderOpen] = useState(false);
+  const debouncedItemOrderSearch = useDebounce(itemOrderSearch);
+  const [cartItems, setCartItems] = useState([]);
+>>>>>>> Stashed changes
 
   useEffect(() => {
     document.title = "Products Manager";
@@ -81,6 +97,7 @@ export default function ProductsManager() {
                 setCategorySelected(key === "all" ? "" : String(key))
               }
             />
+<<<<<<< Updated upstream
             {canManageProducts && (
               <Button
                 aria-label="Menu"
@@ -90,6 +107,271 @@ export default function ProductsManager() {
               >
                 + Add Product
               </Button>
+=======
+            {canAddProduct ?(
+              <>
+                <Button
+                  aria-label="Add product"
+                  variant="primary"
+                  className="rounded-lg lg:w-fit w-full"
+                  onPress={() => setIsAddOpen(true)}
+                >
+                  + Add Product
+                </Button>
+
+                {/* Drawer Backdrop Overlay */}
+                {isAddOpen && (
+                  <div
+                    className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm transition-opacity"
+                    onClick={() => setIsAddOpen(false)}
+                  />
+                )}
+
+                {/* Right-side Slide-over Drawer */}
+                <div
+                  className={`fixed inset-y-0 right-0 z-70 w-full max-w-120 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
+                    isAddOpen ? "translate-x-0" : "translate-x-full"
+                  }`}
+                >
+                  {/* Drawer Header */}
+                  <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">
+                        Add Product
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        Add a new product to the records.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsAddOpen(false)}
+                      className="p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 rounded-full transition-colors"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Drawer Body (Scrollable) */}
+                  <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-thin">
+                    {/* Image Upload Area */}
+                    <div>
+                      <div className="relative flex flex-col items-center justify-center w-full h-48 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 hover:bg-gray-100 transition-colors overflow-hidden group cursor-pointer">
+                        {addForm.imageFile ? (
+                          <img
+                            src={URL.createObjectURL(addForm.imageFile)}
+                            className="object-cover w-full h-full"
+                            alt="Preview"
+                          />
+                        ) : canOrderProducts ? (
+                          <div className="px-4 py-2 bg-white text-[#006FEE] font-medium text-sm rounded-lg shadow-sm border border-gray-200">
+                            Upload a Photo
+                          </div>
+                        ) : null}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) =>
+                            setAddForm((current) => ({
+                              ...current,
+                              imageFile: event.target.files?.[0] ?? null,
+                            }))
+                          }
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <TextField className="w-full" name="product-name">
+                      <Label className="text-gray-700 font-medium mb-1.5 text-sm">
+                        Product Name
+                      </Label>
+                      <InputGroup>
+                        <InputGroup.Input
+                          className="w-full bg-gray-50 border-none shadow-none"
+                          placeholder="Enter product name"
+                          value={addForm.productName}
+                          onChange={(e) =>
+                            setAddForm((current) => ({
+                              ...current,
+                              productName: e.target.value,
+                            }))
+                          }
+                        />
+                      </InputGroup>
+                    </TextField>
+
+                    <div className="flex flex-col">
+                      <Label className="text-gray-700 font-medium mb-1.5 text-sm">
+                        Category
+                      </Label>
+                      <CategoryCheckboxDropdown
+                        categories={addCategoryOptions}
+                        selectedIds={addForm.categoryIds}
+                        onSelectionChange={(categoryIds) =>
+                          setAddForm((current) => ({ ...current, categoryIds }))
+                        }
+                        placeholder="Select supplier categories"
+                      />
+                    </div>
+
+                    <TextField className="w-full" name="description">
+                      <Label className="text-gray-700 font-medium mb-1.5 text-sm">
+                        Description
+                      </Label>
+                      <InputGroup>
+                        <InputGroup.Input
+                          className="w-full bg-gray-50 border-none shadow-none"
+                          placeholder="Enter product description"
+                          value={addForm.description}
+                          onChange={(e) =>
+                            setAddForm((current) => ({
+                              ...current,
+                              description: e.target.value,
+                            }))
+                          }
+                        />
+                      </InputGroup>
+                    </TextField>
+
+                    <TextField className="w-full" name="wholesale-price">
+                      <Label className="text-gray-700 font-medium mb-1.5 text-sm">
+                        Wholesale Price
+                      </Label>
+                      <InputGroup>
+                        <InputGroup.Prefix className="text-gray-500 pl-3">
+                          ₱
+                        </InputGroup.Prefix>
+                        <InputGroup.Input
+                          className="w-full bg-gray-50 border-none shadow-none"
+                          type="number"
+                          placeholder="0.00"
+                          value={addForm.price}
+                          onChange={(e) =>
+                            setAddForm((current) => ({
+                              ...current,
+                              price: e.target.value,
+                            }))
+                          }
+                        />
+                      </InputGroup>
+                    </TextField>
+                  </div>
+
+                  {/* Drawer Footer */}
+                  <div className="p-6 border-t border-gray-100 bg-white">
+                    <Button
+                      className="w-full bg-[#006FEE] text-white font-semibold rounded-xl py-6"
+                      onPress={handleAddProduct}
+                    >
+                      Add Product
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <Modal isOpen={isOrderOpen} onOpenChange={setIsOrderOpen}>
+                  <Button
+                    size="sm"
+                    className="rounded-lg"
+                    onPress={() => setIsOrderOpen(true)}
+                  >
+                    Order Products
+                  </Button>
+                  <Modal.Backdrop>
+                    <Modal.Container size="cover">
+                      <Modal.Dialog>
+                        <Modal.CloseTrigger />
+                        <Modal.Header>
+                          <Modal.Icon className="bg-accent text-white">
+                            <Box className="size-5" />
+                          </Modal.Icon>
+                          <Modal.Heading>
+                            <Typography>Order Products</Typography>
+                            <Typography
+                              type="body-sm"
+                              color="muted"
+                              weight="normal"
+                            >
+                              Find new products offered by your suppliers.
+                            </Typography>
+                            <div className="w-full flex flex-col md:flex-row gap-2 sticky top-0 z-1 my-3">
+                              <TextField className="w-full" name="text">
+                                <InputGroup className="w-full">
+                                  <InputGroup.Prefix>
+                                    <Magnifier className="size-4 text-muted" />
+                                  </InputGroup.Prefix>
+                                  <InputGroup.Input
+                                    className="w-full"
+                                    placeholder="Search new product to order"
+                                    value={itemOrderSearch}
+                                    onChange={(e) =>
+                                      setSearchItemOrder(e.target.value)
+                                    }
+                                  />
+                                </InputGroup>
+                              </TextField>
+
+                              <ProductCategoryDropdown
+                                className="w-full md:w-[400px]"
+                                selectedIds={orderCategorySelected}
+                                onSelectionChange={setOrderCategorySelected}
+                              />
+                            </div>
+                          </Modal.Heading>
+                        </Modal.Header>
+                        <Modal.Body className="max-h-full overflow-hidden">
+                          <div className="flex h-full min-h-96 gap-3">
+                            <div className="min-w-0 flex-1 overflow-y-auto scrollbar-thin">
+                              <div
+                                className={
+                                  cartItems.length > 0
+                                    ? "grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4"
+                                    : "grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-5"
+                                }
+                              >
+                                {spProducts.map((data) => (
+                                  <OrderProductModalCard
+                                    key={data.id}
+                                    id={data.id}
+                                    name={data.prodname}
+                                    description={data.description}
+                                    imagePath={data.image_path}
+                                    category={data.category}
+                                    supplier_name={data.supplier_name}
+                                    supplier_id={data.supplier_id}
+                                    wholesalePrice={data.wholesale_price}
+                                    onOrder={handleOrder}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            {CartList()}
+                          </div>
+                        </Modal.Body>
+                        <Modal.Footer>
+                          <Typography type="body-xs" color="muted">
+                            Up-to-date products offered by all suppliers.
+                          </Typography>
+                        </Modal.Footer>
+                      </Modal.Dialog>
+                    </Modal.Container>
+                  </Modal.Backdrop>
+                </Modal>
+              </>
+>>>>>>> Stashed changes
             )}
           </div>
         </div>

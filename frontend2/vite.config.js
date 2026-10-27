@@ -11,11 +11,15 @@ export default defineConfig({
     },
     proxy: {
       "/backend": {
+<<<<<<< Updated upstream
 <<<<<<< HEAD
         target: "http://localhost/Projects/IM2/SalesAndExpenseMgmtSystem",
 =======
         target: "http://localhost/SalesAndExpenseMgmtSystem",
 >>>>>>> 5544821 (staff Manager)
+=======
+        target: "http://localhost/Projects/SalesAndExpenseMgmtSystem",
+>>>>>>> Stashed changes
         changeOrigin: true,
       },
     },

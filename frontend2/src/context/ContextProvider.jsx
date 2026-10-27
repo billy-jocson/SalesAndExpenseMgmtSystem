@@ -3,8 +3,24 @@ import { ROLE_PERMISSIONS, userContext } from "./UserContext";
 
 function getStoredUser() {
   try {
+<<<<<<< Updated upstream
     const session = JSON.parse(sessionStorage.getItem("data"));
     return session?.user ?? session ?? null;
+=======
+    const token = sessionStorage.getItem("data");
+    if (!token) return null;
+
+    let actualToken;
+    try {
+      const parsed = JSON.parse(token);
+      actualToken =
+        typeof parsed === "string" ? parsed : (parsed?.user ?? null);
+    } catch {
+      actualToken = token;
+    }
+
+    return actualToken ? jwtDecode(actualToken) : null;
+>>>>>>> Stashed changes
   } catch {
     return null;
   }

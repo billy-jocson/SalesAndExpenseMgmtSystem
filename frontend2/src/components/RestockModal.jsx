@@ -14,6 +14,27 @@ import { useState } from "react";
 import { parseDate } from "@internationalized/date";
 import { restockProduct } from "../api/productmanager.js";
 
+export const requestRestock = async ({
+  storeProductId,
+  supplierProductId,
+  supplierId,
+  quantity,
+  requestedBy,
+  paymentMethod = "Cash",
+  referenceCode = "",
+}) => {
+  return createPendingOrder({
+    orderType: "RESTOCK",
+    supplierProductId,
+    storeProductId,
+    supplierId,
+    quantity,
+    requestedBy,
+    paymentMethod,
+    referenceCode,
+  });
+};
+
 export default function RestockModal({ product, onSuccess }) {
   const [isOpen, setIsOpen] = useState(false);
   const [quantity, setQuantity] = useState("");
@@ -127,3 +148,5 @@ export default function RestockModal({ product, onSuccess }) {
     </Modal>
   );
 }
+
+

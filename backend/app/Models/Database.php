@@ -7,8 +7,12 @@ use mysqli_sql_exception;
 
 class Database
 {
+<<<<<<< Updated upstream
     private $host = 'localhost';
     private $port = 3307;
+=======
+    private $host = 'localhost:3306';
+>>>>>>> Stashed changes
     private $dbname = 'inventory_system';
     private $username = 'root';
     private $password = '';
